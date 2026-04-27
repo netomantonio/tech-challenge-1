@@ -203,23 +203,79 @@ def avaliar_modelo(y_real, y_pred, nome_modelo='Modelo'):
     }
     return metricas
 
+def avaliar_modelo_cancer_mama(y_real, y_pred, nome_modelo='Modelo'):
+    """
+    Calcula métricas de avaliação para modelos de classificação no contexto
+    de diagnóstico de câncer de mama.
+
+    Além das métricas gerais ponderadas, também calcula métricas específicas
+    para a classe Maligno, pois neste problema os falsos negativos são mais
+    críticos. Um falso negativo ocorre quando um caso maligno é classificado
+    como benigno.
+
+    Observação:
+        Esta função considera que:
+        0 = Maligno
+        1 = Benigno
+
+    Parâmetros:
+        y_real: valores reais das classes.
+        y_pred: valores previstos pelo modelo.
+        nome_modelo: nome do modelo avaliado.
+
+    Retorna:
+        dict: dicionário com acurácia, precisão ponderada, recall ponderado,
+        F1-score ponderado, recall maligno, F1-score maligno e quantidade de
+        falsos negativos para a classe Maligno.
+    """
+    metricas = {
+        'Modelo': nome_modelo,
+        'Acurácia': accuracy_score(y_real, y_pred),
+        'Precisão Weighted': precision_score(y_real, y_pred, average='weighted'),
+        'Recall Weighted': recall_score(y_real, y_pred, average='weighted'),
+        'F1-Score Weighted': f1_score(y_real, y_pred, average='weighted'),
+        'Recall Maligno': recall_score(y_real, y_pred, pos_label=0),
+        'F1-Score Maligno': f1_score(y_real, y_pred, pos_label=0)
+    }
+
+    cm = confusion_matrix(y_real, y_pred, labels=[0, 1])
+    metricas['Falsos Negativos Maligno'] = cm[0, 1]
+
+    return metricas
 
 def comparar_modelos(lista_metricas):
     """
     Cria uma tabela comparativa com as métricas de vários modelos.
 
     Parâmetros:
-        lista_metricas: lista de dicts retornados por avaliar_modelo()
+        lista_metricas: lista de dicts retornados por avaliar_modelo_cancer_mama()
 
     Retorna:
-        DataFrame com a comparação
+        DataFrame com a comparação e tabela formatada
     """
     df_comparacao = pd.DataFrame(lista_metricas)
     df_comparacao = df_comparacao.set_index('Modelo')
 
-    # Formatar como porcentagem
-    df_formatado = df_comparacao.style.format('{:.4f}').highlight_max(
-        axis=0, color='lightgreen'
+    # Colunas em que o maior valor é melhor
+    colunas_maior_melhor = [
+        coluna for coluna in df_comparacao.columns
+        if coluna != 'Falsos Negativos Maligno'
+    ]
+
+    # Formatação da tabela
+    df_formatado = (
+        df_comparacao.style
+        .format({
+            'Acurácia': '{:.4f}',
+            'Precisão Weighted': '{:.4f}',
+            'Recall Weighted': '{:.4f}',
+            'F1-Score Weighted': '{:.4f}',
+            'Recall Maligno': '{:.4f}',
+            'F1-Score Maligno': '{:.4f}',
+            'Falsos Negativos Maligno': '{:.0f}'
+        })
+        .highlight_max(subset=colunas_maior_melhor, color='lightgreen')
+        .highlight_min(subset=['Falsos Negativos Maligno'], color='lightgreen')
     )
 
     return df_comparacao, df_formatado
