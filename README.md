@@ -11,7 +11,7 @@ Sistema inteligente de suporte ao diagnóstico médico, desenvolvido como parte 
 **Câncer de Mama Wisconsin (Diagnostic)**
 - Fonte: https://www.kaggle.com/datasets/uciml/breast-cancer-wisconsin-data/data
 - 569 amostras, 30 features numéricas
-- Classes: Maligno (0) e Benigno (1)
+- Classes (diagnóstico): Maligno = 0 e Benigno = 1
 
 > **Observação:** o arquivo `.csv` do dataset **não é versionado** no repositório. Ele é baixado automaticamente ao executar `python data/download_datasets.py` (passo obrigatório antes de rodar o notebook).
 
@@ -32,13 +32,13 @@ tech-challenge/
 ├── requirements.txt               # Dependências Python
 ├── data/
 │   ├── download_datasets.py       # Script para baixar o dataset
-│   └── cancer_mama.csv            # ⚠️ Não versionado — gerado pelo script
+│   └── cancer_mama.csv            # Não versionado — gerado pelo script
 ├── src/
 │   ├── __init__.py
 │   └── utils.py                   # Funções auxiliares (visualização, métricas)
 ├── notebooks/
 │   └── 01_cancer_mama.ipynb       # Pipeline completo - Câncer de Mama
-└── resultados/                    # ⚠️ Não versionado — gráficos gerados pelo notebook
+└── resultados/                    # Não versionado — gráficos gerados pelo notebook
 ```
 
 > Itens marcados como **não versionados** estão no `.gitignore` por serem reproduzíveis: o `.csv` é baixado pelo `download_datasets.py` e os arquivos em `resultados/` são exportados pelo notebook durante a execução.

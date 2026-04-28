@@ -3,11 +3,9 @@ Script para download dos datasets utilizados no projeto.
 
 Datasets:
 1. Cancer de Mama Wisconsin - baixado do Kaggle via kagglehub
-2. Diabetes Pima Indians - baixado via URL
 
 Fontes originais:
 - Cancer de Mama: https://www.kaggle.com/datasets/uciml/breast-cancer-wisconsin-data/data
-- Diabetes: https://www.kaggle.com/datasets/mathchi/diabetes-data-set/data
 """
 
 from __future__ import annotations
@@ -80,39 +78,6 @@ def baixar_cancer_mama() -> pd.DataFrame:
     return df
 
 
-def baixar_diabetes() -> pd.DataFrame:
-    """
-    Baixa o dataset de diabetes Pima Indians via URL.
-
-    Fonte original no Kaggle:
-    https://www.kaggle.com/datasets/mathchi/diabetes-data-set/data
-
-    Aqui usamos uma copia acessivel via URL direta.
-    """
-    print("Carregando dataset de Diabetes Pima Indians...")
-
-    url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
-    colunas = [
-        "Pregnancies",
-        "Glucose",
-        "BloodPressure",
-        "SkinThickness",
-        "Insulin",
-        "BMI",
-        "DiabetesPedigreeFunction",
-        "Age",
-        "Outcome",
-    ]
-
-    df = pd.read_csv(url, names=colunas)
-
-    out_path = _data_dir() / "diabetes.csv"
-    df.to_csv(out_path, index=False)
-    print(f"Dataset salvo em: {out_path}")
-    print(f"Formato: {df.shape[0]} amostras, {df.shape[1]} colunas")
-    return df
-
-
 if __name__ == "__main__":
     print("=" * 50)
     print("Download dos Datasets do Projeto")
@@ -121,8 +86,6 @@ if __name__ == "__main__":
 
     baixar_cancer_mama()
     print()
-    #baixar_diabetes()
 
-    print()
-    print("Todos os datasets foram baixados com sucesso!")
+    print("Dataset baixado com sucesso!")
 

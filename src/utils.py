@@ -5,14 +5,8 @@ Contém funções reutilizáveis para visualização, avaliação de modelos
 e comparação de resultados entre diferentes algoritmos de ML.
 """
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix, classification_report, roc_curve, auc
-)
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -33,7 +27,8 @@ def _salvar_se_necessario(fig, salvar_em):
     """Salva o gráfico se um caminho for fornecido."""
     if salvar_em:
         fig.savefig(salvar_em, dpi=150, bbox_inches='tight')
-        print(f"  → Gráfico salvo em: {salvar_em}")
+        # ASCII-only para evitar problemas de encoding em consoles Windows.
+        print(f"  -> Grafico salvo em: {salvar_em}")
 
 
 def plotar_distribuicao_classes(y, nomes_classes, titulo='Distribuição das Classes', salvar_em=None):
@@ -144,17 +139,18 @@ def plotar_matriz_confusao(y_real, y_pred, nomes_classes, titulo='Matriz de Conf
     plt.show()
 
 
-def plotar_curva_roc(y_real, y_prob, nome_modelo, ax=None):
+def plotar_curva_roc(y_real, y_prob, nome_modelo, ax=None, pos_label=1):
     """
     Plota a curva ROC para um modelo.
 
     Parâmetros:
         y_real: valores reais
-        y_prob: probabilidades preditas (classe positiva)
+        y_prob: score/probabilidade da classe definida em `pos_label`
         nome_modelo: nome do modelo para a legenda
         ax: eixo matplotlib (opcional)
+        pos_label: qual classe será tratada como "positiva" no cálculo (default=1)
     """
-    fpr, tpr, _ = roc_curve(y_real, y_prob)
+    fpr, tpr, _ = roc_curve(y_real, y_prob, pos_label=pos_label)
     roc_auc = auc(fpr, tpr)
 
     if ax is None:
@@ -164,7 +160,9 @@ def plotar_curva_roc(y_real, y_prob, nome_modelo, ax=None):
     return roc_auc
 
 
-def plotar_curvas_roc_comparativas(y_real, resultados, titulo='Comparação das Curvas ROC', salvar_em=None):
+def plotar_curvas_roc_comparativas(
+    y_real, resultados, titulo='Comparação das Curvas ROC', salvar_em=None, pos_label=1
+):
     """
     Plota curvas ROC de múltiplos modelos no mesmo gráfico.
 
@@ -173,11 +171,12 @@ def plotar_curvas_roc_comparativas(y_real, resultados, titulo='Comparação das 
         resultados: dict {nome_modelo: y_probabilidades}
         titulo: título do gráfico
         salvar_em: caminho para salvar o gráfico (opcional)
+        pos_label: qual classe é considerada "positiva" para ROC/AUC (default=1)
     """
     fig, ax = plt.subplots(figsize=(8, 6))
 
     for nome, y_prob in resultados.items():
-        plotar_curva_roc(y_real, y_prob, nome, ax=ax)
+        plotar_curva_roc(y_real, y_prob, nome, ax=ax, pos_label=pos_label)
 
     # Linha diagonal (classificador aleatório)
     ax.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Aleatório (AUC = 0.500)')
@@ -210,6 +209,7 @@ def avaliar_modelo(y_real, y_pred, nome_modelo='Modelo'):
         'F1-Score': f1_score(y_real, y_pred, average='weighted')
     }
     return metricas
+
 
 def avaliar_modelo_cancer_mama(y_real, y_pred, nome_modelo='Modelo'):
     """
@@ -250,6 +250,7 @@ def avaliar_modelo_cancer_mama(y_real, y_pred, nome_modelo='Modelo'):
     metricas['Falsos Negativos Maligno'] = cm[0, 1]
 
     return metricas
+
 
 def comparar_modelos(lista_metricas):
     """
