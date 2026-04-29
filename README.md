@@ -4,7 +4,7 @@
 
 ### Descrição do Projeto
 
-Sistema inteligente de suporte ao diagnóstico médico, desenvolvido como parte do Tech Challenge da Fase 1 da pós-graduação FIAP. O projeto utiliza algoritmos de Machine Learning para classificar tumores de mama como malignos ou benignos, com base em características extraídas de imagens digitalizadas de aspiração por agulha fina (FNA).
+Sistema de suporte ao diagnóstico médico, desenvolvido como parte do Tech Challenge da Fase 1 da pós-graduação FIAP. O projeto utiliza algoritmos de Machine Learning para classificar tumores de mama como malignos ou benignos, com base em características extraídas de imagens digitalizadas de aspiração por agulha fina (FNA).
 
 ### Dataset Utilizado
 
@@ -47,7 +47,8 @@ tech-challenge/
 
 - Python 3.11+
 - pip
-- Conta no Kaggle com `kaggle.json` configurado (necessário para baixar o dataset)
+
+> Observação: para este projeto, **não é necessário** ter conta/credenciais do Kaggle para baixar o dataset via `kagglehub`.
 
 ### Instalação e Execução
 
@@ -57,7 +58,7 @@ tech-challenge/
 # 1. Instalar dependências
 pip install -r requirements.txt
 
-# 2. Baixar o dataset (requer kaggle.json configurado)
+# 2. Baixar o dataset
 python data/download_datasets.py
 
 # 3. Abrir o Jupyter Notebook
@@ -78,8 +79,6 @@ docker run -p 8888:8888 tech-challenge-fase1
 
 Acesse o Jupyter Notebook pelo link exibido no terminal (geralmente http://localhost:8888).
 
-> **Atenção Docker:** o script de download do dataset precisa ser executado manualmente dentro do container, pois requer credenciais do Kaggle.
-
 ### Tecnologias Utilizadas
 
 - **Python 3.11**
@@ -88,8 +87,8 @@ Acesse o Jupyter Notebook pelo link exibido no terminal (geralmente http://local
 - **scikit-learn** - Modelos de ML, pré-processamento e métricas
 - **matplotlib / seaborn** - Visualização de dados
 - **shap** - Interpretabilidade dos modelos
-- **kagglehub** - Download do dataset via API do Kaggle
-- **jupyter** - Notebooks interativos
+- **kagglehub** - Download do dataset via Kaggle
+- **jupyter / notebook** - Notebooks interativos
 
 ### Pipeline do Notebook
 
