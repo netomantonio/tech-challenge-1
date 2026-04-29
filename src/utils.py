@@ -5,6 +5,8 @@ Contém funções reutilizáveis para visualização, avaliação de modelos
 e comparação de resultados entre diferentes algoritmos de ML.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -25,7 +27,8 @@ def _salvar_se_necessario(fig, salvar_em):
     """Salva o gráfico se um caminho for fornecido."""
     if salvar_em:
         fig.savefig(salvar_em, dpi=150, bbox_inches='tight')
-        print(f"  → Gráfico salvo em: {salvar_em}")
+        # ASCII-only para evitar problemas de encoding em consoles Windows.
+        print(f"  -> Grafico salvo em: {salvar_em}")
 
 
 def plotar_distribuicao_classes(y, nomes_classes, titulo='Distribuição das Classes', salvar_em=None):
@@ -136,17 +139,18 @@ def plotar_matriz_confusao(y_real, y_pred, nomes_classes, titulo='Matriz de Conf
     plt.show()
 
 
-def plotar_curva_roc(y_real, y_prob, nome_modelo, ax=None):
+def plotar_curva_roc(y_real, y_prob, nome_modelo, ax=None, pos_label=1):
     """
     Plota a curva ROC para um modelo.
 
     Parâmetros:
         y_real: valores reais
-        y_prob: probabilidades preditas (classe positiva)
+        y_prob: score/probabilidade da classe definida em `pos_label`
         nome_modelo: nome do modelo para a legenda
         ax: eixo matplotlib (opcional)
+        pos_label: qual classe será tratada como "positiva" no cálculo (default=1)
     """
-    fpr, tpr, _ = roc_curve(y_real, y_prob)
+    fpr, tpr, _ = roc_curve(y_real, y_prob, pos_label=pos_label)
     roc_auc = auc(fpr, tpr)
 
     if ax is None:
@@ -156,7 +160,9 @@ def plotar_curva_roc(y_real, y_prob, nome_modelo, ax=None):
     return roc_auc
 
 
-def plotar_curvas_roc_comparativas(y_real, resultados, titulo='Comparação das Curvas ROC', salvar_em=None):
+def plotar_curvas_roc_comparativas(
+    y_real, resultados, titulo='Comparação das Curvas ROC', salvar_em=None, pos_label=1
+):
     """
     Plota curvas ROC de múltiplos modelos no mesmo gráfico.
 
@@ -165,11 +171,12 @@ def plotar_curvas_roc_comparativas(y_real, resultados, titulo='Comparação das 
         resultados: dict {nome_modelo: y_probabilidades}
         titulo: título do gráfico
         salvar_em: caminho para salvar o gráfico (opcional)
+        pos_label: qual classe é considerada "positiva" para ROC/AUC (default=1)
     """
     fig, ax = plt.subplots(figsize=(8, 6))
 
     for nome, y_prob in resultados.items():
-        plotar_curva_roc(y_real, y_prob, nome, ax=ax)
+        plotar_curva_roc(y_real, y_prob, nome, ax=ax, pos_label=pos_label)
 
     # Linha diagonal (classificador aleatório)
     ax.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Aleatório (AUC = 0.500)')
@@ -204,22 +211,80 @@ def avaliar_modelo(y_real, y_pred, nome_modelo='Modelo'):
     return metricas
 
 
+def avaliar_modelo_cancer_mama(y_real, y_pred, nome_modelo='Modelo'):
+    """
+    Calcula métricas de avaliação para modelos de classificação no contexto
+    de diagnóstico de câncer de mama.
+
+    Além das métricas gerais ponderadas, também calcula métricas específicas
+    para a classe Maligno, pois neste problema os falsos negativos são mais
+    críticos. Um falso negativo ocorre quando um caso maligno é classificado
+    como benigno.
+
+    Observação:
+        Esta função considera que:
+        0 = Maligno
+        1 = Benigno
+
+    Parâmetros:
+        y_real: valores reais das classes.
+        y_pred: valores previstos pelo modelo.
+        nome_modelo: nome do modelo avaliado.
+
+    Retorna:
+        dict: dicionário com acurácia, precisão ponderada, recall ponderado,
+        F1-score ponderado, recall maligno, F1-score maligno e quantidade de
+        falsos negativos para a classe Maligno.
+    """
+    metricas = {
+        'Modelo': nome_modelo,
+        'Acurácia': accuracy_score(y_real, y_pred),
+        'Precisão Weighted': precision_score(y_real, y_pred, average='weighted'),
+        'Recall Weighted': recall_score(y_real, y_pred, average='weighted'),
+        'F1-Score Weighted': f1_score(y_real, y_pred, average='weighted'),
+        'Recall Maligno': recall_score(y_real, y_pred, pos_label=0),
+        'F1-Score Maligno': f1_score(y_real, y_pred, pos_label=0)
+    }
+
+    cm = confusion_matrix(y_real, y_pred, labels=[0, 1])
+    metricas['Falsos Negativos Maligno'] = cm[0, 1]
+
+    return metricas
+
+
 def comparar_modelos(lista_metricas):
     """
     Cria uma tabela comparativa com as métricas de vários modelos.
 
     Parâmetros:
-        lista_metricas: lista de dicts retornados por avaliar_modelo()
+        lista_metricas: lista de dicts retornados por avaliar_modelo_cancer_mama()
 
     Retorna:
-        DataFrame com a comparação
+        DataFrame com a comparação e tabela formatada
     """
     df_comparacao = pd.DataFrame(lista_metricas)
     df_comparacao = df_comparacao.set_index('Modelo')
 
-    # Formatar como porcentagem
-    df_formatado = df_comparacao.style.format('{:.4f}').highlight_max(
-        axis=0, color='lightgreen'
+    # Colunas em que o maior valor é melhor
+    colunas_maior_melhor = [
+        coluna for coluna in df_comparacao.columns
+        if coluna != 'Falsos Negativos Maligno'
+    ]
+
+    # Formatação da tabela
+    df_formatado = (
+        df_comparacao.style
+        .format({
+            'Acurácia': '{:.4f}',
+            'Precisão Weighted': '{:.4f}',
+            'Recall Weighted': '{:.4f}',
+            'F1-Score Weighted': '{:.4f}',
+            'Recall Maligno': '{:.4f}',
+            'F1-Score Maligno': '{:.4f}',
+            'Falsos Negativos Maligno': '{:.0f}'
+        })
+        .highlight_max(subset=colunas_maior_melhor, color='lightgreen')
+        .highlight_min(subset=['Falsos Negativos Maligno'], color='lightgreen')
     )
 
     return df_comparacao, df_formatado
