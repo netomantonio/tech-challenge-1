@@ -101,4 +101,4 @@ Acesse o Jupyter Notebook pelo link exibido no terminal (geralmente http://local
 
 ### Autores
 
-Alunos da FIAP Pós Tech - AI for Devs
+Antonio Miranda, Elaine, Marcos Mol, Lucas da Costa, Ricardo Loureiro - AI for Devs (9IADT)
