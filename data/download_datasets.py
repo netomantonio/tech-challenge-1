@@ -3,9 +3,11 @@ Script para download dos datasets utilizados no projeto.
 
 Datasets:
 1. Cancer de Mama Wisconsin - baixado do Kaggle via kagglehub
+2. Chest X-Ray Pneumonia   - baixado do Kaggle via kagglehub (notebook extra CNN)
 
 Fontes originais:
 - Cancer de Mama: https://www.kaggle.com/datasets/uciml/breast-cancer-wisconsin-data/data
+- Pneumonia:      https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia
 """
 
 from __future__ import annotations
@@ -78,6 +80,44 @@ def baixar_cancer_mama() -> pd.DataFrame:
     return df
 
 
+def baixar_pneumonia() -> Path:
+    """
+    Baixa o dataset 'Chest X-Ray Images (Pneumonia)' do Kaggle via kagglehub.
+    Retorna o Path para a pasta raiz do dataset (contém train/, val/, test/).
+    """
+    print("Baixando dataset de Pneumonia em Radiografias (Kaggle)...")
+
+    try:
+        import kagglehub
+    except Exception as e:
+        raise RuntimeError(
+            "Nao foi possivel importar `kagglehub`. "
+            f"Erro original: {e}"
+        ) from e
+
+    try:
+        dataset_dir = Path(kagglehub.dataset_download("paultimothymooney/chest-xray-pneumonia"))
+    except Exception as e:
+        raise RuntimeError(
+            "Falha ao baixar o dataset via Kaggle. "
+            "Verifique se voce tem credenciais do Kaggle configuradas (kaggle.json). "
+            f"Erro original: {e}"
+        ) from e
+
+    # Localiza a subpasta chest_xray dentro do diretório baixado
+    candidates = list(dataset_dir.rglob("chest_xray"))
+    chest_xray_dir = candidates[0] if candidates else dataset_dir
+
+    print(f"Dataset salvo em: {chest_xray_dir}")
+    for split in ("train", "val", "test"):
+        split_path = chest_xray_dir / split
+        if split_path.exists():
+            total = sum(1 for _ in split_path.rglob("*.*"))
+            print(f"  {split:8s}: {total} imagens")
+
+    return chest_xray_dir
+
+
 if __name__ == "__main__":
     print("=" * 50)
     print("Download dos Datasets do Projeto")
@@ -87,5 +127,8 @@ if __name__ == "__main__":
     baixar_cancer_mama()
     print()
 
-    print("Dataset baixado com sucesso!")
+    baixar_pneumonia()
+    print()
+
+    print("Todos os datasets baixados com sucesso!")
 
