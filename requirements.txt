@@ -7,6 +7,3 @@ shap==0.46.0
 jupyter==1.0.0
 notebook==7.2.1
 kagglehub
-tensorflow>=2.13.0
-pillow>=10.0.0
-opencv-python-headless>=4.8.0
