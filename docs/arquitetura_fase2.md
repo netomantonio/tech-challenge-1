@@ -18,7 +18,9 @@ Portanto, a decisao de otimizacao prioriza `recall` da classe Maligno.
 | --- | --- |
 | `notebooks/03_otimizacao_genetica_cancer_mama.ipynb` | Relatorio executavel, experimentos e visualizacoes |
 | `src/genetic_optimization.py` | Preparacao dos dados, algoritmo genetico, avaliacao e persistencia |
-| `src/api.py` | API FastAPI para inferencia, health checks, metricas e logging |
+| `src/api.py` | API FastAPI para inferencia, interpretacao, health checks, metricas e logging |
+| `src/llm_interpretation.py` | Prompt controlado e chamada a GPT pela Responses API |
+| `src/evaluate_llm.py` | Avaliacao objetiva de interpretacoes em tres casos |
 | `resultados/fase2/` | CSVs, logs, graficos e modelo serializado gerados em execucao |
 | `Dockerfile` | Imagem da camada de inferencia |
 | `deploy/k8s/` | Deployment, Service e HorizontalPodAutoscaler |
@@ -39,10 +41,13 @@ treino/teste estratificado (80/20)
       +--> avaliacao final no teste reservado
               |
               v
-       modelo campeao refeito com todos os dados
+       modelo recomendado reajustado com todos os dados
               |
               v
           modelo_serving.joblib --> FastAPI --> Service Kubernetes --> HPA
+                                      |
+                                      v
+                            GPT (explicacao controlada)
 ```
 
 ## 3. Algoritmo genetico
@@ -127,6 +132,7 @@ A API oferece:
 | `GET /health/live` | Liveness do processo |
 | `GET /health/ready` e `GET /health` | Readiness, falha se o modelo nao carregou |
 | `GET /metrics` | Exposicao Prometheus |
+| `POST /interpret` | Predicao acompanhada de explicacao em linguagem natural via GPT |
 
 Metricas Prometheus:
 
@@ -136,16 +142,49 @@ Metricas Prometheus:
 | `diagnostico_predictions_total` | Distribuicao das classes previstas |
 | `diagnostico_prediction_duration_seconds` | Latencia de inferencia |
 | `diagnostico_model_ready` | Disponibilidade do artefato no pod |
+| `diagnostico_llm_interpretations_total` | Sucessos e falhas de interpretacao |
+| `diagnostico_llm_interpretation_duration_seconds` | Latencia da chamada a GPT |
+| `diagnostico_llm_quality_score` | Resultado da rubrica automatica |
 
 As requisicoes de predicao tambem produzem logs estruturados JSON com classe,
 probabilidade maligna e identificacao do modelo, sem registrar dados do
 paciente.
 
-## 5. Escalabilidade automatica
+## 5. Interpretacao com LLM
+
+A integracao utiliza a OpenAI Responses API e o modelo configuravel
+`OPENAI_LLM_MODEL` (`gpt-4.1-mini` por padrao). O endpoint `/interpret`
+envia apenas classificacao, probabilidades e cinco contribuicoes locais, sem
+`id` nem o vetor completo de features.
+
+O prompt versionado `clinical_explanation_v1` exige linguagem apropriada ao
+contexto medico, quatro secoes padronizadas, declaracao de limitacoes e
+ausencia de prescricao. A qualidade pode ser avaliada com:
+
+```bash
+python -m src.evaluate_llm
+```
+
+O comando requer `OPENAI_API_KEY` e produz os arquivos
+`avaliacao_interpretacoes_llm.csv` e `interpretacoes_llm.json`. Sem chave, a
+integracao permanece testavel com cliente simulado, mas nao produz avaliacao
+de respostas reais.
+
+Documentacao oficial utilizada:
+
+- https://platform.openai.com/docs/guides/text-generation
+- https://developers.openai.com/api/docs/models/gpt-4.1-mini
+
+## 6. Escalabilidade automatica
 
 O `Deployment` executa inicialmente duas replicas da API, com `requests` e
 `limits` de CPU/memoria definidos. Esses `requests` sao necessarios para que
 o HPA avalie utilizacao de CPU de forma coerente.
+
+O modelo GPT e configurado por `OPENAI_LLM_MODEL`. A variavel
+`OPENAI_API_KEY` e obtida opcionalmente do Secret
+`cancer-mama-llm-secrets`: sem esse Secret, predicoes continuam disponiveis,
+mas `POST /interpret` retorna indisponibilidade da LLM.
 
 O `HorizontalPodAutoscaler` utiliza `autoscaling/v2`:
 
@@ -158,7 +197,7 @@ Em Kubernetes, o HPA por CPU depende do `metrics-server` instalado no cluster.
 Prometheus e opcional para o HPA configurado, mas necessario para dashboards e
 alertas baseados em latencia, erros ou distribuicao de predicoes.
 
-## 6. Execucao
+## 7. Execucao
 
 Na raiz do repositorio:
 
@@ -169,6 +208,8 @@ python -m src.genetic_optimization --data data/cancer_mama.csv --output resultad
 python src/api.py
 # ou:
 uvicorn src.api:app --host 0.0.0.0 --port 8000
+# apos configurar OPENAI_API_KEY:
+python -m src.evaluate_llm
 ```
 
 Ou abra e execute `notebooks/03_otimizacao_genetica_cancer_mama.ipynb`.
@@ -180,6 +221,7 @@ serving:
 
 ```bash
 docker build -t tech-challenge-fase2-api:latest .
+kubectl create secret generic cancer-mama-llm-secrets --from-literal=openai-api-key="$OPENAI_API_KEY"
 kubectl apply -k deploy/k8s
 kubectl get deployment,service,hpa
 ```
@@ -192,11 +234,12 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -
 curl http://localhost:8000/metrics
 ```
 
-## 7. Limitacoes e decisoes de producao
+## 8. Limitacoes e decisoes de producao
 
 - O artefato da API e pequeno e esta incluido para tornar a demonstracao
   reprodutivel; ele tambem pode ser regerado pelo pipeline de treinamento.
 - O dataset possui apenas 569 casos e nao constitui validacao externa.
 - Nao ha autenticacao ou criptografia configuradas na API demonstrativa; em
   ambiente clinico esses controles seriam obrigatorios.
+- As explicacoes da LLM exigem revisao especializada e nao sao diagnosticos.
 - Predicoes devem apoiar revisao medica, nunca substituir diagnostico clinico.

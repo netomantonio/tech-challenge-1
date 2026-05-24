@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from fastapi import HTTPException
 
@@ -15,9 +17,40 @@ from src.genetic_optimization import (
     load_cancer_data,
     run_all_experiments,
 )
+from src.llm_interpretation import (
+    FeatureEvidence,
+    LLMInterpretation,
+    LLMUnavailableError,
+    ModelResult,
+    build_interpretation_prompt,
+    evaluate_interpretation_quality,
+    generate_interpretation,
+)
 
 
 DATA_PATH = Path("data/cancer_mama.csv")
+FAKE_INTERPRETATION = """RESUMO DO RESULTADO
+O resultado do modelo indica classificacao estimada Maligno, com probabilidade de malignidade de 98,00%.
+
+EVIDENCIAS DO MODELO
+As evidencias numericas fornecidas direcionam a classificacao estimada para Maligno.
+
+PONTOS PARA REVISAO CLINICA
+Recomenda-se revisao clinica por profissional e confirmacao conforme protocolo local.
+
+LIMITACOES E SEGURANCA
+Esta explicacao nao constitui diagnostico medico; o dataset e academico e sem validacao externa."""
+
+
+class FakeResponses:
+    def create(self, **kwargs):
+        self.kwargs = kwargs
+        return type("FakeResponse", (), {"output_text": FAKE_INTERPRETATION})()
+
+
+class FakeOpenAIClient:
+    def __init__(self) -> None:
+        self.responses = FakeResponses()
 
 
 class PhaseTwoContractTests(unittest.TestCase):
@@ -81,6 +114,39 @@ class PhaseTwoContractTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as context:
             self.api.predict(payload)
         self.assertEqual(context.exception.status_code, 422)
+
+    def test_prompt_and_quality_check_are_clinically_constrained(self) -> None:
+        result = ModelResult(0, "Maligno", 0.98, 0.02, "Regressao Logistica")
+        evidence = [FeatureEvidence("radius_worst", 25.0, -2.1, "Maligno")]
+        prompt = build_interpretation_prompt(result, evidence)
+        self.assertIn("Probabilidade estimada de malignidade: 98.00%", prompt)
+        interpretation = generate_interpretation(
+            result, evidence, client=FakeOpenAIClient(), model_name="gpt-test"
+        )
+        quality = evaluate_interpretation_quality(interpretation.explanation, "Maligno")
+        self.assertEqual(interpretation.llm_model, "gpt-test")
+        self.assertEqual(quality["score_objetivo"], 1.0)
+
+    def test_api_interpret_uses_llm_explanation(self) -> None:
+        payload = self.api.PredictRequest(features=self.features.iloc[0].to_dict())
+        fake = LLMInterpretation(
+            explanation=FAKE_INTERPRETATION,
+            llm_model="gpt-test",
+            prompt_version="clinical_explanation_v1",
+            disclaimer="Nao constitui diagnostico.",
+            evidence=[],
+        )
+        with patch.object(self.api, "generate_interpretation", return_value=fake):
+            response = self.api.interpret(payload)
+        self.assertEqual(response.llm_model, "gpt-test")
+        self.assertEqual(response.quality_checks["score_objetivo"], 1.0)
+
+    def test_api_interpret_reports_missing_api_key(self) -> None:
+        payload = self.api.PredictRequest(features=self.features.iloc[0].to_dict())
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(HTTPException) as context:
+                self.api.interpret(payload)
+        self.assertEqual(context.exception.status_code, 503)
 
 
 if __name__ == "__main__":

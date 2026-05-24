@@ -25,6 +25,14 @@ spec:
           env:
             - name: MODEL_PATH
               value: /app/resultados/fase2/modelo_serving.joblib
+            - name: OPENAI_LLM_MODEL
+              value: gpt-4.1-mini
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cancer-mama-llm-secrets
+                  key: openai-api-key
+                  optional: true
           ports:
             - name: http
               containerPort: 8000

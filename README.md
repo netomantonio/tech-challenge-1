@@ -4,7 +4,7 @@
 
 Este repositório reúne o projeto original de diagnóstico de câncer de mama
 desenvolvido na Fase 1 e sua continuação na Fase 2, voltada à otimização de
-hiperparâmetros e à demonstração de escalabilidade.
+hiperparâmetros, escalabilidade e interpretação de resultados com LLM.
 
 O projeto usa o **Wisconsin Breast Cancer Diagnostic Dataset** para classificar
 tumores como:
@@ -60,11 +60,13 @@ deixar passar apenas um caso maligno no conjunto de teste.
 - Relatório técnico: `relatorio_tecnico_01_cancer_mama.md`
 - Relatório técnico em PDF: `relatorio_tecnico_01_cancer_mama.pdf`
 
-## Fase 2 - Otimização e Escalabilidade
+## Fase 2 - Otimização, Escalabilidade e LLM
 
 A Fase 2 estende o pipeline original com algoritmo genético para otimização
 dos três modelos, comparação com os baselines, logging, monitoramento e uma
-API mínima para sustentar a configuração de autoscaling.
+API mínima para sustentar a configuração de autoscaling. A API também integra
+GPT para explicar resultados em linguagem natural sob restrições de segurança
+para contexto médico.
 
 ### Entregas Atendidas
 
@@ -78,6 +80,9 @@ API mínima para sustentar a configuração de autoscaling.
 | Monitoramento e logging | Logs de treinamento e API com métricas Prometheus |
 | Escalabilidade automática | API containerizada e `HorizontalPodAutoscaler` em `deploy/k8s/` |
 | Arquitetura e decisões | `docs/arquitetura_fase2.md` e `relatorio_tecnico_fase2.md` |
+| Integração com LLM | `src/llm_interpretation.py` e endpoint `POST /interpret` |
+| Prompt engineering | Instruções clínicas versionadas em `clinical_explanation_v1` |
+| Avaliação da interpretação | `src/evaluate_llm.py` e notebook `04_interpretacao_llm_cancer_mama.ipynb` |
 
 ## Estrutura do Repositório
 
@@ -94,6 +99,7 @@ docs/
 notebooks/
   01_cancer_mama.ipynb
   03_otimizacao_genetica_cancer_mama.ipynb
+  04_interpretacao_llm_cancer_mama.ipynb
 resultados/fase2/
   comparacao_baseline_otimizados.csv
   experimentos_ga.csv
@@ -101,9 +107,13 @@ resultados/fase2/
   modelo_serving.joblib
   resumo_execucao.json
   treinamento_ga.log
+  avaliacao_interpretacoes_llm.csv  # gerado com OPENAI_API_KEY
+  interpretacoes_llm.json           # gerado com OPENAI_API_KEY
 src/
   api.py
+  evaluate_llm.py
   genetic_optimization.py
+  llm_interpretation.py
   utils.py
 tests/
   test_fase2.py
@@ -142,6 +152,31 @@ Regressão Logística original no teste reservado. Por isso, a API demonstrativa
 utiliza o baseline logístico como modelo recomendado, em vez de publicar uma
 variante otimizada inferior.
 
+### Interpretação com GPT
+
+O endpoint `POST /interpret` utiliza a OpenAI Responses API com o modelo
+`gpt-4.1-mini` por padrão. A LLM recebe a classificação, as probabilidades e
+as cinco evidências locais mais relevantes do modelo, sem identificadores, e
+devolve uma explicação estruturada para revisão profissional.
+
+O prompt exige quatro seções (`Resumo`, `Evidências`, `Pontos para Revisão
+Clínica` e `Limitações e Segurança`), proíbe prescrição e exige declarar que a
+saída não constitui diagnóstico confirmado.
+
+Para gerar interpretações reais:
+
+```powershell
+$env:OPENAI_API_KEY="sua-chave"
+$env:OPENAI_LLM_MODEL="gpt-4.1-mini"  # opcional
+python -m src.evaluate_llm
+```
+
+Esse comando avalia três casos representativos (maligno de alta
+probabilidade, benigno de alta probabilidade e caso próximo ao limiar) e
+salva a rubrica objetiva em `resultados/fase2/avaliacao_interpretacoes_llm.csv`.
+Sem `OPENAI_API_KEY`, o fluxo local, o prompt e os testes funcionam, mas não
+há resposta real de LLM para reportar.
+
 ## Execução Local
 
 ```bash
@@ -162,8 +197,10 @@ python -m src.genetic_optimization --data data/cancer_mama.csv --output resultad
 python src/api.py
 ```
 
-O notebook principal da Fase 2 é
-`notebooks/03_otimizacao_genetica_cancer_mama.ipynb`.
+Os notebooks da Fase 2 são:
+
+- `notebooks/03_otimizacao_genetica_cancer_mama.ipynb`: otimização genética;
+- `notebooks/04_interpretacao_llm_cancer_mama.ipynb`: interpretação com GPT e avaliação.
 
 Com a API em execução:
 
@@ -171,13 +208,21 @@ Com a API em execução:
 - Health check: `http://127.0.0.1:8000/health`
 - Métricas Prometheus: `http://127.0.0.1:8000/metrics`
 
+Com `OPENAI_API_KEY` configurada, a Swagger UI também permite testar
+`POST /interpret`.
+
 ## Container e Autoscaling
 
 ```bash
 docker build -t tech-challenge-fase2-api:latest .
+# somente para habilitar POST /interpret no cluster:
+kubectl create secret generic cancer-mama-llm-secrets --from-literal=openai-api-key="$OPENAI_API_KEY"
 kubectl apply -k deploy/k8s
 kubectl get deployment,service,hpa
 ```
+
+Sem o Secret da chave, a API continua disponivel para `/predict`, enquanto
+`/interpret` informa que a LLM nao esta configurada.
 
 O HPA mantém entre 2 e 10 réplicas da API e escala com alvo de 60% de
 utilização média de CPU. O cluster deve possuir `metrics-server`.

@@ -147,7 +147,61 @@ O scale-down aguarda 300 segundos para reduzir oscilacoes de replicas. O
 cluster precisa do `metrics-server` para o HPA de CPU; Prometheus pode coletar
 `/metrics` para dashboards e alertas.
 
-## 7. Reproducao
+## 7. Integracao com LLM para interpretacao
+
+A camada de interpretacao foi implementada em `src/llm_interpretation.py` e
+integrada a API pelo endpoint `POST /interpret`. A integracao usa GPT por meio
+da OpenAI Responses API, com `gpt-4.1-mini` como modelo padrao configuravel.
+
+A LLM nao recebe identificador do paciente. O contexto enviado contem:
+
+- classe prevista e probabilidades de malignidade/benignidade;
+- as cinco contribuicoes locais de maior magnitude da Regressao Logistica;
+- instrucoes fixas para produzir texto orientado a revisao profissional.
+
+### 7.1 Prompt engineering
+
+O prompt `clinical_explanation_v1` obriga quatro secoes:
+
+1. `RESUMO DO RESULTADO`;
+2. `EVIDENCIAS DO MODELO`;
+3. `PONTOS PARA REVISAO CLINICA`;
+4. `LIMITACOES E SEGURANCA`.
+
+As instrucoes impedem que a resposta declare diagnostico confirmado ou
+prescreva tratamento. Tambem exigem a mencao da natureza academica do modelo,
+ausencia de validacao externa e necessidade de revisao clinica.
+
+### 7.2 Avaliacao de qualidade
+
+O modulo `src/evaluate_llm.py` seleciona tres casos representativos:
+
+| Caso | Objetivo |
+| --- | --- |
+| Alto risco maligno | Avaliar clareza em resultado de alerta |
+| Alto risco benigno | Verificar se a resposta evita falsa seguranca |
+| Caso proximo do limiar | Avaliar comunicacao de maior incerteza |
+
+Cada interpretacao e avaliada por uma rubrica objetiva que verifica classe
+prevista, probabilidade, secoes exigidas, limitacao explicita, orientacao de
+revisao profissional e ausencia de prescricao. O endpoint tambem expoe
+contagem, latencia e distribuicao dessa pontuacao em `/metrics`.
+
+Neste ambiente, `OPENAI_API_KEY` nao estava configurada; portanto, nenhuma
+resposta real da LLM foi fabricada ou reportada. O fluxo foi validado com
+cliente simulado em testes automatizados, e a geracao das tabelas reais pode
+ser executada com:
+
+```bash
+python -m src.evaluate_llm
+```
+
+Apos configurar `OPENAI_API_KEY`, esse comando gera
+`avaliacao_interpretacoes_llm.csv` e `interpretacoes_llm.json` em
+`resultados/fase2/`. A avaliacao automatica deve ser complementada por
+avaliacao humana especializada antes de qualquer uso clinico.
+
+## 8. Reproducao
 
 ```bash
 pip install -r requirements.txt
@@ -156,11 +210,12 @@ python -m src.genetic_optimization --data data/cancer_mama.csv --output resultad
 uvicorn src.api:app --host 0.0.0.0 --port 8000
 ```
 
-O notebook executado com as tabelas e graficos encontra-se em
-`notebooks/03_otimizacao_genetica_cancer_mama.ipynb`. A documentacao detalhada
+Os notebooks executaveis encontram-se em
+`notebooks/03_otimizacao_genetica_cancer_mama.ipynb` e
+`notebooks/04_interpretacao_llm_cancer_mama.ipynb`. A documentacao detalhada
 da arquitetura encontra-se em `docs/arquitetura_fase2.md`.
 
-## 8. Limitacoes
+## 9. Limitacoes
 
 - O numero de amostras e baixo para concluir desempenho clinico.
 - Nao foi feita validacao com dados externos.
