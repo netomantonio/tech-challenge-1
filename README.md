@@ -102,3 +102,50 @@ Acesse o Jupyter Notebook pelo link exibido no terminal (geralmente http://local
 ### Autores
 
 Antonio Miranda, Elaine, Marcos Mol, Lucas da Costa, Ricardo Loureiro - AI for Devs (9IADT)
+
+## Tech Challenge - Fase 2 | Otimização Genética e Escalabilidade
+
+A continuação do Projeto 1 usa o mesmo dataset de câncer de mama e os mesmos
+três modelos para implementar otimização de hiperparâmetros via algoritmo
+genético. A métrica prioritária continua sendo o `recall` da classe Maligno.
+
+### Entregáveis da Fase 2
+
+| Arquivo | Finalidade |
+| --- | --- |
+| `notebooks/03_otimizacao_genetica_cancer_mama.ipynb` | Notebook principal com três experimentos do AG e comparação com a Fase 1 |
+| `src/genetic_optimization.py` | Implementação dos genes, seleção, cruzamento, mutação, fitness, logging e persistência do modelo |
+| `src/api.py` | API de inferência com endpoints de saúde e métricas Prometheus |
+| `relatorio_tecnico_fase2.md` | Resultados obtidos e análise crítica da comparação |
+| `docs/arquitetura_fase2.md` | Arquitetura, decisões, observabilidade e execução |
+| `deploy/k8s/` | `Deployment`, `Service` e `HorizontalPodAutoscaler` |
+| `Dockerfile.api` | Container da API escalável |
+
+### Execução da Otimização
+
+```bash
+pip install -r requirements.txt
+python data/download_datasets.py
+python -m src.genetic_optimization --data data/cancer_mama.csv --output resultados/fase2
+```
+
+Também é possível executar diretamente o notebook
+`notebooks/03_otimizacao_genetica_cancer_mama.ipynb`.
+
+Os resultados gerados incluem tabelas CSV, histórico de fitness, log de
+treinamento e `resultados/fase2/modelo_ga_campeao.joblib`. A pasta
+`resultados/` permanece ignorada pelo Git por conter artefatos reproduzíveis.
+
+### API, Métricas e Autoscaling
+
+Após gerar o modelo:
+
+```bash
+uvicorn src.api:app --host 0.0.0.0 --port 8000
+docker build -f Dockerfile.api -t tech-challenge-fase2-api:latest .
+kubectl apply -k deploy/k8s
+```
+
+A API fornece `POST /predict`, `GET /health`, `GET /health/live`,
+`GET /health/ready` e `GET /metrics`. O HPA mantém de 2 a 10 réplicas da API,
+escalando quando a utilização média de CPU ultrapassa 60%.
