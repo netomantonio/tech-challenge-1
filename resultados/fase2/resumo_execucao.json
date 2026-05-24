@@ -1,0 +1,132 @@
+{
+  "random_state": 42,
+  "fitness_formula": "0.65 * recall_maligno + 0.25 * f1_maligno + 0.10 * accuracy",
+  "train_samples": 455,
+  "test_samples": 114,
+  "experiments": [
+    {
+      "name": "E1_pop_pequena_mutacao_baixa",
+      "population_size": 8,
+      "generations": 6,
+      "crossover_rate": 0.8,
+      "mutation_rate": 0.08,
+      "tournament_size": 3,
+      "elite_count": 1,
+      "seed": 42
+    },
+    {
+      "name": "E2_balanceado",
+      "population_size": 12,
+      "generations": 8,
+      "crossover_rate": 0.85,
+      "mutation_rate": 0.15,
+      "tournament_size": 3,
+      "elite_count": 1,
+      "seed": 84
+    },
+    {
+      "name": "E3_exploratorio",
+      "population_size": 16,
+      "generations": 10,
+      "crossover_rate": 0.9,
+      "mutation_rate": 0.3,
+      "tournament_size": 3,
+      "elite_count": 1,
+      "seed": 126
+    }
+  ],
+  "selected_models": {
+    "logistic_regression": {
+      "experiment": "E2_balanceado",
+      "parameters": {
+        "C": 1.0,
+        "penalty": "l2",
+        "class_weight": "balanced"
+      },
+      "cv_metrics": {
+        "recall_maligno": 0.9764705882352942,
+        "f1_maligno": 0.9710070764191465,
+        "accuracy": 0.9780219780219781,
+        "fitness": 0.9752598492599257
+      }
+    },
+    "knn": {
+      "experiment": "E1_pop_pequena_mutacao_baixa",
+      "parameters": {
+        "n_neighbors": 3,
+        "weights": "distance",
+        "p": 1
+      },
+      "cv_metrics": {
+        "recall_maligno": 0.9470588235294116,
+        "f1_maligno": 0.9611860483677868,
+        "accuracy": 0.9714285714285715,
+        "fitness": 0.9530276045289214
+      }
+    },
+    "decision_tree": {
+      "experiment": "E2_balanceado",
+      "parameters": {
+        "max_depth": 5,
+        "min_samples_split": 6,
+        "min_samples_leaf": 4,
+        "criterion": "gini",
+        "class_weight": null
+      },
+      "cv_metrics": {
+        "recall_maligno": 0.9294117647058823,
+        "f1_maligno": 0.9183314827650406,
+        "accuracy": 0.9384615384615385,
+        "fitness": 0.9275466715962375
+      }
+    }
+  },
+  "best_optimized": {
+    "model": "Regressao Logistica",
+    "experiment": "E2_balanceado",
+    "parameters": {
+      "C": 1.0,
+      "penalty": "l2",
+      "class_weight": "balanced"
+    },
+    "cv_metrics": {
+      "recall_maligno": 0.9764705882352942,
+      "f1_maligno": 0.9710070764191465,
+      "accuracy": 0.9780219780219781,
+      "fitness": 0.9752598492599257
+    },
+    "test_metrics": {
+      "accuracy": 0.956140350877193,
+      "precision_weighted": 0.9580981439105009,
+      "recall_weighted": 0.956140350877193,
+      "f1_weighted": 0.9564299597121931,
+      "recall_maligno": 0.9761904761904762,
+      "f1_maligno": 0.9425287356321839,
+      "falsos_negativos_maligno": 1,
+      "auc_roc_maligno": 0.9953703703703705
+    }
+  },
+  "serving_model": {
+    "model": "Regressao Logistica",
+    "source": "baseline_fase_1",
+    "experiment": "original",
+    "parameters": {
+      "C": 1.0,
+      "class_weight": null,
+      "penalty": "l2",
+      "solver": "lbfgs"
+    },
+    "selection_basis": "Melhor resultado observado na comparacao final, priorizando recall maligno, falsos negativos e F1 maligno.",
+    "test_metrics": {
+      "accuracy": 0.9824561403508771,
+      "precision_weighted": 0.9824561403508771,
+      "recall_weighted": 0.9824561403508771,
+      "f1_weighted": 0.9824561403508771,
+      "recall_maligno": 0.9761904761904762,
+      "f1_maligno": 0.9761904761904762,
+      "falsos_negativos_maligno": 1,
+      "auc_roc_maligno": 0.9953703703703705
+    },
+    "artifact": "C:\\Users\\marco\\PycharmProjects2\\tech-challenge-1\\resultados\\fase2\\modelo_serving.joblib"
+  }
+}

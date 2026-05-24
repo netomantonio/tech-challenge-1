@@ -1,0 +1,14 @@
+.git
+.idea
+.venv
+**/__pycache__
+**/.ipynb_checkpoints
+.pytest_cache
+*.log
+notebook_cells_output.txt
+temp_nb_output.json
+
+resultados/*
+!resultados/fase2/
+resultados/fase2/*
+!resultados/fase2/modelo_serving.joblib
