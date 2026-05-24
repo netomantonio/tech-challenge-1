@@ -3,7 +3,8 @@
 This module extends the Phase 1 notebook without depending on notebook state.
 The genetic algorithm evaluates candidates only on the training partition by
 cross-validation. The held-out test partition is used after selection to
-compare the optimized models against the original baselines.
+compare the optimized models against the original baselines and define the
+demonstration model exposed by the API.
 """
 
 from __future__ import annotations
@@ -166,7 +167,9 @@ def configure_logger(output_dir: Path) -> logging.Logger:
     formatter = logging.Formatter(
         "%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
     )
-    file_handler = logging.FileHandler(output_dir / "treinamento_ga.log", encoding="utf-8")
+    file_handler = logging.FileHandler(
+        output_dir / "treinamento_ga.log", mode="w", encoding="utf-8"
+    )
     file_handler.setFormatter(formatter)
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
@@ -470,6 +473,18 @@ def _comparison_row(
     return row
 
 
+def _holdout_rank(row: dict[str, Any]) -> tuple[float, int, float, float, float]:
+    """Rank final candidates with malignant recall as the primary concern."""
+
+    return (
+        float(row["recall_maligno"]),
+        -int(row["falsos_negativos_maligno"]),
+        float(row["f1_maligno"]),
+        float(row["accuracy"]),
+        float(row["auc_roc_maligno"]),
+    )
+
+
 def run_all_experiments(
     csv_path: str | Path,
     output_dir: str | Path,
@@ -551,36 +566,60 @@ def run_all_experiments(
         )
         for model_key in GENE_SPACES
     }
-    selected_rows = [
-        row
-        for row in experiment_rows
-        if any(
-            row["modelo"] == MODEL_LABELS[model_key]
-            and row["experimento"] == selected.config.name
-            for model_key, selected in selected_by_model.items()
+    selected_rows = []
+    for model_key, selected in selected_by_model.items():
+        selected_rows.append(
+            next(
+                row
+                for row in experiment_rows
+                if row["modelo"] == MODEL_LABELS[model_key]
+                and row["experimento"] == selected.config.name
+            )
         )
-    ]
     final_comparison = pd.DataFrame(baseline_rows + selected_rows)
     all_experiments = pd.DataFrame(experiment_rows)
     history = pd.DataFrame(history_rows)
 
-    champion = max(selected_by_model.values(), key=_result_rank)
-    champion_pipeline = build_pipeline(champion.model_key, champion.best_parameters)
-    champion_test_metrics = evaluate_on_test(
-        champion_pipeline, x_train, y_train, x_test, y_test
+    best_optimized = max(selected_by_model.values(), key=_result_rank)
+    best_optimized_test_metrics = evaluate_on_test(
+        build_pipeline(best_optimized.model_key, best_optimized.best_parameters),
+        x_train,
+        y_train,
+        x_test,
+        y_test,
     )
-    # Once the honest hold-out comparison is recorded, refit the served model on all data.
-    champion_pipeline.fit(features, target)
-    artifact_path = output_path / "modelo_ga_campeao.joblib"
+
+    recommended_row = max(baseline_rows + selected_rows, key=_holdout_rank)
+    recommended_model_key = next(
+        key for key, label in MODEL_LABELS.items() if label == recommended_row["modelo"]
+    )
+    recommended_parameters = json.loads(recommended_row["parametros"])
+    serving_pipeline = build_pipeline(recommended_model_key, recommended_parameters)
+    # The API is demonstrative: after the reported comparison, fit its recommended
+    # candidate on the full available dataset for serving.
+    serving_pipeline.fit(features, target)
+    artifact_path = output_path / "modelo_serving.joblib"
     joblib.dump(
         {
-            "model": champion_pipeline,
+            "model": serving_pipeline,
             "feature_names": list(features.columns),
-            "model_key": champion.model_key,
-            "model_label": MODEL_LABELS[champion.model_key],
-            "parameters": champion.best_parameters,
-            "selection_cv_metrics": champion.best_cv_metrics,
-            "holdout_test_metrics": champion_test_metrics,
+            "model_key": recommended_model_key,
+            "model_label": MODEL_LABELS[recommended_model_key],
+            "source": recommended_row["tipo"],
+            "parameters": recommended_parameters,
+            "holdout_test_metrics": {
+                key: recommended_row[key]
+                for key in (
+                    "accuracy",
+                    "precision_weighted",
+                    "recall_weighted",
+                    "f1_weighted",
+                    "recall_maligno",
+                    "f1_maligno",
+                    "falsos_negativos_maligno",
+                    "auc_roc_maligno",
+                )
+            },
             "target_mapping": {"M": 0, "B": 1},
         },
         artifact_path,
@@ -605,22 +644,50 @@ def run_all_experiments(
             }
             for model_key, search in selected_by_model.items()
         },
-        "champion": {
-            "model": MODEL_LABELS[champion.model_key],
-            "experiment": champion.config.name,
-            "parameters": champion.best_parameters,
-            "cv_metrics": champion.best_cv_metrics,
-            "test_metrics": champion_test_metrics,
+        "best_optimized": {
+            "model": MODEL_LABELS[best_optimized.model_key],
+            "experiment": best_optimized.config.name,
+            "parameters": best_optimized.best_parameters,
+            "cv_metrics": best_optimized.best_cv_metrics,
+            "test_metrics": best_optimized_test_metrics,
+        },
+        "serving_model": {
+            "model": recommended_row["modelo"],
+            "source": recommended_row["tipo"],
+            "experiment": recommended_row["experimento"],
+            "parameters": recommended_parameters,
+            "selection_basis": (
+                "Melhor resultado observado na comparacao final, priorizando "
+                "recall maligno, falsos negativos e F1 maligno."
+            ),
+            "test_metrics": {
+                key: recommended_row[key]
+                for key in (
+                    "accuracy",
+                    "precision_weighted",
+                    "recall_weighted",
+                    "f1_weighted",
+                    "recall_maligno",
+                    "f1_maligno",
+                    "falsos_negativos_maligno",
+                    "auc_roc_maligno",
+                )
+            },
             "artifact": str(artifact_path),
         },
     }
     with (output_path / "resumo_execucao.json").open("w", encoding="utf-8") as file:
         json.dump(summary, file, ensure_ascii=False, indent=2)
     logger.info(
-        "champion model=%s experiment=%s fitness=%.5f artifact=%s",
-        champion.model_key,
-        champion.config.name,
-        champion.best_cv_metrics["fitness"],
+        "best_optimized model=%s experiment=%s fitness=%.5f",
+        best_optimized.model_key,
+        best_optimized.config.name,
+        best_optimized.best_cv_metrics["fitness"],
+    )
+    logger.info(
+        "serving_model model=%s source=%s artifact=%s",
+        recommended_model_key,
+        recommended_row["tipo"],
         artifact_path,
     )
     close_logger(logger)
@@ -651,7 +718,7 @@ def main() -> None:
     printable = result["comparison"].drop(columns=["parametros"])
     print("\nCOMPARACAO FINAL (teste reservado)")
     print(printable.round(4).to_string(index=False))
-    print(f"\nModelo persistido em: {result['artifact_path']}")
+    print(f"\nModelo disponibilizado pela API em: {result['artifact_path']}")
 
 
 if __name__ == "__main__":

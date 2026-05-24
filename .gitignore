@@ -85,8 +85,19 @@ logs/
 data/*.csv
 data/*.parquet
 
-# Resultados gerados automaticamente pela execução dos notebooks
-resultados/
+# Resultados intermediarios sao reproduziveis. Os artefatos finais da fase 2
+# ficam versionaveis para sustentar o relatorio e permitir executar a API.
+resultados/*
+!resultados/fase2/
+resultados/fase2/*
+!resultados/fase2/comparacao_baseline_otimizados.csv
+!resultados/fase2/comparacao_recall_maligno.png
+!resultados/fase2/evolucao_fitness.png
+!resultados/fase2/experimentos_ga.csv
+!resultados/fase2/historico_geracoes.csv
+!resultados/fase2/modelo_serving.joblib
+!resultados/fase2/resumo_execucao.json
+!resultados/fase2/treinamento_ga.log
 
 # Variáveis de ambiente / segredos
 .env.local
@@ -96,6 +107,7 @@ secrets.json
 
 # Docker
 .dockerignore.bak
+.claude/
 
 # Arquivos temporários do sistema operacional
 *.tmp

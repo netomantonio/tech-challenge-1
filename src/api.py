@@ -1,4 +1,4 @@
-"""HTTP inference service for the genetic-optimized breast cancer model."""
+"""HTTP inference service for the recommended breast cancer classifier."""
 
 from __future__ import annotations
 
@@ -17,7 +17,8 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, ge
 from pydantic import BaseModel, Field
 
 
-DEFAULT_MODEL_PATH = Path("resultados/fase2/modelo_ga_campeao.joblib")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_MODEL_PATH = PROJECT_ROOT / "resultados" / "fase2" / "modelo_serving.joblib"
 MODEL_PATH = Path(os.getenv("MODEL_PATH", str(DEFAULT_MODEL_PATH)))
 
 logger = logging.getLogger("diagnostico_api")
@@ -113,7 +114,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="API de Diagnostico de Cancer de Mama",
-    description="Inferencia do modelo escolhido por otimizacao genetica.",
+    description="Inferencia do modelo recomendado apos comparacao experimental.",
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -188,3 +189,17 @@ def predict(request: PredictRequest) -> PredictResponse:
     finally:
         REQUESTS.labels(endpoint="/predict", status=request_status).inc()
         PREDICTION_LATENCY.observe(time.perf_counter() - start)
+
+
+def main() -> None:
+    """Run the development API when this file is executed directly."""
+
+    import uvicorn
+
+    host = os.getenv("API_HOST", "127.0.0.1")
+    port = int(os.getenv("API_PORT", "8000"))
+    uvicorn.run(app, host=host, port=port)
+
+
+if __name__ == "__main__":
+    main()

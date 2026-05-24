@@ -103,10 +103,11 @@ converteu em melhoria no teste reservado:
 - a Arvore otimizada piorou o recall no teste.
 
 Portanto, para uma recomendacao baseada neste teste, a **Regressao Logistica
-original permanece o melhor modelo observado**. O pipeline de API persiste o
-campeao otimizado escolhido por validacao cruzada para demonstrar o ciclo de
-otimizacao e deployment, mas uma decisao clinica real exigiria validacao
-externa e poderia manter o baseline.
+original permanece o melhor modelo observado**. O melhor individuo otimizado
+continua registrado nos artefatos do experimento, mas a API publica o baseline
+logistico, evitando servir uma configuracao inferior. Como essa decisao usa o
+teste reservado apos a comparacao, suas metricas nao devem ser lidas como nova
+estimativa imparcial de desempenho em producao.
 
 ## 5. Monitoramento e logging
 
@@ -119,7 +120,7 @@ O treinamento produz automaticamente:
 | `historico_geracoes.csv` | Curvas de evolucao do AG |
 | `comparacao_baseline_otimizados.csv` | Comparacao final no teste |
 | `resumo_execucao.json` | Parametros e metricas do campeao |
-| `modelo_ga_campeao.joblib` | Pipeline serializado para inferencia |
+| `modelo_serving.joblib` | Pipeline recomendado e serializado para inferencia |
 
 A API em `src/api.py` disponibiliza:
 
@@ -133,7 +134,7 @@ latencia de inferencia e disponibilidade do modelo.
 
 ## 6. Arquitetura escalavel
 
-A camada de serving possui container proprio (`Dockerfile.api`) e manifestos
+A camada de serving possui container proprio (`Dockerfile`) e manifestos
 Kubernetes em `deploy/k8s/`:
 
 | Recurso | Configuracao |
