@@ -5,13 +5,14 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import os
 import re
+import time
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
 
-DEFAULT_LLM_MODEL = "gpt-4.1-mini"
+DEFAULT_LLM_MODEL = "llama-3.1-8b-instant"
 DISCLAIMER = (
     "Interpretacao gerada por IA para apoio a revisao profissional. "
     "Nao constitui diagnostico medico nem recomendacao terapeutica."
@@ -144,18 +145,49 @@ Produza uma explicacao concisa para apoiar revisao medica, observando integralme
 """
 
 
-def _openai_client() -> Any:
-    if not os.getenv("OPENAI_API_KEY"):
+def _groq_client() -> Any:
+    if not os.getenv("GROQ_API_KEY"):
         raise LLMUnavailableError(
-            "Configure OPENAI_API_KEY para gerar interpretacoes com GPT."
+            "Configure GROQ_API_KEY para gerar interpretacoes. "
+            "Obtenha sua chave gratuita em console.groq.com/keys"
         )
     try:
-        from openai import OpenAI
+        from groq import Groq
     except ImportError as error:
         raise LLMUnavailableError(
-            "Dependencia `openai` ausente. Instale as dependencias do projeto."
+            "Dependencia `groq` ausente. Execute: pip install groq"
         ) from error
-    return OpenAI()
+    return Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+
+def _call_groq(client: Any, llm_model: str, prompt: str, *, _retries: int = 3) -> str:
+    for attempt in range(_retries):
+        try:
+            response = client.chat.completions.create(
+                model=llm_model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_INSTRUCTIONS},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            return (response.choices[0].message.content or "").strip()
+        except LLMUnavailableError:
+            raise
+        except Exception as error:
+            if "429" in str(error) and attempt < _retries - 1:
+                retry_delay = _parse_retry_delay(str(error)) or 60
+                time.sleep(retry_delay)
+                continue
+            raise LLMUnavailableError(
+                f"Falha ao solicitar interpretacao ao modelo {llm_model}: {error}"
+            ) from error
+    raise LLMUnavailableError(f"Limite de tentativas esgotado para o modelo {llm_model}.")
+
+
+def _parse_retry_delay(message: str) -> float | None:
+    """Extract the suggested retry delay in seconds from a quota error message."""
+    match = re.search(r"retry in (\d+(?:\.\d+)?)s", message, re.IGNORECASE)
+    return float(match.group(1)) if match else None
 
 
 def generate_interpretation(
@@ -164,23 +196,11 @@ def generate_interpretation(
     client: Any | None = None,
     model_name: str | None = None,
 ) -> LLMInterpretation:
-    """Request a controlled clinical-facing explanation through Responses API."""
+    """Request a controlled clinical-facing explanation through the LLM backend."""
 
-    llm_model = model_name or os.getenv("OPENAI_LLM_MODEL", DEFAULT_LLM_MODEL)
-    client = client or _openai_client()
-    try:
-        response = client.responses.create(
-            model=llm_model,
-            instructions=SYSTEM_INSTRUCTIONS,
-            input=build_interpretation_prompt(result, evidence),
-            max_output_tokens=600,
-            store=False,
-        )
-    except Exception as error:
-        raise LLMUnavailableError(
-            f"Falha ao solicitar interpretacao ao modelo {llm_model}."
-        ) from error
-    explanation = str(getattr(response, "output_text", "")).strip()
+    llm_model = model_name or os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL)
+    prompt = build_interpretation_prompt(result, evidence)
+    explanation = _call_groq(client or _groq_client(), llm_model, prompt)
     if not explanation:
         raise LLMUnavailableError("A LLM nao retornou texto de interpretacao.")
     return LLMInterpretation(

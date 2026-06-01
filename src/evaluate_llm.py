@@ -57,9 +57,10 @@ def select_representative_cases(artifact: dict, csv_path: Path) -> list[tuple[st
 
 
 def evaluate_cases(model_path: Path, csv_path: Path, output_dir: Path) -> pd.DataFrame:
-    if not os.getenv("OPENAI_API_KEY"):
+    if not os.getenv("GROQ_API_KEY"):
         raise LLMUnavailableError(
-            "OPENAI_API_KEY nao configurada; nao e possivel gerar respostas reais para avaliacao."
+            "GROQ_API_KEY nao configurada. "
+            "Obtenha sua chave gratuita em console.groq.com/keys"
         )
 
     artifact = joblib.load(model_path)

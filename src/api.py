@@ -245,7 +245,7 @@ def predict(request: PredictRequest) -> PredictResponse:
 @app.post("/interpret", response_model=InterpretResponse)
 def interpret(request: PredictRequest) -> InterpretResponse:
     start = time.perf_counter()
-    llm_model = os.getenv("OPENAI_LLM_MODEL", DEFAULT_LLM_MODEL)
+    llm_model = os.getenv("GROQ_LLM_MODEL", DEFAULT_LLM_MODEL)
     status = "success"
     try:
         prediction = _run_prediction(request.features)

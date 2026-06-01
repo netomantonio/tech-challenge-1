@@ -16,10 +16,10 @@ Portanto, a decisao de otimizacao prioriza `recall` da classe Maligno.
 
 | Componente | Responsabilidade |
 | --- | --- |
-| `notebooks/03_otimizacao_genetica_cancer_mama.ipynb` | Relatorio executavel, experimentos e visualizacoes |
+| `notebooks/02_otimizacao_genetica_cancer_mama.ipynb` | Relatorio executavel, experimentos e visualizacoes |
 | `src/genetic_optimization.py` | Preparacao dos dados, algoritmo genetico, avaliacao e persistencia |
 | `src/api.py` | API FastAPI para inferencia, interpretacao, health checks, metricas e logging |
-| `src/llm_interpretation.py` | Prompt controlado e chamada a GPT pela Responses API |
+| `src/llm_interpretation.py` | Prompt controlado e chamada ao Groq (LLaMA) |
 | `src/evaluate_llm.py` | Avaliacao objetiva de interpretacoes em tres casos |
 | `resultados/fase2/` | CSVs, logs, graficos e modelo serializado gerados em execucao |
 | `Dockerfile` | Imagem da camada de inferencia |
@@ -47,7 +47,7 @@ treino/teste estratificado (80/20)
           modelo_serving.joblib --> FastAPI --> Service Kubernetes --> HPA
                                       |
                                       v
-                            GPT (explicacao controlada)
+                            Groq/LLaMA (explicacao controlada)
 ```
 
 ## 3. Algoritmo genetico
@@ -132,7 +132,7 @@ A API oferece:
 | `GET /health/live` | Liveness do processo |
 | `GET /health/ready` e `GET /health` | Readiness, falha se o modelo nao carregou |
 | `GET /metrics` | Exposicao Prometheus |
-| `POST /interpret` | Predicao acompanhada de explicacao em linguagem natural via GPT |
+| `POST /interpret` | Predicao acompanhada de explicacao em linguagem natural via LLM (Groq) |
 
 Metricas Prometheus:
 
@@ -152,8 +152,8 @@ paciente.
 
 ## 5. Interpretacao com LLM
 
-A integracao utiliza a OpenAI Responses API e o modelo configuravel
-`OPENAI_LLM_MODEL` (`gpt-4.1-mini` por padrao). O endpoint `/interpret`
+A integracao utiliza a API do Groq com o modelo configuravel
+`GROQ_LLM_MODEL` (`llama-3.1-8b-instant` por padrao). O endpoint `/interpret`
 envia apenas classificacao, probabilidades e cinco contribuicoes locais, sem
 `id` nem o vetor completo de features.
 
@@ -165,15 +165,15 @@ ausencia de prescricao. A qualidade pode ser avaliada com:
 python -m src.evaluate_llm
 ```
 
-O comando requer `OPENAI_API_KEY` e produz os arquivos
+O comando requer `GROQ_API_KEY` e produz os arquivos
 `avaliacao_interpretacoes_llm.csv` e `interpretacoes_llm.json`. Sem chave, a
 integracao permanece testavel com cliente simulado, mas nao produz avaliacao
 de respostas reais.
 
 Documentacao oficial utilizada:
 
-- https://platform.openai.com/docs/guides/text-generation
-- https://developers.openai.com/api/docs/models/gpt-4.1-mini
+- https://console.groq.com/docs/openai
+- https://console.groq.com/docs/models
 
 ## 6. Escalabilidade automatica
 
@@ -181,8 +181,8 @@ O `Deployment` executa inicialmente duas replicas da API, com `requests` e
 `limits` de CPU/memoria definidos. Esses `requests` sao necessarios para que
 o HPA avalie utilizacao de CPU de forma coerente.
 
-O modelo GPT e configurado por `OPENAI_LLM_MODEL`. A variavel
-`OPENAI_API_KEY` e obtida opcionalmente do Secret
+O modelo LLaMA e configurado por `GROQ_LLM_MODEL`. A variavel
+`GROQ_API_KEY` e obtida opcionalmente do Secret
 `cancer-mama-llm-secrets`: sem esse Secret, predicoes continuam disponiveis,
 mas `POST /interpret` retorna indisponibilidade da LLM.
 
@@ -208,11 +208,11 @@ python -m src.genetic_optimization --data data/cancer_mama.csv --output resultad
 python src/api.py
 # ou:
 uvicorn src.api:app --host 0.0.0.0 --port 8000
-# apos configurar OPENAI_API_KEY:
+# apos configurar GROQ_API_KEY:
 python -m src.evaluate_llm
 ```
 
-Ou abra e execute `notebooks/03_otimizacao_genetica_cancer_mama.ipynb`.
+Ou abra e execute `notebooks/02_otimizacao_genetica_cancer_mama.ipynb`.
 
 O artefato `resultados/fase2/modelo_serving.joblib` e incluido na entrega para
 permitir executar a API diretamente. Para reproduzi-lo, execute novamente o
@@ -221,7 +221,7 @@ serving:
 
 ```bash
 docker build -t tech-challenge-fase2-api:latest .
-kubectl create secret generic cancer-mama-llm-secrets --from-literal=openai-api-key="$OPENAI_API_KEY"
+kubectl create secret generic cancer-mama-llm-secrets --from-literal=groq-api-key="$GROQ_API_KEY"
 kubectl apply -k deploy/k8s
 kubectl get deployment,service,hpa
 ```

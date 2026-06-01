@@ -150,8 +150,8 @@ cluster precisa do `metrics-server` para o HPA de CPU; Prometheus pode coletar
 ## 7. Integracao com LLM para interpretacao
 
 A camada de interpretacao foi implementada em `src/llm_interpretation.py` e
-integrada a API pelo endpoint `POST /interpret`. A integracao usa GPT por meio
-da OpenAI Responses API, com `gpt-4.1-mini` como modelo padrao configuravel.
+integrada a API pelo endpoint `POST /interpret`. A integracao usa LLaMA por
+meio da API do Groq, com `llama-3.1-8b-instant` como modelo padrao configuravel.
 
 A LLM nao recebe identificador do paciente. O contexto enviado contem:
 
@@ -187,7 +187,7 @@ prevista, probabilidade, secoes exigidas, limitacao explicita, orientacao de
 revisao profissional e ausencia de prescricao. O endpoint tambem expoe
 contagem, latencia e distribuicao dessa pontuacao em `/metrics`.
 
-Neste ambiente, `OPENAI_API_KEY` nao estava configurada; portanto, nenhuma
+Neste ambiente, `GROQ_API_KEY` nao estava configurada; portanto, nenhuma
 resposta real da LLM foi fabricada ou reportada. O fluxo foi validado com
 cliente simulado em testes automatizados, e a geracao das tabelas reais pode
 ser executada com:
@@ -196,7 +196,7 @@ ser executada com:
 python -m src.evaluate_llm
 ```
 
-Apos configurar `OPENAI_API_KEY`, esse comando gera
+Apos configurar `GROQ_API_KEY`, esse comando gera
 `avaliacao_interpretacoes_llm.csv` e `interpretacoes_llm.json` em
 `resultados/fase2/`. A avaliacao automatica deve ser complementada por
 avaliacao humana especializada antes de qualquer uso clinico.
@@ -211,8 +211,8 @@ uvicorn src.api:app --host 0.0.0.0 --port 8000
 ```
 
 Os notebooks executaveis encontram-se em
-`notebooks/03_otimizacao_genetica_cancer_mama.ipynb` e
-`notebooks/04_interpretacao_llm_cancer_mama.ipynb`. A documentacao detalhada
+`notebooks/02_otimizacao_genetica_cancer_mama.ipynb` e
+`notebooks/03_interpretacao_llm_cancer_mama.ipynb`. A documentacao detalhada
 da arquitetura encontra-se em `docs/arquitetura_fase2.md`.
 
 ## 9. Limitacoes
