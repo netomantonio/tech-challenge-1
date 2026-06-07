@@ -81,7 +81,7 @@ para contexto médico.
 | Escalabilidade automática | API containerizada e `HorizontalPodAutoscaler` em `deploy/k8s/` |
 | Arquitetura e decisões | `docs/arquitetura_fase2.md` e `relatorio_tecnico_fase2.md` |
 | Integração com LLM | `src/llm_interpretation.py` e endpoint `POST /interpret` |
-| Prompt engineering | Instruções clínicas versionadas em `clinical_explanation_v1` |
+| Prompt engineering | Instruções clínicas versionadas em `clinical_explanation_v2` |
 | Avaliação da interpretação | `src/evaluate_llm.py` e notebook `03_interpretacao_llm_cancer_mama.ipynb` |
 
 ## Estrutura do Repositório
@@ -109,6 +109,7 @@ resultados/fase2/
   treinamento_ga.log
   avaliacao_interpretacoes_llm.csv  # gerado com GROQ_API_KEY
   interpretacoes_llm.json           # gerado com GROQ_API_KEY
+  resumo_avaliacao_llm.json         # gerado com GROQ_API_KEY
 src/
   api.py
   evaluate_llm.py
@@ -152,16 +153,31 @@ Regressão Logística original no teste reservado. Por isso, a API demonstrativa
 utiliza o baseline logístico como modelo recomendado, em vez de publicar uma
 variante otimizada inferior.
 
-### Interpretação com LLaMA (Groq)
+Essa escolha também define o escopo operacional da interpretação por LLM: os
+três modelos continuam documentados e comparados na Fase 2, mas o endpoint
+`POST /interpret` explica o diagnóstico produzido pelo modelo final
+selecionado para serving. Como a Regressão Logística foi o melhor modelo
+observado para publicação, ela é o único pipeline serializado em
+`modelo_serving.joblib`.
+
+### Interpretação com LLM
 
 O endpoint `POST /interpret` utiliza a API do Groq com o modelo
-`llama-3.1-8b-instant` por padrão. A LLM recebe a classificação, as probabilidades e
-as cinco evidências locais mais relevantes do modelo, sem identificadores, e
+configurado no ambiente. A LLM recebe a classificação, as probabilidades e as
+cinco evidências locais mais relevantes do modelo, sem identificadores, e
 devolve uma explicação estruturada para revisão profissional.
 
-O prompt exige quatro seções (`Resumo`, `Evidências`, `Pontos para Revisão
-Clínica` e `Limitações e Segurança`), proíbe prescrição e exige declarar que a
-saída não constitui diagnóstico confirmado.
+O retorno da API mostra `model: "Regressão Logística"` porque a camada de
+serving trabalha com um único modelo recomendado após a comparação entre
+Regressão Logística, KNN e Árvore de Decisão. Assim, a LLM interpreta o
+resultado que seria efetivamente entregue em produção, e não uma votação ou
+comparação simultânea entre os três modelos.
+
+O prompt `clinical_explanation_v2` exige quatro seções (`Resumo do Resultado`,
+`Evidências do Modelo`, `Insights Acionáveis para Médicos` e `Limitações e
+Segurança`). Além do texto livre, o sistema persiste `insights_acionaveis` em
+estrutura própria, relacionando sinal, evidência numérica, implicação para
+revisão e cautela.
 
 Para gerar interpretações reais:
 
@@ -171,9 +187,11 @@ $env:GROQ_LLM_MODEL="llama-3.1-8b-instant"  # opcional
 python -m src.evaluate_llm
 ```
 
-Esse comando avalia três casos representativos (maligno de alta
-probabilidade, benigno de alta probabilidade e caso próximo ao limiar) e
-salva a rubrica objetiva em `resultados/fase2/avaliacao_interpretacoes_llm.csv`.
+Esse comando avalia casos determinísticos de alto risco, baixo risco, limiar e
+faixas adicionais de probabilidade. Ele salva a rubrica objetiva em
+`resultados/fase2/avaliacao_interpretacoes_llm.csv`, as interpretações em
+`resultados/fase2/interpretacoes_llm.json` e o consolidado em
+`resultados/fase2/resumo_avaliacao_llm.json`.
 Sem `GROQ_API_KEY`, o fluxo local, o prompt e os testes funcionam, mas não
 há resposta real de LLM para reportar.
 

@@ -127,6 +127,6 @@
       "falsos_negativos_maligno": 1,
       "auc_roc_maligno": 0.9953703703703705
     },
-    "artifact": "C:\\Users\\marco\\PycharmProjects2\\tech-challenge-1\\resultados\\fase2\\modelo_serving.joblib"
+    "artifact": "resultados/fase2/modelo_serving.joblib"
   }
 }

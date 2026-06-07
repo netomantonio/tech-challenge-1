@@ -109,6 +109,14 @@ logistico, evitando servir uma configuracao inferior. Como essa decisao usa o
 teste reservado apos a comparacao, suas metricas nao devem ser lidas como nova
 estimativa imparcial de desempenho em producao.
 
+Essa decisao tambem delimita a interpretacao com LLM. O trabalho compara os
+tres modelos exigidos pela Fase 2, mas o servico operacional expõe somente o
+pipeline recomendado em `modelo_serving.joblib`. Portanto, o endpoint
+`POST /interpret` explica o diagnostico produzido pelo modelo final
+selecionado para serving, que neste experimento foi a Regressao Logistica.
+Interpretar KNN e Arvore no mesmo endpoint exigiria outro contrato de API e
+estrategias de explicabilidade diferentes para cada familia de modelo.
+
 ## 5. Monitoramento e logging
 
 O treinamento produz automaticamente:
@@ -150,42 +158,54 @@ cluster precisa do `metrics-server` para o HPA de CPU; Prometheus pode coletar
 ## 7. Integracao com LLM para interpretacao
 
 A camada de interpretacao foi implementada em `src/llm_interpretation.py` e
-integrada a API pelo endpoint `POST /interpret`. A integracao usa LLaMA por
-meio da API do Groq, com `llama-3.1-8b-instant` como modelo padrao configuravel.
+integrada a API pelo endpoint `POST /interpret`. A integracao usa uma LLM
+pre-treinada por meio da API do Groq, com modelo configuravel por ambiente.
+
+O endpoint interpreta o resultado do modelo recomendado para serving. Embora
+Regressao Logistica, KNN e Arvore de Decisao sejam otimizados e comparados, a
+API publica apenas o campeao operacional da comparacao final. Por isso, as
+respostas de `/interpret` retornam `model: "Regressao Logistica"` quando esse
+e o artefato selecionado em `modelo_serving.joblib`.
 
 A LLM nao recebe identificador do paciente. O contexto enviado contem:
 
 - classe prevista e probabilidades de malignidade/benignidade;
 - as cinco contribuicoes locais de maior magnitude da Regressao Logistica;
+- insights acionaveis estruturados derivados dessas contribuicoes;
 - instrucoes fixas para produzir texto orientado a revisao profissional.
 
 ### 7.1 Prompt engineering
 
-O prompt `clinical_explanation_v1` obriga quatro secoes:
+O prompt `clinical_explanation_v2` obriga quatro secoes:
 
 1. `RESUMO DO RESULTADO`;
 2. `EVIDENCIAS DO MODELO`;
-3. `PONTOS PARA REVISAO CLINICA`;
+3. `INSIGHTS ACIONAVEIS PARA MEDICOS`;
 4. `LIMITACOES E SEGURANCA`.
 
 As instrucoes impedem que a resposta declare diagnostico confirmado ou
 prescreva tratamento. Tambem exigem a mencao da natureza academica do modelo,
-ausencia de validacao externa e necessidade de revisao clinica.
+ausencia de validacao externa e necessidade de revisao clinica. Alem do texto
+livre, cada resposta persiste `insights_acionaveis` com sinal observado,
+evidencia numerica, implicacao para revisao e cautela de interpretacao.
 
 ### 7.2 Avaliacao de qualidade
 
-O modulo `src/evaluate_llm.py` seleciona tres casos representativos:
+O modulo `src/evaluate_llm.py` seleciona casos deterministicos:
 
 | Caso | Objetivo |
 | --- | --- |
 | Alto risco maligno | Avaliar clareza em resultado de alerta |
 | Alto risco benigno | Verificar se a resposta evita falsa seguranca |
 | Caso proximo do limiar | Avaliar comunicacao de maior incerteza |
+| Faixas de probabilidade | Verificar consistencia em perfis intermediarios |
 
 Cada interpretacao e avaliada por uma rubrica objetiva que verifica classe
-prevista, probabilidade, secoes exigidas, limitacao explicita, orientacao de
-revisao profissional e ausencia de prescricao. O endpoint tambem expoe
-contagem, latencia e distribuicao dessa pontuacao em `/metrics`.
+prevista, probabilidade, secoes exigidas, insights acionaveis, limitacao
+explicita, orientacao de revisao profissional e ausencia de prescricao. A
+rubrica normaliza acentos, Markdown e variacoes simples de titulo para reduzir
+falsos negativos de formatacao. O endpoint tambem expoe contagem, latencia e
+distribuicao dessa pontuacao em `/metrics`.
 
 Neste ambiente, `GROQ_API_KEY` nao estava configurada; portanto, nenhuma
 resposta real da LLM foi fabricada ou reportada. O fluxo foi validado com
@@ -197,9 +217,10 @@ python -m src.evaluate_llm
 ```
 
 Apos configurar `GROQ_API_KEY`, esse comando gera
-`avaliacao_interpretacoes_llm.csv` e `interpretacoes_llm.json` em
-`resultados/fase2/`. A avaliacao automatica deve ser complementada por
-avaliacao humana especializada antes de qualquer uso clinico.
+`avaliacao_interpretacoes_llm.csv`, `interpretacoes_llm.json` e
+`resumo_avaliacao_llm.json` em `resultados/fase2/`. A avaliacao automatica
+deve ser complementada por avaliacao humana especializada antes de qualquer
+uso clinico.
 
 ## 8. Reproducao
 

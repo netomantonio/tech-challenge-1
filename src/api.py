@@ -84,7 +84,7 @@ _artifact: dict[str, Any] | None = None
 
 
 class PredictRequest(BaseModel):
-    """Feature values in the original Wisconsin dataset column names."""
+    """Valores das features nos nomes originais do dataset Wisconsin."""
 
     features: dict[str, float] = Field(
         ...,
@@ -106,11 +106,12 @@ class InterpretResponse(PredictResponse):
     prompt_version: str
     disclaimer: str
     evidence: list[dict[str, str | float]]
+    insights_acionaveis: list[dict[str, str]]
     quality_checks: dict[str, bool | float]
 
 
 def load_model_artifact(path: Path | None = None) -> dict[str, Any]:
-    """Load and validate the pipeline payload created by genetic_optimization."""
+    """Carrega e valida o payload do pipeline criado pela otimizacao genetica."""
 
     path = path or MODEL_PATH
     if not path.exists():
@@ -126,7 +127,7 @@ def load_model_artifact(path: Path | None = None) -> dict[str, Any]:
 
 
 def initialize_model() -> None:
-    """Attempt model initialization while keeping liveness available on failure."""
+    """Inicializa o modelo mantendo liveness disponivel em caso de falha."""
 
     global _artifact
     try:
@@ -275,6 +276,9 @@ def interpret(request: PredictRequest) -> InterpretResponse:
             prompt_version=interpretation.prompt_version,
             disclaimer=interpretation.disclaimer,
             evidence=[item.__dict__ for item in interpretation.evidence],
+            insights_acionaveis=[
+                item.__dict__ for item in interpretation.insights_acionaveis
+            ],
             quality_checks=quality,
         )
     except LLMUnavailableError as error:
@@ -290,7 +294,7 @@ def interpret(request: PredictRequest) -> InterpretResponse:
 
 
 def main() -> None:
-    """Run the development API when this file is executed directly."""
+    """Executa a API de desenvolvimento quando o arquivo e chamado diretamente."""
 
     import uvicorn
 

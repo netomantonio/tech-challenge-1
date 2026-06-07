@@ -23,34 +23,42 @@ from src.llm_interpretation import (
     LLMUnavailableError,
     ModelResult,
     build_interpretation_prompt,
+    derive_actionable_insights,
     evaluate_interpretation_quality,
     generate_interpretation,
 )
 
 
 DATA_PATH = Path("data/cancer_mama.csv")
-FAKE_INTERPRETATION = """RESUMO DO RESULTADO
-O resultado do modelo indica classificacao estimada Maligno, com probabilidade de malignidade de 98,00%.
+FAKE_INTERPRETATION = """**RESUMO DO RESULTADO**
+O resultado do modelo indica classificação estimada Maligno, com probabilidade de malignidade de 98,00%.
 
-EVIDENCIAS DO MODELO
-As evidencias numericas fornecidas direcionam a classificacao estimada para Maligno.
+**EVIDÊNCIAS DO MODELO**
+As evidências numéricas fornecidas direcionam a classificação estimada para Maligno.
 
-PONTOS PARA REVISAO CLINICA
-Recomenda-se revisao clinica por profissional e confirmacao conforme protocolo local.
+**INSIGHTS ACIONÁVEIS PARA MÉDICOS**
+Recomenda-se revisão clínica por profissional e confirmação conforme protocolo local.
 
-LIMITACOES E SEGURANCA
-Esta explicacao nao constitui diagnostico medico; o dataset e academico e sem validacao externa."""
+**LIMITAÇÕES E SEGURANÇA**
+Esta explicação não constitui diagnóstico médico; o dataset é acadêmico e sem validação externa."""
 
 
-class FakeResponses:
+class FakeChatCompletions:
     def create(self, **kwargs):
         self.kwargs = kwargs
-        return type("FakeResponse", (), {"output_text": FAKE_INTERPRETATION})()
+        message = type("FakeMessage", (), {"content": FAKE_INTERPRETATION})()
+        choice = type("FakeChoice", (), {"message": message})()
+        return type("FakeResponse", (), {"choices": [choice]})()
 
 
-class FakeOpenAIClient:
+class FakeChat:
     def __init__(self) -> None:
-        self.responses = FakeResponses()
+        self.completions = FakeChatCompletions()
+
+
+class FakeGroqClient:
+    def __init__(self) -> None:
+        self.chat = FakeChat()
 
 
 class PhaseTwoContractTests(unittest.TestCase):
@@ -120,26 +128,39 @@ class PhaseTwoContractTests(unittest.TestCase):
         evidence = [FeatureEvidence("radius_worst", 25.0, -2.1, "Maligno")]
         prompt = build_interpretation_prompt(result, evidence)
         self.assertIn("Probabilidade estimada de malignidade: 98.00%", prompt)
+        self.assertIn("INSIGHTS ACIONAVEIS PARA MEDICOS", prompt)
         interpretation = generate_interpretation(
-            result, evidence, client=FakeOpenAIClient(), model_name="gpt-test"
+            result, evidence, client=FakeGroqClient(), model_name="gpt-test"
         )
         quality = evaluate_interpretation_quality(interpretation.explanation, "Maligno")
         self.assertEqual(interpretation.llm_model, "gpt-test")
         self.assertEqual(quality["score_objetivo"], 1.0)
+        self.assertEqual(len(interpretation.insights_acionaveis), 1)
+
+    def test_actionable_insights_translate_numeric_evidence(self) -> None:
+        result = ModelResult(0, "Maligno", 0.76, 0.24, "Regressao Logistica")
+        evidence = [FeatureEvidence("area_worst", 1200.0, -2.4, "Maligno")]
+        insights = derive_actionable_insights(result, evidence)
+        self.assertEqual(len(insights), 1)
+        self.assertIn("area_worst", insights[0].sinal)
+        self.assertIn("probabilidade_maligna=76.00%", insights[0].evidencia_numerica)
+        self.assertIn("revisao", insights[0].implicacao_para_revisao)
 
     def test_api_interpret_uses_llm_explanation(self) -> None:
         payload = self.api.PredictRequest(features=self.features.iloc[0].to_dict())
         fake = LLMInterpretation(
             explanation=FAKE_INTERPRETATION,
             llm_model="gpt-test",
-            prompt_version="clinical_explanation_v1",
+            prompt_version="clinical_explanation_v2",
             disclaimer="Nao constitui diagnostico.",
             evidence=[],
+            insights_acionaveis=[],
         )
         with patch.object(self.api, "generate_interpretation", return_value=fake):
             response = self.api.interpret(payload)
         self.assertEqual(response.llm_model, "gpt-test")
         self.assertEqual(response.quality_checks["score_objetivo"], 1.0)
+        self.assertEqual(response.insights_acionaveis, [])
 
     def test_api_interpret_reports_missing_api_key(self) -> None:
         payload = self.api.PredictRequest(features=self.features.iloc[0].to_dict())

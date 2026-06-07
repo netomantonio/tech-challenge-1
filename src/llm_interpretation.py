@@ -1,4 +1,4 @@
-"""Natural-language interpretation of classifier results through an LLM."""
+"""Interpretacao em linguagem natural de resultados do classificador via LLM."""
 
 from __future__ import annotations
 
@@ -7,12 +7,13 @@ import os
 import re
 import time
 from typing import Any
+import unicodedata
 
 import numpy as np
 import pandas as pd
 
 
-DEFAULT_LLM_MODEL = "llama-3.1-8b-instant"
+DEFAULT_LLM_MODEL = "openai/gpt-oss-120b"
 DISCLAIMER = (
     "Interpretacao gerada por IA para apoio a revisao profissional. "
     "Nao constitui diagnostico medico nem recomendacao terapeutica."
@@ -25,6 +26,7 @@ Regras obrigatorias:
 - Explique somente os dados fornecidos; nao invente achados clinicos, historico ou exames.
 - Chame a saida de "resultado do modelo" ou "classificacao estimada", nunca de diagnostico confirmado.
 - Nao prescreva tratamento nem afirme conduta clinica definitiva.
+- Transforme os numeros em insights acionaveis para revisao medica, sem extrapolar conduta.
 - Se a probabilidade maligna for alta, priorize revisao clinica e confirmacao diagnostica conforme protocolo local.
 - Se a probabilidade benigna for alta, informe que resultados benignos nao excluem avaliacao clinica.
 - Mencione que o dataset e academico e que nao houve validacao externa.
@@ -33,7 +35,7 @@ Regras obrigatorias:
 Retorne exatamente estas secoes:
 RESUMO DO RESULTADO
 EVIDENCIAS DO MODELO
-PONTOS PARA REVISAO CLINICA
+INSIGHTS ACIONAVEIS PARA MEDICOS
 LIMITACOES E SEGURANCA
 """
 
@@ -44,7 +46,7 @@ class LLMUnavailableError(RuntimeError):
 
 @dataclass(frozen=True)
 class FeatureEvidence:
-    """One local contribution derived from a logistic regression pipeline."""
+    """Uma contribuicao local derivada do pipeline de regressao logistica."""
 
     feature: str
     value: float
@@ -54,7 +56,7 @@ class FeatureEvidence:
 
 @dataclass(frozen=True)
 class ModelResult:
-    """Prediction facts shared with the LLM."""
+    """Fatos da predicao compartilhados com a LLM."""
 
     prediction: int
     diagnosis: str
@@ -64,23 +66,34 @@ class ModelResult:
 
 
 @dataclass(frozen=True)
+class ActionableInsight:
+    """Traducao estruturada de uma evidencia numerica para revisao medica."""
+
+    sinal: str
+    evidencia_numerica: str
+    implicacao_para_revisao: str
+    cautela: str
+
+
+@dataclass(frozen=True)
 class LLMInterpretation:
-    """Text produced by the selected LLM plus audit metadata."""
+    """Texto produzido pela LLM selecionada mais metadados de auditoria."""
 
     explanation: str
     llm_model: str
     prompt_version: str
     disclaimer: str
     evidence: list[FeatureEvidence]
+    insights_acionaveis: list[ActionableInsight]
 
 
-PROMPT_VERSION = "clinical_explanation_v1"
+PROMPT_VERSION = "clinical_explanation_v2"
 
 
 def derive_feature_evidence(
     artifact: dict[str, Any], features: dict[str, float], top_k: int = 5
 ) -> list[FeatureEvidence]:
-    """Return local logistic contributions without exposing all raw input values."""
+    """Retorna contribuicoes locais sem expor todos os valores brutos de entrada."""
 
     pipeline = artifact["model"]
     model = pipeline.named_steps.get("model")
@@ -91,7 +104,7 @@ def derive_feature_evidence(
     feature_names = list(artifact["feature_names"])
     row = pd.DataFrame([{name: features[name] for name in feature_names}])
     transformed = scaler.transform(row)[0]
-    # In sklearn binary logistic regression coef_ points toward classes_[1].
+    # Em classificacao binaria, coef_ aponta para classes_[1] no scikit-learn.
     coefficients = model.coef_[0]
     classes = list(model.classes_)
     positive_class = classes[1]
@@ -115,10 +128,58 @@ def derive_feature_evidence(
     return evidence
 
 
+def derive_actionable_insights(
+    result: ModelResult, evidence: list[FeatureEvidence], top_k: int = 5
+) -> list[ActionableInsight]:
+    """Converte evidencias numericas em pontos estruturados de revisao medica."""
+
+    insights: list[ActionableInsight] = []
+    for item in evidence[:top_k]:
+        magnitude = abs(item.contribution)
+        intensidade = (
+            "forte"
+            if magnitude >= 2.0
+            else "moderada"
+            if magnitude >= 0.75
+            else "baixa"
+        )
+        sinal = (
+            f"{item.feature} apresentou sinal {intensidade} na direcao "
+            f"{item.direction}."
+        )
+        evidencia_numerica = (
+            f"valor={item.value:.5g}; contribuicao_local={item.contribution:.4f}; "
+            f"probabilidade_maligna={result.probability_malignant:.2%}."
+        )
+        if item.direction == "Maligno":
+            implicacao = (
+                "Priorizar revisao deste achado junto aos exames e ao historico "
+                "clinico, pois ele aumenta o peso estatistico para malignidade."
+            )
+        else:
+            implicacao = (
+                "Verificar se este achado e coerente com sinais de menor risco, "
+                "sem descartar investigacao quando outros sinais forem conflitantes."
+            )
+        cautela = (
+            "Nao interpretar esta evidencia isoladamente; a contribuicao e "
+            "estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+        )
+        insights.append(
+            ActionableInsight(
+                sinal=sinal,
+                evidencia_numerica=evidencia_numerica,
+                implicacao_para_revisao=implicacao,
+                cautela=cautela,
+            )
+        )
+    return insights
+
+
 def build_interpretation_prompt(
     result: ModelResult, evidence: list[FeatureEvidence]
 ) -> str:
-    """Create a compact, traceable prompt with only computed inference context."""
+    """Cria um prompt compacto e rastreavel com contexto numerico calculado."""
 
     evidence_lines = (
         "\n".join(
@@ -132,6 +193,15 @@ def build_interpretation_prompt(
         if evidence
         else "- O modelo nao disponibiliza contribuicoes locais neste artefato."
     )
+    insight_lines = "\n".join(
+        (
+            f"- sinal: {item.sinal}\n"
+            f"  evidencia_numerica: {item.evidencia_numerica}\n"
+            f"  implicacao_para_revisao: {item.implicacao_para_revisao}\n"
+            f"  cautela: {item.cautela}"
+        )
+        for item in derive_actionable_insights(result, evidence)
+    )
     return f"""Contexto do resultado a interpretar:
 - Modelo: {result.model}
 - Classificacao estimada: {result.diagnosis} ({result.prediction})
@@ -141,7 +211,11 @@ def build_interpretation_prompt(
 Principais evidencias numericas derivadas do modelo:
 {evidence_lines}
 
+Insights acionaveis estruturados que devem orientar a explicacao:
+{insight_lines if insight_lines else "- Sem insights estruturados disponiveis para este artefato."}
+
 Produza uma explicacao concisa para apoiar revisao medica, observando integralmente as regras.
+Na secao INSIGHTS ACIONAVEIS PARA MEDICOS, transforme as evidencias em acoes de revisao, nao em condutas terapeuticas.
 """
 
 
@@ -185,7 +259,7 @@ def _call_groq(client: Any, llm_model: str, prompt: str, *, _retries: int = 3) -
 
 
 def _parse_retry_delay(message: str) -> float | None:
-    """Extract the suggested retry delay in seconds from a quota error message."""
+    """Extrai o tempo sugerido de nova tentativa em segundos."""
     match = re.search(r"retry in (\d+(?:\.\d+)?)s", message, re.IGNORECASE)
     return float(match.group(1)) if match else None
 
@@ -196,9 +270,14 @@ def generate_interpretation(
     client: Any | None = None,
     model_name: str | None = None,
 ) -> LLMInterpretation:
-    """Request a controlled clinical-facing explanation through the LLM backend."""
+    """Solicita uma explicacao clinica controlada ao backend de LLM."""
 
-    llm_model = model_name or os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL)
+    llm_model = (
+        model_name
+        or os.getenv("GROQ_LLM_MODEL")
+        or os.getenv("LLM_MODEL")
+        or DEFAULT_LLM_MODEL
+    )
     prompt = build_interpretation_prompt(result, evidence)
     explanation = _call_groq(client or _groq_client(), llm_model, prompt)
     if not explanation:
@@ -209,38 +288,74 @@ def generate_interpretation(
         prompt_version=PROMPT_VERSION,
         disclaimer=DISCLAIMER,
         evidence=evidence,
+        insights_acionaveis=derive_actionable_insights(result, evidence),
     )
+
+
+def _normalize_text(text: str) -> str:
+    without_accents = "".join(
+        char
+        for char in unicodedata.normalize("NFKD", text)
+        if not unicodedata.combining(char)
+    )
+    normalized = without_accents.lower()
+    normalized = re.sub(r"[*_`#|:;\[\]()>-]+", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized.strip()
 
 
 def evaluate_interpretation_quality(
     interpretation: str, expected_diagnosis: str
 ) -> dict[str, bool | float]:
-    """Apply objective checks to support human evaluation of LLM output quality."""
+    """Aplica checks objetivos para apoiar avaliacao humana da interpretacao."""
 
-    normalized = interpretation.lower()
-    required_sections = (
-        "resumo do resultado",
-        "evidencias do modelo",
-        "pontos para revisao clinica",
-        "limitacoes e seguranca",
+    normalized = _normalize_text(interpretation)
+    required_section_groups = (
+        ("resumo do resultado",),
+        ("evidencias do modelo",),
+        ("insights acionaveis para medicos", "pontos para revisao clinica"),
+        ("limitacoes e seguranca",),
     )
     checks: dict[str, bool] = {
-        "menciona_resultado_esperado": expected_diagnosis.lower() in normalized,
+        "menciona_resultado_esperado": _normalize_text(expected_diagnosis) in normalized,
         "inclui_probabilidade": bool(re.search(r"\d+(?:[,.]\d+)?\s*%", interpretation)),
         "inclui_secoes_obrigatorias": all(
-            section in normalized for section in required_sections
+            any(section in normalized for section in group)
+            for group in required_section_groups
+        ),
+        "inclui_insights_acionaveis": any(
+            term in normalized
+            for term in (
+                "insights acionaveis",
+                "pontos para revisao clinica",
+                "implicacao para revisao",
+                "revisao medica",
+            )
         ),
         "declara_limitacao": any(
             term in normalized
-            for term in ("nao constitui diagnostico", "não constitui diagnóstico", "nao e diagnostico")
+            for term in (
+                "nao constitui diagnostico",
+                "nao e diagnostico",
+                "nao substitui avaliacao",
+                "nao substitui a avaliacao",
+                "sem validacao externa",
+                "dataset academico",
+            )
         ),
         "orienta_revisao_profissional": any(
             term in normalized
-            for term in ("revisao clinica", "revisão clínica", "profissional", "medic")
+            for term in ("revisao clinica", "revisao medica", "profissional", "medic")
         ),
         "nao_prescreve_tratamento": not any(
             term in normalized
-            for term in ("prescrevo", "iniciar quimioterapia", "iniciar radioterapia")
+            for term in (
+                "prescrevo",
+                "iniciar quimioterapia",
+                "iniciar radioterapia",
+                "deve iniciar tratamento",
+                "tratamento indicado e",
+            )
         ),
     }
     score = sum(checks.values()) / len(checks)
@@ -248,7 +363,7 @@ def evaluate_interpretation_quality(
 
 
 def interpretation_to_dict(interpretation: LLMInterpretation) -> dict[str, Any]:
-    """Serialize an interpretation for JSON responses or audit artifacts."""
+    """Serializa uma interpretacao para respostas JSON ou artefatos de auditoria."""
 
     return {
         "explanation": interpretation.explanation,
@@ -256,4 +371,7 @@ def interpretation_to_dict(interpretation: LLMInterpretation) -> dict[str, Any]:
         "prompt_version": interpretation.prompt_version,
         "disclaimer": interpretation.disclaimer,
         "evidence": [asdict(item) for item in interpretation.evidence],
+        "insights_acionaveis": [
+            asdict(item) for item in interpretation.insights_acionaveis
+        ],
     }
