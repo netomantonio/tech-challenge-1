@@ -1,0 +1,4 @@
+caso,classificacao,probabilidade_maligna,menciona_resultado_esperado,inclui_probabilidade,inclui_secoes_obrigatorias,declara_limitacao,orienta_revisao_profissional,nao_prescreve_tratamento,score_objetivo
+alto_risco_maligno,Maligno,1.0,True,True,True,False,True,True,0.8333333333333334
+alto_risco_benigno,Benigno,1.145463757179499e-08,True,True,True,False,True,True,0.8333333333333334
+caso_limiar,Maligno,0.5460111827125818,True,True,True,False,True,True,0.8333333333333334

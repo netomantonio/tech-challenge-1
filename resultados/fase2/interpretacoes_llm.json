@@ -1,0 +1,167 @@
+[
+  {
+    "caso": "alto_risco_maligno",
+    "resultado_modelo": {
+      "prediction": 0,
+      "diagnosis": "Maligno",
+      "probability_malignant": 1.0,
+      "probability_benign": 8.87720550515233e-19,
+      "model": "Regressao Logistica"
+    },
+    "explanation": "**RESUMO DO RESULTADO**\nA classificacao estimada do modelo de regressao logistica aponta para um resultado maligno, com probabilidade estimada de malignidade de 100,00% e probabilidade estimada de benignidade de 0,00%.\n\n**EVIDENCIAS DO MODELO**\nAs principais evidências numericas derivadas do modelo indicam que os seguintes atributos contribuem para a classificacao maligna:\n\n- radius_se: valor=2.873, contribuicao_local=-11.4833, direcao=Maligno (contribui para resultado maligno)\n- area_se: valor=525.6, contribuicao_local=-10.6645, direcao=Maligno (contribui para resultado maligno)\n- perimeter_se: valor=21.98, contribuicao_local=-6.3575, direcao=Maligno (contribui para resultado maligno)\n- area_worst: valor=2499, contribuicao_local=-2.8299, direcao=Maligno (contribui para resultado maligno)\n- concave points_mean: valor=0.1595, contribuicao_local=-2.7464, direcao=Maligno (contribui para resultado maligno)\n\n**PONTOS PARA REVISAO CLINICA**\nCom base no resultado do modelo, é recomendável que o resultado seja revisado clinicamente, pois o modelo não foi validado externamente e os resultados devem ser confirmados por um profissional de saúde. Além disso, resultados malignos devem ser verificados com cautela, pois podem exigir uma avaliação mais aprofundada.\n\n**LIMITACOES E SEGURANCA**\nO presente resultado foi gerado a partir de um modelo academico de regressao logistica, que não teve validacao externa. Dessa forma, resultados devem ser considerados com cuidado e não substituem a avaliacao clinica completa.",
+    "llm_model": "llama-3.1-8b-instant",
+    "prompt_version": "clinical_explanation_v1",
+    "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
+    "evidence": [
+      {
+        "feature": "radius_se",
+        "value": 2.873,
+        "contribution": -11.483334328813386,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "area_se",
+        "value": 525.6,
+        "contribution": -10.664452435905266,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "perimeter_se",
+        "value": 21.98,
+        "contribution": -6.357464695782375,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "area_worst",
+        "value": 2499.0,
+        "contribution": -2.829874423559641,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "concave points_mean",
+        "value": 0.1595,
+        "contribution": -2.746354831054033,
+        "direction": "Maligno"
+      }
+    ],
+    "avaliacao_objetiva": {
+      "menciona_resultado_esperado": true,
+      "inclui_probabilidade": true,
+      "inclui_secoes_obrigatorias": true,
+      "declara_limitacao": false,
+      "orienta_revisao_profissional": true,
+      "nao_prescreve_tratamento": true,
+      "score_objetivo": 0.8333333333333334
+    }
+  },
+  {
+    "caso": "alto_risco_benigno",
+    "resultado_modelo": {
+      "prediction": 1,
+      "diagnosis": "Benigno",
+      "probability_malignant": 1.145463757179499e-08,
+      "probability_benign": 0.9999999885453624,
+      "model": "Regressao Logistica"
+    },
+    "explanation": "**RESUMO DO RESULTADO**\nA classificação estimada pelo modelo é Benigno, com uma probabilidade de malignidade de 0,00% e uma probabilidade de benignidade de 100,00%.\n\n**EVIDENCIAS DO MODELO**\nAs principais evidências numericas derivadas do modelo incluem:\n\n- Fractal dimension of the secondary mass (fractal_dimension_se): 0,02193. Essa característica contribui para a classificação benígna com uma contribuição local de 4,6765.\n- Compactness of the secondary mass (compactness_se): 0,09368. Essa característica contribui para a classificação benígna com uma contribuição local de 2,8363.\n- Wors tensor of texture (texture_worst): 15,67. Essa característica contribui para a classificação benígna com uma contribuição local de 2,1520.\n- Radius of the wors tumor (radius_worst): 9,733. Essa característica contribui para a classificação benígna com uma contribuição local de 1,3895.\n- Fractal dimension of the mean (fractal_dimension_mean): 0,0898. Essa característica contribui para a classificação benígna com uma contribuição local de 1,2573.\n\n**PONTOS PARA REVISAO CLINICA**\nConsiderando as evidências apresentadas, é importante realizar uma revisão clínica para confirmar a natureza da massa encontrada. Embora o modelo tenha classificado a massa como benigna, é impossível excluir a possibilidade de outra condição com base apenas em um modelo de aprendizado de máquina acadêmico, que não teve validação externa.\n\n**LIMITACOES E SEGURANCA**\nLembre-se de que o modelo utilizado é acadêmico e não teve validação externa. Portanto, os resultados devem ser interpretados com cautela. Além disso, não há prescrição de conduta clinica ou tratamento baseado nos resultados apresentados. A decisão final deve ser tomada por um profissional de saúde após a revisão clínica.",
+    "llm_model": "llama-3.1-8b-instant",
+    "prompt_version": "clinical_explanation_v1",
+    "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
+    "evidence": [
+      {
+        "feature": "fractal_dimension_se",
+        "value": 0.02193,
+        "contribution": 4.676522628868111,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "compactness_se",
+        "value": 0.09368,
+        "contribution": 2.836251891739999,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "texture_worst",
+        "value": 15.67,
+        "contribution": 2.1519973135198245,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "radius_worst",
+        "value": 9.733,
+        "contribution": 1.3895150407305732,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "fractal_dimension_mean",
+        "value": 0.0898,
+        "contribution": 1.2572948487984652,
+        "direction": "Benigno"
+      }
+    ],
+    "avaliacao_objetiva": {
+      "menciona_resultado_esperado": true,
+      "inclui_probabilidade": true,
+      "inclui_secoes_obrigatorias": true,
+      "declara_limitacao": false,
+      "orienta_revisao_profissional": true,
+      "nao_prescreve_tratamento": true,
+      "score_objetivo": 0.8333333333333334
+    }
+  },
+  {
+    "caso": "caso_limiar",
+    "resultado_modelo": {
+      "prediction": 0,
+      "diagnosis": "Maligno",
+      "probability_malignant": 0.5460111827125818,
+      "probability_benign": 0.4539888172874183,
+      "model": "Regressao Logistica"
+    },
+    "explanation": "**RESUMO DO RESULTADO**\nO resultado do modelo é uma classificacao estimada de \"Maligno\" com uma probabilidade estimada de malignidade de 54,60% e uma probabilidade estimada de benignidade de 45,40%.\n\n**EVIDENCIAS DO MODELO**\nAs principais evidências numéricas do modelo são:\n\n- texture_worst: valor=31.73; contribuição local=-1,3016; direção=Maligno (indicando que o valor é mais apropriado para uma massa maligna)\n- compactness_se: valor=0,04653; contribuição local=0,8755; direção=Benigno (indicando que o valor é mais apropriado para uma massa benigna)\n- radius_se: valor=0,2542; contribuição local=0,7025; direção=Benigno (indicando que o valor é mais apropriado para uma massa benigna)\n- fractal_dimension_se: valor=0,006111; contribuição local=0,5973; direção=Benigno (indicando que o valor é mais apropriado para uma massa benigna)\n- concavity_worst: valor=0,404; contribuição local=-0,5566; direção=Maligno (indicando que o valor é mais apropriado para uma massa maligna)\n\n**PONTOS PARA REVISAO CLINICA**\nConsiderando o resultado do modelo, é importante realizar uma revisão clínica detalhada, incluindo:\n\n- Exame físico e história clínica do paciente\n- Avaliação das características da lesão mamária (aspecto, tamanho, localização, etc.)\n- Exames complementares (imagemção por ultrassomb e mamografia ou tomo-grafia computadorizada ou biopsia por agulha aspirativa)\n\n**LIMITACOES E SEGURANCA**\nLembre-se de que o modelo utilizado é baseado em um dataset acadêmico e não houve validação externa. Portanto, o resultado do modelo deve ser considerado apenas como uma ferramenta de apoio à decisão clínica. Não há substituição para a revisão clínica e a confirmação diagnóstica por um especialista em radiologia de mamografia. Além disso, resultados benignos não excluem a avaliação clínica contínua do paciente.",
+    "llm_model": "llama-3.1-8b-instant",
+    "prompt_version": "clinical_explanation_v1",
+    "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
+    "evidence": [
+      {
+        "feature": "texture_worst",
+        "value": 31.73,
+        "contribution": -1.3016157586842687,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "compactness_se",
+        "value": 0.04653,
+        "contribution": 0.8754655668338065,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "radius_se",
+        "value": 0.2542,
+        "contribution": 0.702505456461816,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "fractal_dimension_se",
+        "value": 0.006111,
+        "contribution": 0.597254952468361,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "concavity_worst",
+        "value": 0.404,
+        "contribution": -0.5566256970355353,
+        "direction": "Maligno"
+      }
+    ],
+    "avaliacao_objetiva": {
+      "menciona_resultado_esperado": true,
+      "inclui_probabilidade": true,
+      "inclui_secoes_obrigatorias": true,
+      "declara_limitacao": false,
+      "orienta_revisao_profissional": true,
+      "nao_prescreve_tratamento": true,
+      "score_objetivo": 0.8333333333333334
+    }
+  }
+]
