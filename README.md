@@ -222,12 +222,96 @@ Os notebooks da Fase 2 são:
 
 Com a API em execução:
 
-- Swagger UI: `http://127.0.0.1:8000/docs`
+- **Swagger UI (documentação interativa): `http://127.0.0.1:8000/docs`**
 - Health check: `http://127.0.0.1:8000/health`
 - Métricas Prometheus: `http://127.0.0.1:8000/metrics`
 
 Com `GROQ_API_KEY` configurada, a Swagger UI também permite testar
 `POST /interpret`.
+
+> A raiz `http://127.0.0.1:8000/` não tem rota definida e retorna
+> `{"detail":"Not Found"}` — isso é esperado. Use o Swagger UI (`/docs`) ou
+> as rotas abaixo.
+
+### Como chamar cada endpoint
+
+Todas as 30 features abaixo são obrigatórias e devem usar exatamente os
+nomes originais do dataset Wisconsin (`radius_mean`, `texture_mean`, ...,
+`fractal_dimension_worst`).
+
+**`GET /health/live`** — liveness do processo, sempre responde se a API
+está no ar:
+
+```bash
+curl http://127.0.0.1:8000/health/live
+```
+
+**`GET /health` (ou `/health/ready`)** — readiness; falha com `503` se o
+modelo não carregou:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+**`GET /metrics`** — métricas no formato Prometheus:
+
+```bash
+curl http://127.0.0.1:8000/metrics
+```
+
+**`POST /predict`** — classificação e probabilidades a partir das 30
+features:
+
+```bash
+curl -X POST http://127.0.0.1:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "features": {
+      "radius_mean": 17.99, "texture_mean": 10.38, "perimeter_mean": 122.8,
+      "area_mean": 1001.0, "smoothness_mean": 0.1184, "compactness_mean": 0.2776,
+      "concavity_mean": 0.3001, "concave points_mean": 0.1471, "symmetry_mean": 0.2419,
+      "fractal_dimension_mean": 0.07871, "radius_se": 1.095, "texture_se": 0.9053,
+      "perimeter_se": 8.589, "area_se": 153.4, "smoothness_se": 0.006399,
+      "compactness_se": 0.04904, "concavity_se": 0.05373, "concave points_se": 0.01587,
+      "symmetry_se": 0.03003, "fractal_dimension_se": 0.006193, "radius_worst": 25.38,
+      "texture_worst": 17.33, "perimeter_worst": 184.6, "area_worst": 2019.0,
+      "smoothness_worst": 0.1622, "compactness_worst": 0.6656, "concavity_worst": 0.7119,
+      "concave points_worst": 0.2654, "symmetry_worst": 0.4601, "fractal_dimension_worst": 0.1189
+    }
+  }'
+```
+
+Resposta esperada:
+
+```json
+{
+  "prediction": 0,
+  "diagnosis": "Maligno",
+  "probability_malignant": 1.0,
+  "probability_benign": 0.0,
+  "model": "Regressao Logistica"
+}
+```
+
+**`POST /interpret`** — mesmo corpo de `/predict`, mas exige
+`GROQ_API_KEY` configurada no ambiente da API e devolve explicação em
+linguagem natural, evidências e insights acionáveis:
+
+```bash
+curl -X POST http://127.0.0.1:8000/interpret \
+  -H "Content-Type: application/json" \
+  -d @requisicao.json
+```
+
+Onde `requisicao.json` tem o mesmo formato `{"features": {...}}` usado em
+`/predict`. Você pode gerar esse arquivo a partir do dataset com:
+
+```bash
+python -c "import json,pandas as pd; d=pd.read_csv('data/cancer_mama.csv').drop(columns=['id','diagnosis']); print(json.dumps({'features': d.iloc[0].to_dict()}))" > requisicao.json
+```
+
+Sem `GROQ_API_KEY`, `/interpret` responde `503` informando que a LLM não
+está disponível, enquanto `/predict` continua funcionando normalmente.
 
 ## Container e Autoscaling
 

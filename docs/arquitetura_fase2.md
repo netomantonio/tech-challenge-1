@@ -134,6 +134,17 @@ A API oferece:
 | `GET /metrics` | Exposicao Prometheus |
 | `POST /interpret` | Predicao acompanhada de explicacao em linguagem natural via LLM (Groq) |
 
+Documentacao interativa (Swagger UI) com a API em execucao:
+`http://127.0.0.1:8000/docs`. A rota raiz `/` nao existe e retorna
+`{"detail":"Not Found"}` por padrao do FastAPI; use `/docs`, `/health` ou
+os endpoints da tabela acima.
+
+`/predict` e `/interpret` recebem o mesmo corpo `{"features": {...}}` com
+as 30 features numericas do dataset Wisconsin, usando os nomes originais
+das colunas (`radius_mean` ... `fractal_dimension_worst`). `/interpret`
+exige `GROQ_API_KEY` configurada no ambiente da API; sem ela, retorna
+`503`. Exemplo de chamada na secao 7.
+
 Metricas Prometheus:
 
 | Metrica | Finalidade |
@@ -231,8 +242,17 @@ Exemplo local de inferencia a partir da primeira linha do dataset:
 ```bash
 python -c "import json,pandas as pd; d=pd.read_csv('data/cancer_mama.csv').drop(columns=['id','diagnosis']); print(json.dumps({'features': d.iloc[0].to_dict()}))" > requisicao.json
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" --data @requisicao.json
+curl -X POST http://localhost:8000/interpret -H "Content-Type: application/json" --data @requisicao.json
+curl http://localhost:8000/health
 curl http://localhost:8000/metrics
 ```
+
+`requisicao.json` segue o formato `{"features": {"radius_mean": 17.99, ...}}`
+com as 30 colunas numericas do dataset (sem `id` nem `diagnosis`). O mesmo
+arquivo serve para `/predict` e `/interpret`; a diferenca e que `/interpret`
+exige `GROQ_API_KEY` configurada no ambiente da API. Veja exemplos completos
+de corpo e resposta de cada endpoint no `README.md`, secao "Como chamar cada
+endpoint".
 
 ## 8. Limitacoes e decisoes de producao
 
