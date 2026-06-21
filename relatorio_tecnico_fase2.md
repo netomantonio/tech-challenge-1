@@ -176,7 +176,7 @@ A LLM nao recebe identificador do paciente. O contexto enviado contem:
 
 ### 7.1 Prompt engineering
 
-O prompt `clinical_explanation_v2` obriga quatro secoes:
+O prompt `clinical_explanation_v3` obriga quatro secoes:
 
 1. `RESUMO DO RESULTADO`;
 2. `EVIDENCIAS DO MODELO`;
@@ -188,6 +188,16 @@ prescreva tratamento. Tambem exigem a mencao da natureza academica do modelo,
 ausencia de validacao externa e necessidade de revisao clinica. Alem do texto
 livre, cada resposta persiste `insights_acionaveis` com sinal observado,
 evidencia numerica, implicacao para revisao e cautela de interpretacao.
+
+A versao v3 acrescenta tres regras especificas para o contexto de saude da
+mulher: (1) situar os achados em cuidados tipicos desse contexto (ex.:
+acompanhamento ginecologico/mastologico) sem presumir dados nao fornecidos;
+(2) vedar linguagem alarmista, sentenciosa ou estigmatizante (ex.: "sentenca
+de morte", "fatal", "sem cura"); e (3) proibir qualquer identificador pessoal
+da paciente no texto gerado, reforcando privacidade e confidencialidade. As
+instrucoes tambem passaram a exigir que os insights acionaveis incluam
+proximos passos praticos (agendamento de exames, encaminhamento) pensando na
+realidade de acesso da paciente ao sistema de saude, sem prescrever conduta.
 
 ### 7.2 Avaliacao de qualidade
 
@@ -202,25 +212,25 @@ O modulo `src/evaluate_llm.py` seleciona casos deterministicos:
 
 Cada interpretacao e avaliada por uma rubrica objetiva que verifica classe
 prevista, probabilidade, secoes exigidas, insights acionaveis, limitacao
-explicita, orientacao de revisao profissional e ausencia de prescricao. A
-rubrica normaliza acentos, Markdown e variacoes simples de titulo para reduzir
-falsos negativos de formatacao. O endpoint tambem expoe contagem, latencia e
-distribuicao dessa pontuacao em `/metrics`.
+explicita, orientacao de revisao profissional, ausencia de prescricao e
+sensibilidade cultural/de genero (`sensibilidade_cultural_e_genero`, que
+reprova linguagem alarmista ou estigmatizante). A rubrica normaliza acentos,
+Markdown e variacoes simples de titulo para reduzir falsos negativos de
+formatacao. O endpoint tambem expoe contagem, latencia e distribuicao dessa
+pontuacao em `/metrics`.
 
-Neste ambiente, `GROQ_API_KEY` nao estava configurada; portanto, nenhuma
-resposta real da LLM foi fabricada ou reportada. O fluxo foi validado com
-cliente simulado em testes automatizados, e a geracao das tabelas reais pode
-ser executada com:
+Com `GROQ_API_KEY` configurada, o comando abaixo regenera as tabelas reais:
 
 ```bash
 python -m src.evaluate_llm
 ```
 
-Apos configurar `GROQ_API_KEY`, esse comando gera
-`avaliacao_interpretacoes_llm.csv`, `interpretacoes_llm.json` e
-`resumo_avaliacao_llm.json` em `resultados/fase2/`. A avaliacao automatica
-deve ser complementada por avaliacao humana especializada antes de qualquer
-uso clinico.
+Esse comando gera `avaliacao_interpretacoes_llm.csv`, `interpretacoes_llm.json`
+e `resumo_avaliacao_llm.json` em `resultados/fase2/`. Na ultima execucao, com
+o prompt `clinical_explanation_v3`, os 7 casos representativos atingiram
+`score_objetivo = 1.0` (media, minimo e maximo), sem nenhum criterio
+reprovado. A avaliacao automatica deve ser complementada por avaliacao humana
+especializada antes de qualquer uso clinico.
 
 ## 8. Reproducao
 

@@ -151,7 +151,7 @@ class PhaseTwoContractTests(unittest.TestCase):
         fake = LLMInterpretation(
             explanation=FAKE_INTERPRETATION,
             llm_model="gpt-test",
-            prompt_version="clinical_explanation_v2",
+            prompt_version="clinical_explanation_v3",
             disclaimer="Nao constitui diagnostico.",
             evidence=[],
             insights_acionaveis=[],

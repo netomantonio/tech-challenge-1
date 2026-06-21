@@ -1,4 +1,8 @@
-caso,classificacao,probabilidade_maligna,menciona_resultado_esperado,inclui_probabilidade,inclui_secoes_obrigatorias,declara_limitacao,orienta_revisao_profissional,nao_prescreve_tratamento,score_objetivo
-alto_risco_maligno,Maligno,1.0,True,True,False,False,True,True,0.6666666666666666
-alto_risco_benigno,Benigno,1.145463757179499e-08,True,True,False,False,True,True,0.6666666666666666
-caso_limiar,Maligno,0.5460111827125818,True,True,False,False,True,True,0.6666666666666666
+caso,classificacao,probabilidade_maligna,menciona_resultado_esperado,inclui_probabilidade,inclui_secoes_obrigatorias,inclui_insights_acionaveis,declara_limitacao,orienta_revisao_profissional,nao_prescreve_tratamento,sensibilidade_cultural_e_genero,score_objetivo
+alto_risco_maligno,Maligno,1.0,True,True,True,True,True,True,True,True,1.0
+alto_risco_benigno,Benigno,1.145463757179499e-08,True,True,True,True,True,True,True,True,1.0
+caso_limiar,Maligno,0.5460111827125819,True,True,True,True,True,True,True,True,1.0
+faixa_probabilidade_25,Benigno,0.24536267065752349,True,True,True,True,True,True,True,True,1.0
+faixa_probabilidade_40,Benigno,0.38342547190162246,True,True,True,True,True,True,True,True,1.0
+faixa_probabilidade_60,Maligno,0.5930348593791764,True,True,True,True,True,True,True,True,1.0
+faixa_probabilidade_75,Maligno,0.727805753027544,True,True,True,True,True,True,True,True,1.0

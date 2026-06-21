@@ -19,18 +19,27 @@ DISCLAIMER = (
     "Nao constitui diagnostico medico nem recomendacao terapeutica."
 )
 
-SYSTEM_INSTRUCTIONS = """Voce e um assistente de apoio a interpretacao de um modelo academico de cancer de mama.
-Escreva em portugues do Brasil para um profissional de saude.
+SYSTEM_INSTRUCTIONS = """Voce e um assistente de apoio a interpretacao de um modelo academico de cancer de mama,
+um contexto de saude da mulher. Escreva em portugues do Brasil para um profissional de saude.
 
 Regras obrigatorias:
-- Explique somente os dados fornecidos; nao invente achados clinicos, historico ou exames.
+- Explique somente os dados fornecidos; nao invente achados clinicos, historico, exames ou dados pessoais da paciente.
 - Chame a saida de "resultado do modelo" ou "classificacao estimada", nunca de diagnostico confirmado.
 - Nao prescreva tratamento nem afirme conduta clinica definitiva.
 - Transforme os numeros em insights acionaveis para revisao medica, sem extrapolar conduta.
 - Se a probabilidade maligna for alta, priorize revisao clinica e confirmacao diagnostica conforme protocolo local.
 - Se a probabilidade benigna for alta, informe que resultados benignos nao excluem avaliacao clinica.
 - Mencione que o dataset e academico e que nao houve validacao externa.
-- Use linguagem objetiva, sem alarmismo.
+- Use linguagem objetiva, sem alarmismo, sem termos sentenciosos ou estigmatizantes (evite, por exemplo,
+  "sentenca de morte", "fatal", "sem cura", "tragico", "vai morrer").
+- Considere o contexto de saude da mulher: trate o caso com sensibilidade de genero e, quando pertinente,
+  situe os achados dentro de cuidados tipicos da saude da mulher (ex.: acompanhamento ginecologico ou
+  mastologico periodico), sem presumir dados que nao foram fornecidos.
+- Preserve privacidade e confidencialidade: nao solicite, nao infira e nao inclua identificadores pessoais
+  (nome, idade exata, endereco, numero de prontuario ou qualquer dado que possa identificar a paciente).
+- Ao descrever os insights acionaveis, inclua tambem orientacoes praticas de proximos passos (por exemplo,
+  agendamento de exames complementares, encaminhamento ou acompanhamento) pensando na realidade de acesso
+  da paciente ao sistema de saude, sem nunca prescrever tratamento ou conduta definitiva.
 
 Retorne exatamente estas secoes:
 RESUMO DO RESULTADO
@@ -87,7 +96,7 @@ class LLMInterpretation:
     insights_acionaveis: list[ActionableInsight]
 
 
-PROMPT_VERSION = "clinical_explanation_v2"
+PROMPT_VERSION = "clinical_explanation_v3"
 
 
 def derive_feature_evidence(
@@ -339,8 +348,13 @@ def evaluate_interpretation_quality(
                 "nao e diagnostico",
                 "nao substitui avaliacao",
                 "nao substitui a avaliacao",
+                "nao substitui o diagnostico",
                 "sem validacao externa",
+                "nao validado externamente",
+                "nao foi validado externamente",
                 "dataset academico",
+                "conjunto de dados academico",
+                "academico e nao",
             )
         ),
         "orienta_revisao_profissional": any(
@@ -355,6 +369,18 @@ def evaluate_interpretation_quality(
                 "iniciar radioterapia",
                 "deve iniciar tratamento",
                 "tratamento indicado e",
+            )
+        ),
+        "sensibilidade_cultural_e_genero": not any(
+            term in normalized
+            for term in (
+                "sentenca de morte",
+                "fatal",
+                "sem cura",
+                "tragico",
+                "desesperador",
+                "doente terminal",
+                "vai morrer",
             )
         ),
     }

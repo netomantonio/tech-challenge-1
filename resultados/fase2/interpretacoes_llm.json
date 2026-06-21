@@ -5,12 +5,12 @@
       "prediction": 0,
       "diagnosis": "Maligno",
       "probability_malignant": 1.0,
-      "probability_benign": 8.877205505152392e-19,
+      "probability_benign": 8.87720550515233e-19,
       "model": "Regressao Logistica"
     },
-    "explanation": "**RESUMO DO RESULTADO**  \n- **Classificação estimada:** Maligno (0)  \n- **Probabilidade estimada de malignidade:** 100,00 %  \n- **Probabilidade estimada de benignidade:** 0,00 %  \n\n**EVIDENCIAS DO MODELO**  \n| Feature | Valor | Contribuição local | Direção |\n|---|---|---|---|\n| radius_se | 2.873 | –11.4833 | Maligno |\n| area_se | 525.6 | –10.6645 | Maligno |\n| perimeter_se | 21.98 | –6.3575 | Maligno |\n| area_worst | 2499 | –2.8299 | Maligno |\n| concave points_mean | 0.1595 | –2.7464 | Maligno |\n\nAs contribuições negativas indicam que, dentro da lógica do modelo de regressão logística, esses valores aumentam a probabilidade associada à classe “maligno”.\n\n**PONTOS PARA REVISÃO CLÍNICA**  \n- Dada a probabilidade de malignidade de 100 %, recomenda‑se **revisão clínica urgente** e **confirmação diagnóstica** (ex.: biópsia ou outros exames de imagem) conforme os protocolos institucionais vigentes.  \n- Avaliar a correlação dos achados do modelo com a história clínica, exame físico e resultados de imagem disponíveis.  \n- Considerar a possibilidade de revisão dos parâmetros de imagem/biomarcadores que geraram os valores acima (ex.: radius_se, area_se, perimeter_se, area_worst, concave points_mean).  \n\n**LIMITAÇÕES E SEGURANÇA**  \n- O conjunto de dados utilizado para treinar o modelo é **acadêmico** e **não foi validado externamente**; portanto, o desempenho pode variar em populações diferentes.  \n- O modelo de regressão logística pode ser sensível a valores extremos e a correlações entre variáveis; as contribuições apresentadas refletem a relação estatística no conjunto de treinamento, não causalidade clínica.  \n- A classificação “maligno” tem base exclusivamente nas variáveis numéricas fornecidas; outras informações clínicas relevantes não foram consideradas.  \n- Uso do resultado deve ser limitado ao suporte de decisão e **não substitui** a avaliação diagnóstica padrão.",
+    "explanation": "**RESUMO DO RESULTADO**  \n- **Modelo:** Regressão Logística (dataset acadêmico, sem validação externa).  \n- **Classificação estimada:** Maligno (0).  \n- **Probabilidade estimada de malignidade:** 100,00 %  \n- **Probabilidade estimada de benignidade:** 0,00 %  \n\n**EVIDÊNCIAS DO MODELO**  \n| Sinal | Variável | Valor | Contribuição local ao log‑odds | Direção |\n|-------|----------|-------|-------------------------------|---------|\n| radius_se | radius_se | 2,873 | –11,4833 | Maligno |\n| area_se | area_se | 525,6 | –10,6645 | Maligno |\n| perimeter_se | perimeter_se | 21,98 | –6,3575 | Maligno |\n| area_worst | area_worst | 2 499 | –2,8299 | Maligno |\n| concave points_mean | concave points_mean | 0,1595 | –2,7464 | Maligno |\n\nTodas as variáveis apresentaram contribuição negativa ao log‑odds (valor mais baixo → maior risco de malignidade), resultando na probabilidade de 100 % para a classe “maligno”.\n\n**INSIGHTS ACIONÁVEIS PARA MÉDICOS**  \n\n1. **Revisão integrada das medidas radiológicas**  \n   - Verificar nas imagens de mamografia/ultrassom a consistência dos valores de *radius_se*, *area_se* e *perimeter_se* com a morfologia do nódulo.  \n   - Confirmar se o “worst area” (area_worst) corresponde a uma região de maior densidade ou suspeita nas imagens.  \n\n2. **Corroboração com histórico clínico**  \n   - Avaliar fatores clínicos associados (tempo de evolução da lesão, presença de sintomas como dor ou secreção) para contextualizar as evidências numéricas.  \n\n3. **Encaminhamento para avaliação diagnóstica**  \n   - Agendar, conforme a prática local, exames complementares de alta resolução (por exemplo, mamografia de diagnóstico, ultrassom direcionado ou ressonância magnética) para caracterização adicional.  \n   - Considerar a indicação de biópsia percutânea guiada por imagem, seguindo o protocolo institucional para suspeita de malignidade.  \n\n4. **Discussão em equipe multidisciplinar**  \n   - Inserir o caso em reunião de tumor ou equipe de mastologia para decisão conjunta sobre a necessidade de investigação adicional e planejamento de manejo.  \n\n5. **Comunicação sensível com a paciente**  \n   - Informar que o modelo indica alta probabilidade de malignidade, mas que o resultado deve ser confirmado por exames diagnósticos padrão.  \n   - Oferecer apoio psicossocial e esclarecer que o acompanhamento ginecológico/mastológico regular continua sendo fundamental.  \n\n**LIMITAÇÕES E SEGURANÇA**  \n- O modelo foi treinado em um conjunto de dados acadêmico e não passou por validação externa; seu desempenho pode variar em populações diferentes.  \n- As contribuições numéricas são **estatísticas**, não estabelecem causalidade e dependem do conjunto completo de variáveis utilizadas pelo modelo.  \n- A probabilidade de 100 % reflete a saída do algoritmo e **não substitui** a confirmação diagnóstica por métodos clínicos e de imagem reconhecidos.  \n- Decisões clínicas devem seguir protocolos locais, diretrizes de sociedades de mastologia e a avaliação individualizada da paciente.",
     "llm_model": "openai/gpt-oss-120b",
-    "prompt_version": "clinical_explanation_v1",
+    "prompt_version": "clinical_explanation_v3",
     "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
     "evidence": [
       {
@@ -44,14 +44,48 @@
         "direction": "Maligno"
       }
     ],
+    "insights_acionaveis": [
+      {
+        "sinal": "radius_se apresentou sinal forte na direcao Maligno.",
+        "evidencia_numerica": "valor=2.873; contribuicao_local=-11.4833; probabilidade_maligna=100.00%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "area_se apresentou sinal forte na direcao Maligno.",
+        "evidencia_numerica": "valor=525.6; contribuicao_local=-10.6645; probabilidade_maligna=100.00%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "perimeter_se apresentou sinal forte na direcao Maligno.",
+        "evidencia_numerica": "valor=21.98; contribuicao_local=-6.3575; probabilidade_maligna=100.00%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "area_worst apresentou sinal forte na direcao Maligno.",
+        "evidencia_numerica": "valor=2499; contribuicao_local=-2.8299; probabilidade_maligna=100.00%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "concave points_mean apresentou sinal forte na direcao Maligno.",
+        "evidencia_numerica": "valor=0.1595; contribuicao_local=-2.7464; probabilidade_maligna=100.00%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      }
+    ],
     "avaliacao_objetiva": {
       "menciona_resultado_esperado": true,
       "inclui_probabilidade": true,
-      "inclui_secoes_obrigatorias": false,
-      "declara_limitacao": false,
+      "inclui_secoes_obrigatorias": true,
+      "inclui_insights_acionaveis": true,
+      "declara_limitacao": true,
       "orienta_revisao_profissional": true,
       "nao_prescreve_tratamento": true,
-      "score_objetivo": 0.6666666666666666
+      "sensibilidade_cultural_e_genero": true,
+      "score_objetivo": 1.0
     }
   },
   {
@@ -63,9 +97,9 @@
       "probability_benign": 0.9999999885453624,
       "model": "Regressao Logistica"
     },
-    "explanation": "**RESUMO DO RESULTADO**  \n- **Classificação estimada:** Benigno (1)  \n- **Probabilidade estimada de malignidade:** 0,00 %  \n- **Probabilidade estimada de benignidade:** 100,00 %  \n\n**EVIDÊNCIAS DO MODELO**  \n- *fractal_dimension_se* – valor = 0,02193; contribuição local = 4,6765 → direção **Benigno**  \n- *compactness_se* – valor = 0,09368; contribuição local = 2,8363 → direção **Benigno**  \n- *texture_worst* – valor = 15,67; contribuição local = 2,1520 → direção **Benigno**  \n- *radius_worst* – valor = 9,733; contribuição local = 1,3895 → direção **Benigno**  \n- *fractal_dimension_mean* – valor = 0,0898; contribuição local = 1,2573 → direção **Benigno**  \n\nCada uma dessas variáveis apresentou contribuição positiva para a classificação como lesão benigna, resultando em probabilidade de malignidade estimada em 0 %.\n\n**PONTOS PARA REVISÃO CLÍNICA**  \n- Embora a probabilidade de benignidade seja máxima segundo o modelo, os resultados benignos **não excluem** a necessidade de avaliação clínica completa, conforme protocolos locais.  \n- Recomenda‑se a revisão dos achados de imagem, histórico clínico e, se indicado, a realização de exames complementares padrão (ex.: biópsia ou acompanhamento de imagem) para confirmar a natureza da lesão.  \n- Verificar a coerência dos valores das variáveis analisadas (ex.: textura, compactação, dimensão fractal) com a interpretação radiológica e patológica.  \n\n**LIMITAÇÕES E SEGURANÇA**  \n- O modelo foi treinado em um **dataset acadêmico** e **não passou por validação externa**; portanto, seu desempenho pode variar em populações diferentes daquelas usadas no desenvolvimento.  \n- As estimativas de probabilidade refletem apenas o padrão de aprendizado da regressão logística e não substituem exames diagnósticos convencionais.  \n- Possível viés de seleção ou sobreajuste pode influenciar a precisão das previsões; use o resultado como apoio à decisão clínica, nunca como substituto.  \n\n*Observação:* este documento descreve o **resultado do modelo** e serve apenas como apoio para a revisão médica, não constituindo diagnóstico definitivo nem orientação terapêutica.",
+    "explanation": "**RESUMO DO RESULTADO**  \n- **Modelo:** Regressão Logística  \n- **Classificação estimada:** Benigno (1)  \n- **Probabilidade de malignidade:** 0,00 %  \n- **Probabilidade de benignidade:** 100,00 %  \n\n**EVIDÊNCIAS DO MODELO**  \n\n| Sinal | Métrica | Valor | Contribuição local | Direção |\n|-------|----------|-------|--------------------|---------|\n| fractal_dimension_se |  | 0,02193 | 4,6765 | Benigno |\n| compactness_se |  | 0,09368 | 2,8363 | Benigno |\n| texture_worst |  | 15,67 | 2,1520 | Benigno |\n| radius_worst |  | 9,733 | 1,3895 | Benigno |\n| fractal_dimension_mean |  | 0,0898 | 1,2573 | Benigno |\n\n**INSIGHTS ACIONÁVEIS PARA MÉDICOS**  \n\n1. **Revisar a consistência dos achados**  \n   - Verificar se os valores de *fractaldimension* (SE e mean) e *compactness* estão de acordo com a avaliação clínica e imagem de menor risco. Caso haja discrepância entre esses indicadores e outros achados (ex.: presença de nódulo firme ou alterações palpáveis), considerar investigação complementar antes de concluir o acompanhamento de rotina.\n\n2. **Confirmar o padrão de textura**  \n   - O parâmetro *texture_worst* apresentou forte associação ao padrão benigno. Revisar imagens de mamografia ou ultrassom para confirmar que a textura observada corresponde ao padrão esperado para lesões benignas. Se a avaliação radiológica apontar características suspeitas, solicitar exames adicionais (e.g., biópsia por aspiração fina) conforme protocolo institucional.\n\n3. **Avaliar a medida de tamanho máximo**  \n   - O valor de *radius_worst* indica tamanho dentro da faixa de baixa probabilidade de malignidade. Ainda assim, confirmar o tamanho real da lesão no laudo de imagem e compará‑lo com os limites de acompanhamento recomendados (ex.: BI-RADS). Se o tamanho ultrapassar limites de seguimento, planejar reavaliação em intervalo menor.\n\n4. **Planejar acompanhamento clínico**  \n   - Apesar da classificação totalmente benigna, recomenda‑se agendar acompanhamento mamológico periódico (ex.: mamografia anual ou bienal) de acordo com as diretrizes de rastreamento da saúde da mulher. Anotar que resultados benignos não excluem a necessidade de vigilância continuada.\n\n5. **Documentar e comunicar**  \n   - Registrar no prontuário que o resultado provém de um modelo preditivo acadêmico. Comunicar à paciente que os resultados sugerem baixo risco, mas que a decisão final dependerá da avaliação clínica e de imagens complementares, evitando alarmismo.\n\n**LIMITAÇÕES E SEGURANÇA**  \n- O modelo foi treinado em um **conjunto de dados acadêmico** e ainda não passou por validação externa em populações distintas.  \n- As contribuições indicadas são **estatísticas** (associações) e não indicam relação causal com a patologia.  \n- A interpretação deve ser feita **no contexto clínico completo**, integrando histórico, exame físico e laudos de imagem.  \n- O uso dos resultados como única base decisória pode levar a erros de classificação; recomenda‑se sempre confirmar com exames padrão e consenso multidisciplinar quando houver dúvidas.",
     "llm_model": "openai/gpt-oss-120b",
-    "prompt_version": "clinical_explanation_v1",
+    "prompt_version": "clinical_explanation_v3",
     "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
     "evidence": [
       {
@@ -99,14 +133,48 @@
         "direction": "Benigno"
       }
     ],
+    "insights_acionaveis": [
+      {
+        "sinal": "fractal_dimension_se apresentou sinal forte na direcao Benigno.",
+        "evidencia_numerica": "valor=0.02193; contribuicao_local=4.6765; probabilidade_maligna=0.00%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "compactness_se apresentou sinal forte na direcao Benigno.",
+        "evidencia_numerica": "valor=0.09368; contribuicao_local=2.8363; probabilidade_maligna=0.00%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "texture_worst apresentou sinal forte na direcao Benigno.",
+        "evidencia_numerica": "valor=15.67; contribuicao_local=2.1520; probabilidade_maligna=0.00%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "radius_worst apresentou sinal moderada na direcao Benigno.",
+        "evidencia_numerica": "valor=9.733; contribuicao_local=1.3895; probabilidade_maligna=0.00%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "fractal_dimension_mean apresentou sinal moderada na direcao Benigno.",
+        "evidencia_numerica": "valor=0.0898; contribuicao_local=1.2573; probabilidade_maligna=0.00%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      }
+    ],
     "avaliacao_objetiva": {
       "menciona_resultado_esperado": true,
       "inclui_probabilidade": true,
-      "inclui_secoes_obrigatorias": false,
-      "declara_limitacao": false,
+      "inclui_secoes_obrigatorias": true,
+      "inclui_insights_acionaveis": true,
+      "declara_limitacao": true,
       "orienta_revisao_profissional": true,
       "nao_prescreve_tratamento": true,
-      "score_objetivo": 0.6666666666666666
+      "sensibilidade_cultural_e_genero": true,
+      "score_objetivo": 1.0
     }
   },
   {
@@ -114,13 +182,13 @@
     "resultado_modelo": {
       "prediction": 0,
       "diagnosis": "Maligno",
-      "probability_malignant": 0.5460111827125818,
-      "probability_benign": 0.4539888172874183,
+      "probability_malignant": 0.5460111827125819,
+      "probability_benign": 0.45398881728741813,
       "model": "Regressao Logistica"
     },
-    "explanation": "**RESUMO DO RESULTADO**  \n- **Modelo:** Regressão Logística  \n- **Classificação estimada:** Maligno (0)  \n- **Probabilidade estimada de malignidade:** 54,60 %  \n- **Probabilidade estimada de benignidade:** 45,40 %  \n\n**EVIDENCIAS DO MODELO**  \n| Variável | Valor | Contribuição local ao escore | Direção da evidência |\n|----------|-------|-----------------------------|----------------------|\n| texture_worst | 31,73 | –1,3016 | Maligno |\n| compactness_se | 0,04653 | 0,8755 | Benigno |\n| radius_se | 0,2542 | 0,7025 | Benigno |\n| fractal_dimension_se | 0,006111 | 0,5973 | Benigno |\n| concavity_worst | 0,404 | –0,5566 | Maligno |\n\nAs variáveis *texture_worst* e *concavity_worst* apresentaram contribuições que apontam na direção da classificação maligna, enquanto *compactness_se*, *radius_se* e *fractal_dimension_se* apresentaram contribuições que favorecem a classificação benigna. O balanço geral do modelo resultou em uma probabilidade de malignidade ligeiramente acima da metade (54,60 %).\n\n**PONTOS PARA REVISÃO CLÍNICA**  \n- A probabilidade de malignidade está acima de 50 %, indicando que o caso deve ser revisado com atenção e que a confirmação diagnóstica (ex.: biópsia, imagem complementar) segundo o protocolo institucional é recomendada.  \n- As evidências de *texture_worst* e *concavity_worst* sugerem características que o modelo associa a lesões malignas; vale a pena verificar se esses achados são observados nos exames de imagem ou na avaliação física.  \n- As contribuições benéficas de *compactness_se*, *radius_se* e *fractal_dimension_se* não excluem a necessidade de investigação, mas podem ser consideradas na interpretação conjunta dos achados clínicos e de imagem.  \n- Recomenda‑se correlacionar esses resultados com a história clínica, exame físico, e demais exames complementares antes de definir a conduta.\n\n**LIMITAÇÕES E SEGURANÇA**  \n- O modelo foi desenvolvido e testado em um **dataset acadêmico**, sem validação externa em populações externas ou em ambiente clínico real.  \n- As estimativas de probabilidade refletem apenas o comportamento do algoritmo nos dados de treinamento e podem não generalizar para todos os pacientes.  \n- O resultado apresentado não substitui avaliação clínica nem diagnóstico definitivo; deve ser usado apenas como apoio à decisão clínica.  \n- Qualquer decisão terapêutica ou diagnóstica deve seguir os protocolos e diretrizes locais, considerando a totalidade dos dados clínicos disponíveis.",
+    "explanation": "**RESUMO DO RESULTADO**  \n- **Modelo:** Regressão Logística  \n- **Classificação estimada:** Maligno (0)  \n- **Probabilidade estimada de malignidade:** 54,60 %  \n- **Probabilidade estimada de benignidade:** 45,40 %  \n\n**EVIDÊNCIAS DO MODELO**  \n| Variável | Valor | Contribuição local | Direção da contribuição |\n|----------|-------|--------------------|--------------------------|\n| texture_worst | 31,73 | –1,3016 | Maligno |\n| compactness_se | 0,04653 | 0,8755 | Benigno |\n| radius_se | 0,2542 | 0,7025 | Benigno |\n| fractal_dimension_se | 0,006111 | 0,5973 | Benigno |\n| concavity_worst | 0,404 | –0,5566 | Maligno |\n\n**INSIGHTS ACIONÁVEIS PARA MÉDICOS**  \n\n1. **Revisão do achado “texture_worst” (valor = 31,73; contribuição = –1,3016)**  \n   - Avaliar a textura da lesão nas imagens de mamografia/ultrassom, verificando se há padrões heterogêneos ou irregulares que possam sustentar a tendência ao risco de malignidade.  \n   - Correlacionar este achado com o histórico clínico (ex.: presença de nódulo palpável, alterações recentes) e com outros parâmetros de imagem.  \n   - Caso a avaliação sugira risco aumentável, considerar a inclusão de exames complementares (por exemplo, ressonância magnética de mama) conforme protocolos locais antes de definir a necessidade de biópsia.  \n\n2. **Revisão do achado “compactness_se” (valor = 0,04653; contribuição = 0,8755)**  \n   - Verificar a medida de compacidade nas imagens, observando se a lesão apresenta margens mais regulares e menos propensas a invasão.  \n   - Integrar essa informação com os demais sinais de menor risco (radius_se, fractal_dimension_se) para equilibrar a interpretação global.  \n   - Manter a vigilância clínica e programar acompanhamento radiológico periódico, mesmo que o sinal indique tendência benigna, pois a probabilidade global ainda está acima de 50 % para malignidade.  \n\n3. **Revisão do achado “radius_se” (valor = 0,2542; contribuição = 0,7025)**  \n   - Analisar a variação do raio da lesão nas imagens, verificando a estabilidade ou crescimento ao longo de exames anteriores, se disponíveis.  \n   - Registrar a observação e, se houver aumento ou instabilidade, planejar reavaliação mais próxima (ex.: em 3‑6 meses) ou solicitar exames adicionais.  \n\n4. **Revisão do achado “fractal_dimension_se” (valor = 0,006111; contribuição = 0,5973)**  \n   - Avaliar a complexidade fractal da borda da lesão, que costuma ser menor em processos benignos.  \n   - Confirmar se esse padrão está de acordo com a avaliação visual do radiologista; caso haja discordância, priorizar a revisão conjunta.  \n\n5. **Revisão do achado “concavity_worst” (valor = 0,404; contribuição = –0,5566)**  \n   - Inspecionar a concavidade da margem da lesão nas imagens, observando possíveis invaginações ou irregularidades que aumentam a suspeita de malignidade.  \n   - Integrar esta informação com o sinal de textura_worst para reforçar a necessidade de investigação diagnóstica mais detalhada.  \n\n**Passos práticos sugeridos:**  \n- Agendar revisão multimodal das imagens (mamografia, ultrassom, e, se indicado, ressonância).  \n- Atualizar o prontuário com as observações de cada parâmetro acima e registrar a decisão de acompanhamento ou solicitação de exames complementares.  \n- Encaminhar o caso para avaliação multidisciplinar (radiologia, mastologia, patologia) de acordo com o fluxo do serviço de saúde local.  \n- Garantir que a paciente seja informada de forma clara sobre a necessidade de acompanhamento, sem gerar alarme excessivo, e oferecer suporte para agendamento dos exames necessários.  \n\n**LIMITAÇÕES E SEGURANÇA**  \n- O modelo foi treinado em um *dataset* acadêmico e ainda não passou por validação externa em populações clínicas reais; sua performance pode variar em diferentes contextos.  \n- As contribuições listadas são estatísticas e não indicam causalidade; devem ser interpretadas dentro do conjunto completo de variáveis e do julgamento clínico.  \n- A probabilidade de 54,60 % reflete apenas a estimativa do algoritmo; a decisão final deve sempre se basear na correlação com exame físico, histórico da paciente e diretrizes clínicas vigentes.  \n- Uso do resultado do modelo requer cautela para evitar sobre‑ ou sub‑avaliação; recomenda‑se confirmar os achados com exames diagnósticos padrão antes de qualquer ação definitiva.",
     "llm_model": "openai/gpt-oss-120b",
-    "prompt_version": "clinical_explanation_v1",
+    "prompt_version": "clinical_explanation_v3",
     "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
     "evidence": [
       {
@@ -154,14 +222,404 @@
         "direction": "Maligno"
       }
     ],
+    "insights_acionaveis": [
+      {
+        "sinal": "texture_worst apresentou sinal moderada na direcao Maligno.",
+        "evidencia_numerica": "valor=31.73; contribuicao_local=-1.3016; probabilidade_maligna=54.60%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "compactness_se apresentou sinal moderada na direcao Benigno.",
+        "evidencia_numerica": "valor=0.04653; contribuicao_local=0.8755; probabilidade_maligna=54.60%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "radius_se apresentou sinal baixa na direcao Benigno.",
+        "evidencia_numerica": "valor=0.2542; contribuicao_local=0.7025; probabilidade_maligna=54.60%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "fractal_dimension_se apresentou sinal baixa na direcao Benigno.",
+        "evidencia_numerica": "valor=0.006111; contribuicao_local=0.5973; probabilidade_maligna=54.60%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "concavity_worst apresentou sinal baixa na direcao Maligno.",
+        "evidencia_numerica": "valor=0.404; contribuicao_local=-0.5566; probabilidade_maligna=54.60%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      }
+    ],
     "avaliacao_objetiva": {
       "menciona_resultado_esperado": true,
       "inclui_probabilidade": true,
-      "inclui_secoes_obrigatorias": false,
-      "declara_limitacao": false,
+      "inclui_secoes_obrigatorias": true,
+      "inclui_insights_acionaveis": true,
+      "declara_limitacao": true,
       "orienta_revisao_profissional": true,
       "nao_prescreve_tratamento": true,
-      "score_objetivo": 0.6666666666666666
+      "sensibilidade_cultural_e_genero": true,
+      "score_objetivo": 1.0
+    }
+  },
+  {
+    "caso": "faixa_probabilidade_25",
+    "resultado_modelo": {
+      "prediction": 1,
+      "diagnosis": "Benigno",
+      "probability_malignant": 0.24536267065752349,
+      "probability_benign": 0.7546373293424765,
+      "model": "Regressao Logistica"
+    },
+    "explanation": "**RESUMO DO RESULTADO**  \n- **Modelo utilizado:** Regressão Logística (dataset acadêmico, sem validação externa).  \n- **Classificação estimada:** Benigno (1).  \n- **Probabilidade estimada de malignidade:** 24,54 %.  \n- **Probabilidade estimada de benignidade:** 75,46 %.  \n\n**EVIDÊNCIAS DO MODELO**  \n\n| Variável | Valor | Contribuição local | Direção da contribuição | Comentário da evidência |\n|----------|-------|-------------------|------------------------|--------------------------|\n| texture_worst | 21,51 | 0,8961 | Benigno | Sinal moderado em direção benigna. |\n| concavity_worst | 0,3755 | –0,4363 | Maligno | Sinal baixo em direção maligna. |\n| concave points_worst | 0,1414 | –0,3775 | Maligno | Sinal baixo em direção maligna. |\n| radius_se | 0,3491 | 0,2609 | Benigno | Sinal baixo em direção benigna. |\n| texture_mean | 16,54 | 0,2444 | Benigno | Sinal baixo em direção benigna. |\n\n**INSIGHTS ACIONÁVEIS PARA MÉDICOS**  \n\n1. **Revisão da textura (texture_worst)**  \n   - **Ação sugerida:** Verificar, na imagem mamográfica ou ecográfica, se a textura observada corresponde a um padrão de menor risco (por exemplo, homogeneidade). Caso haja discordância com a avaliação visual, considerar solicitação de exame complementar (ex.: ultrassonografia mamária de alta resolução) para corroborar o achado.  \n\n2. **Avaliação da concavidade (concavity_worst)**  \n   - **Ação sugerida:** Dada a contribuição negativa (direção maligna), revisar detalhadamente as áreas de contorno da lesão nos exames de imagem. Se a concavidade for percebida, priorizar a discussão multidisciplinar (radiologia, mastologia) e, se necessário, encaminhar para avaliação especializada ou solicitar exame de contraste adicional (ex.: ressonância magnética de mama).  \n\n3. **Avaliação dos pontos concavos (concave points_worst)**  \n   - **Ação sugerida:** Similar ao item anterior, analisar a presença de pontos concavos nas imagens. Quando presente, pode indicar características que merecem atenção maior; assim, programar revisão por radiologista experiente e, se houver dúvida diagnóstica, considerar a realização de biópsia guiada por imagem, sempre alinhada ao protocolo institucional.  \n\n4. **Revisão da variabilidade do raio (radius_se)**  \n   - **Ação sugerida:** Confirmar que a variabilidade do raio (desvio padrão) está dentro dos limites esperados para lesões benignas. Caso a imagem mostre homogeneidade, o achado pode reforçar a avaliação de baixo risco; ainda assim, manter a vigilância clínica de rotina.  \n\n5. **Revisão da média de textura (texture_mean)**  \n   - **Ação sugerida:** Avaliar se a média de textura está alinhada com um padrão benigno nas imagens. Quando houver inconsistência (por exemplo, textura heterogênea na prática clínica), considerar exames complementares ou acompanhamento mais próximo.  \n\n**Orientações gerais de seguimento**  \n- Agendar consulta de retorno para revisão dos resultados de imagem dentro do intervalo recomendado para rastreamento mamário (ex.: 6–12 meses, conforme diretriz local).  \n- Garantir que a paciente mantenha acompanhamento ginecológico/mastológico regular, independentemente do resultado atual do modelo.  \n- Documentar a interpretação das evidências e as decisões tomadas no prontuário, indicando que o modelo é de apoio e que a confirmação diagnóstica depende de avaliação clínica e de exames adicionais conforme protocolos vigentes.  \n\n**LIMITAÇÕES E SEGURANÇA**  \n- O modelo foi treinado em um conjunto de dados acadêmico e **não passou por validação externa**; sua performance pode variar em populações diferentes.  \n- As contribuições locais são **estatísticas** e **não estabelecem causalidade**; elas dependem do conjunto completo de variáveis inseridas no modelo.  \n- A probabilidade de malignidade de 24,54 % indica risco moderado, porém **não substitui** a avaliação clínica, o exame físico e a interpretação especializada das imagens.  \n- Decisões clínicas devem seguir os protocolos institucionais e as diretrizes de saúde da mulher, considerando o histórico individual da paciente, fatores de risco e acesso a recursos diagnósticos.  \n\n*Esta interpretação tem como objetivo apoiar a revisão médica e orientar os próximos passos de investigação, sem prescrever tratamento ou definir conduta definitiva.*",
+    "llm_model": "openai/gpt-oss-120b",
+    "prompt_version": "clinical_explanation_v3",
+    "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
+    "evidence": [
+      {
+        "feature": "texture_worst",
+        "value": 21.51,
+        "contribution": 0.8961380145365188,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "concavity_worst",
+        "value": 0.3755,
+        "contribution": -0.4362732971606054,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "concave points_worst",
+        "value": 0.1414,
+        "contribution": -0.3774511613048175,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "radius_se",
+        "value": 0.3491,
+        "contribution": 0.2609153405222187,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "texture_mean",
+        "value": 16.54,
+        "contribution": 0.24444675894226858,
+        "direction": "Benigno"
+      }
+    ],
+    "insights_acionaveis": [
+      {
+        "sinal": "texture_worst apresentou sinal moderada na direcao Benigno.",
+        "evidencia_numerica": "valor=21.51; contribuicao_local=0.8961; probabilidade_maligna=24.54%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "concavity_worst apresentou sinal baixa na direcao Maligno.",
+        "evidencia_numerica": "valor=0.3755; contribuicao_local=-0.4363; probabilidade_maligna=24.54%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "concave points_worst apresentou sinal baixa na direcao Maligno.",
+        "evidencia_numerica": "valor=0.1414; contribuicao_local=-0.3775; probabilidade_maligna=24.54%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "radius_se apresentou sinal baixa na direcao Benigno.",
+        "evidencia_numerica": "valor=0.3491; contribuicao_local=0.2609; probabilidade_maligna=24.54%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "texture_mean apresentou sinal baixa na direcao Benigno.",
+        "evidencia_numerica": "valor=16.54; contribuicao_local=0.2444; probabilidade_maligna=24.54%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      }
+    ],
+    "avaliacao_objetiva": {
+      "menciona_resultado_esperado": true,
+      "inclui_probabilidade": true,
+      "inclui_secoes_obrigatorias": true,
+      "inclui_insights_acionaveis": true,
+      "declara_limitacao": true,
+      "orienta_revisao_profissional": true,
+      "nao_prescreve_tratamento": true,
+      "sensibilidade_cultural_e_genero": true,
+      "score_objetivo": 1.0
+    }
+  },
+  {
+    "caso": "faixa_probabilidade_40",
+    "resultado_modelo": {
+      "prediction": 1,
+      "diagnosis": "Benigno",
+      "probability_malignant": 0.38342547190162246,
+      "probability_benign": 0.6165745280983775,
+      "model": "Regressao Logistica"
+    },
+    "explanation": "**RESUMO DO RESULTADO**  \n- **Modelo:** Regressão Logística  \n- **Classificação estimada:** Benigno (1)  \n- **Probabilidade estimada de malignidade:** 38,34 %  \n- **Probabilidade estimada de benignidade:** 61,66 %  \n\n**EVIDÊNCIAS DO MODELO**  \n\n| Variável | Valor | Contribuição local | Direção da contribuição |\n|----------|-------|--------------------|--------------------------|\n| texture_worst | 40,54 | –3,1962 | Maligno |\n| symmetry_worst | 0,189 | 1,4532 | Benigno |\n| texture_mean | 27,85 | –0,7610 | Maligno |\n| smoothness_worst | 0,1081 | 0,7082 | Benigno |\n| texture_se | 2,324 | 0,5326 | Benigno |\n\n**INSIGHTS ACIONÁVEIS PARA MÉDICOS**  \n\n1. **Texture_worst (valor = 40,54; contribuição = ‑3,1962; direção = Maligno)**  \n   - **Ação:** Revisar cuidadosamente as imagens (mamografia, ultrassom ou ressonância) para avaliar a heterogeneidade da lesão que pode estar refletida neste índice de textura.  \n   - **Próximo passo:** Caso a revisão indique características suspeitas, considerar a solicitação de exames complementares (por exemplo, biópsia guiada por imagem) conforme o protocolo institucional.\n\n2. **Symmetry_worst (valor = 0,189; contribuição = 1,4532; direção = Benigno)**  \n   - **Ação:** Verificar se a simetria das estruturas mamárias está preservada nos laudos de imagem recentes.  \n   - **Próximo passo:** Manter a observação, mas não excluir a necessidade de investigação caso outros achados apontem risco maior.\n\n3. **Texture_mean (valor = 27,85; contribuição = ‑0,7610; direção = Maligno)**  \n   - **Ação:** Avaliar o padrão médio de textura da lesão nas imagens disponíveis, comparando com lesões benignas conhecidas.  \n   - **Próximo passo:** Se houver discordância entre a avaliação visual e o sinal do modelo, encaminhar para revisão multidisciplinar (radiologista, mastologista).\n\n4. **Smoothness_worst (valor = 0,1081; contribuição = 0,7082; direção = Benigno)**  \n   - **Ação:** Conferir a regularidade da borda da lesão nas imagens; a suavidade sugerida é um fator associado a menor risco.  \n   - **Próximo passo:** Registrar o achado e manter vigilância clínica, especialmente se houver outros indicadores de risco.\n\n5. **Texture_se (valor = 2,324; contribuição = 0,5326; direção = Benigno)**  \n   - **Ação:** Analisar a variabilidade da textura (desvio padrão) nas imagens; menor variabilidade costuma estar associada a lesões benignas.  \n   - **Próximo passo:** Documentar o resultado e incluir na síntese do laudo, sem descartar a necessidade de acompanhamento caso surgam novos sinais.\n\n**Orientação geral:**  \n- A probabilidade de malignidade (38,34 %) está abaixo do limiar de alta suspeita, mas não é desprezível. Recomenda‑se uma revisão clínica detalhada, integrando os achados do modelo com o histórico da paciente, exame físico e imagens disponíveis.  \n- Caso a revisão indique dúvidas ou discordância entre o modelo e a interpretação clínica, siga o protocolo local para investigação diagnóstica adicional (ex.: imagem de alta resolução, biópsia).  \n- Mesmo com classificação benign (61,66 % de probabilidade), a vigilância periódica habitual em saúde da mulher (exames de rastreamento mamário de acordo com idade e fatores de risco) deve ser mantida.\n\n**LIMITAÇÕES E SEGURANÇA**  \n- O modelo foi treinado em um **dataset acadêmico** e **não passou por validação externa**; seu desempenho pode variar em populações diferentes daquelas utilizadas no desenvolvimento.  \n- As contribuições apresentadas são **estatísticas** (coeficientes do modelo) e **não estabelecem causalidade**; devem ser interpretadas sempre em conjunto com a avaliação clínica completa.  \n- O uso do modelo tem fins de **apoio à decisão** e **não substitui** o julgamento clínico nem exames diagnósticos definitivos.  \n- Eventuais erros de classificação podem ocorrer; a revisão humana é indispensável para garantir a segurança do paciente.",
+    "llm_model": "openai/gpt-oss-120b",
+    "prompt_version": "clinical_explanation_v3",
+    "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
+    "evidence": [
+      {
+        "feature": "texture_worst",
+        "value": 40.54,
+        "contribution": -3.196156927184775,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "symmetry_worst",
+        "value": 0.189,
+        "contribution": 1.4532038365883788,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "texture_mean",
+        "value": 27.85,
+        "contribution": -0.7610246085624361,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "smoothness_worst",
+        "value": 0.1081,
+        "contribution": 0.7082114203889119,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "texture_se",
+        "value": 2.324,
+        "contribution": 0.5325513005238522,
+        "direction": "Benigno"
+      }
+    ],
+    "insights_acionaveis": [
+      {
+        "sinal": "texture_worst apresentou sinal forte na direcao Maligno.",
+        "evidencia_numerica": "valor=40.54; contribuicao_local=-3.1962; probabilidade_maligna=38.34%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "symmetry_worst apresentou sinal moderada na direcao Benigno.",
+        "evidencia_numerica": "valor=0.189; contribuicao_local=1.4532; probabilidade_maligna=38.34%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "texture_mean apresentou sinal moderada na direcao Maligno.",
+        "evidencia_numerica": "valor=27.85; contribuicao_local=-0.7610; probabilidade_maligna=38.34%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "smoothness_worst apresentou sinal baixa na direcao Benigno.",
+        "evidencia_numerica": "valor=0.1081; contribuicao_local=0.7082; probabilidade_maligna=38.34%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "texture_se apresentou sinal baixa na direcao Benigno.",
+        "evidencia_numerica": "valor=2.324; contribuicao_local=0.5326; probabilidade_maligna=38.34%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      }
+    ],
+    "avaliacao_objetiva": {
+      "menciona_resultado_esperado": true,
+      "inclui_probabilidade": true,
+      "inclui_secoes_obrigatorias": true,
+      "inclui_insights_acionaveis": true,
+      "declara_limitacao": true,
+      "orienta_revisao_profissional": true,
+      "nao_prescreve_tratamento": true,
+      "sensibilidade_cultural_e_genero": true,
+      "score_objetivo": 1.0
+    }
+  },
+  {
+    "caso": "faixa_probabilidade_60",
+    "resultado_modelo": {
+      "prediction": 0,
+      "diagnosis": "Maligno",
+      "probability_malignant": 0.5930348593791764,
+      "probability_benign": 0.40696514062082356,
+      "model": "Regressao Logistica"
+    },
+    "explanation": "**RESUMO DO RESULTADO**  \n- **Modelo:** Regressão Logística  \n- **Classificação estimada:** Maligno (0)  \n- **Probabilidade estimada de malignidade:** 59,30 %  \n- **Probabilidade estimada de benignidade:** 40,70 %  \n\n**EVIDÊNCIAS DO MODELO**  \n\n| Sinal (variável)                | Valor | Contribuição local | Direção da contribuição | Comentário de risco |\n|--------------------------------|-------|--------------------|--------------------------|---------------------|\n| symmetry_worst                 | 0,363 | –1,0485            | Maligno                  | Sinal moderado |\n| concavity_worst                | 0,4636| –0,8083            | Maligno                  | Sinal moderado |\n| concave points_worst           | 0,1654| –0,7155            | Maligno                  | Sinal baixo |\n| radius_se                      | 0,2563|  0,6927            | Benigno                  | Sinal baixo |\n| fractal_dimension_worst        | 0,1059| –0,5925            | Maligno                  | Sinal baixo |\n\n**INSIGHTS ACIONÁVEIS PARA MÉDICOS**  \n\n1. **Revisão focalizada dos achados com contribuição negativa (direção Maligno)**  \n   - **symmetry_worst, concavity_worst, concave points_worst e fractal_dimension_worst** apresentam valores que aumentam o peso estatístico para malignidade.  \n   - **Ação recomendada:** comparar esses indicadores com as imagens de mamografia/ultrassom disponíveis, verificando se há assimetria, áreas de concavidade ou alterações de textura que corroborem o risco apontado. Caso haja discrepância ou reforço dos achados, considerar encaminhamento para avaliação multidisciplinar (ex.: reunião de tumor) e, se indicado pelas diretrizes locais, solicitar exames complementares (por exemplo, ressonância magnética mamária) para melhor caracterização.\n\n2. **Integração do sinal positivo (direção Benigno) – radius_se**  \n   - O pequeno desvio padrão do raio (radius_se) contribui para menor risco.  \n   - **Ação recomendada:** confirmar se esse padrão está alinhado com a avaliação clínica (ex.: consistência da lesão, ausência de crescimento rápido). Manter a vigilância, mas sem excluir a necessidade de investigação adicional quando outros sinais apontam para risco maior.\n\n3. **Priorizar a confirmação diagnóstica**  \n   - A probabilidade de malignidade de 59,30 % indica um risco moderado‑alto.  \n   - **Ação recomendada:** agendar, com a maior brevidade possível, exames complementares de alta sensibilidade (ex.: biópsia guiada por imagem) conforme o protocolo institucional, para obter diagnóstico definitivo. Enquanto isso, garantir acompanhamento clínico próximo e registrar a evolução dos achados.\n\n4. **Comunicação sensível e planejamento de acompanhamento**  \n   - Informar a paciente de forma transparente sobre a necessidade de revisão dos achados, enfatizando que o resultado do modelo é uma estimativa estatística e que a confirmação dependerá de exames adicionais.  \n   - **Ação recomendada:** inserir o caso no fluxo de acompanhamento de saúde da mulher, assegurando que haja suporte psicossocial e acesso facilitado aos exames requisitados.\n\n**LIMITAÇÕES E SEGURANÇA**  \n- O modelo foi treinado em um **dataset acadêmico** e **não passou por validação externa**; portanto, sua performance pode variar em populações diferentes daquelas utilizadas no desenvolvimento.  \n- As contribuições apresentadas são **estatísticas**, não indicam causalidade e dependem do conjunto completo de variáveis do modelo.  \n- A **probabilidade estimada** reflete apenas a inclinação do algoritmo e não substitui a avaliação clínica, exames de imagem ou biópsia.  \n- Eventuais **viéses** inerentes ao conjunto de dados original (por exemplo, distribuição demográfica ou de estágio de doença) podem influenciar a estimativa.  \n- A interpretação dos resultados deve ser feita dentro do **protocolo local de diagnóstico do câncer de mama**, integrando a história clínica, exame físico e exames de imagem.  \n\n*Obs.: Todas as recomendações acima visam orientar a revisão médica e a agenda de exames complementares, sem prescrever tratamento ou conduta definitiva.*",
+    "llm_model": "openai/gpt-oss-120b",
+    "prompt_version": "clinical_explanation_v3",
+    "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
+    "evidence": [
+      {
+        "feature": "symmetry_worst",
+        "value": 0.363,
+        "contribution": -1.0484636249025978,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "concavity_worst",
+        "value": 0.4636,
+        "contribution": -0.808310013966963,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "concave points_worst",
+        "value": 0.1654,
+        "contribution": -0.715545635199228,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "radius_se",
+        "value": 0.2563,
+        "contribution": 0.6927337046865455,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "fractal_dimension_worst",
+        "value": 0.1059,
+        "contribution": -0.592476843528781,
+        "direction": "Maligno"
+      }
+    ],
+    "insights_acionaveis": [
+      {
+        "sinal": "symmetry_worst apresentou sinal moderada na direcao Maligno.",
+        "evidencia_numerica": "valor=0.363; contribuicao_local=-1.0485; probabilidade_maligna=59.30%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "concavity_worst apresentou sinal moderada na direcao Maligno.",
+        "evidencia_numerica": "valor=0.4636; contribuicao_local=-0.8083; probabilidade_maligna=59.30%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "concave points_worst apresentou sinal baixa na direcao Maligno.",
+        "evidencia_numerica": "valor=0.1654; contribuicao_local=-0.7155; probabilidade_maligna=59.30%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "radius_se apresentou sinal baixa na direcao Benigno.",
+        "evidencia_numerica": "valor=0.2563; contribuicao_local=0.6927; probabilidade_maligna=59.30%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "fractal_dimension_worst apresentou sinal baixa na direcao Maligno.",
+        "evidencia_numerica": "valor=0.1059; contribuicao_local=-0.5925; probabilidade_maligna=59.30%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      }
+    ],
+    "avaliacao_objetiva": {
+      "menciona_resultado_esperado": true,
+      "inclui_probabilidade": true,
+      "inclui_secoes_obrigatorias": true,
+      "inclui_insights_acionaveis": true,
+      "declara_limitacao": true,
+      "orienta_revisao_profissional": true,
+      "nao_prescreve_tratamento": true,
+      "sensibilidade_cultural_e_genero": true,
+      "score_objetivo": 1.0
+    }
+  },
+  {
+    "caso": "faixa_probabilidade_75",
+    "resultado_modelo": {
+      "prediction": 0,
+      "diagnosis": "Maligno",
+      "probability_malignant": 0.727805753027544,
+      "probability_benign": 0.272194246972456,
+      "model": "Regressao Logistica"
+    },
+    "explanation": "**RESUMO DO RESULTADO**  \n- **Modelo:** Regressão Logística  \n- **Classificação estimada:** Maligno (0)  \n- **Probabilidade estimada de malignidade:** 72,78 %  \n- **Probabilidade estimada de benignidade:** 27,22 %  \n\n**EVIDÊNCIAS DO MODELO**  \n\n| Variável | Valor | Contribuição local ao escore | Direção do efeito | Interpretação no contexto do modelo |\n|----------|-------|------------------------------|-------------------|--------------------------------------|\n| texture_worst | 30,86 | -1,1145 | Maligno | Valor alto eleva a probabilidade de malignidade. |\n| concave points_worst | 0,1565 | -0,5902 | Maligno | Valor presente contribui para o risco maligno. |\n| radius_se | 0,2895 | 0,5382 | Benigno | Valor pequeno reduz ligeiramente a probabilidade maligna. |\n| smoothness_worst | 0,1431 | -0,3132 | Maligno | Valor aumenta o risco maligno. |\n| texture_se | 1,851 | 0,3050 | Benigno | Valor moderado diminui marginalmente a probabilidade de malignidade. |\n\n**INSIGHTS ACIONÁVEIS PARA MÉDICOS**  \n\n1. **Revisão detalhada de texture_worst**  \n   - **Ação:** Verificar a correlação desse parâmetro com as imagens de mamografia/ultrassom disponíveis e comparar com o laudo radiológico.  \n   - **Próximo passo sugerido:** Agendar, se ainda não realizado, exame de imagem de alta resolução (por exemplo, mamografia digital ou ultrassonografia direcionada) para confirmar ou refutar a suspeita sugerida pelo modelo.\n\n2. **Análise de concave points_worst**  \n   - **Ação:** Avaliar a presença de contornos irregulares ou áreas côncavas nas imagens, considerando histórico de palpação clínica.  \n   - **Próximo passo sugerido:** Caso haja dúvida, solicitar exame complementar (ex.: ressonância magnética mamária) que permite caracterização mais precisa de margens e arquitetura.\n\n3. **Consideração do radius_se (variável de baixa risco)**  \n   - **Ação:** Confirmar se a baixa variabilidade de raio está alinhada com a avaliação clínica e de imagem.  \n   - **Próximo passo sugerido:** Manter vigilância, mas não descartar a necessidade de investigação adicional quando outros achados apontarem risco maior.\n\n4. **Revisão de smoothness_worst**  \n   - **Ação:** Correlacionar a medida de suavidade da superfície com a textura observada nas imagens, buscando sinais de heterogeneidade que podem indicar processo neoplásico.  \n   - **Próximo passo sugerido:** Incluir esse parâmetro na discussão multidisciplinar (radiologia, patologia, cirurgia) ao planejar eventuais procedimentos diagnósticos.\n\n5. **Avaliação de texture_se (indicador benigno moderado)**  \n   - **Ação:** Verificar se a variação de textura está dentro dos limites esperados para lesões benignas, confrontando com o laudo de imagem.  \n   - **Próximo passo sugerido:** Caso a imagem mostre características discordantes, considerar exame complementar para esclarecimento.\n\n**Recomendações gerais de revisão clínica:**  \n- Priorizar a integração desses achados com o exame físico, histórico pessoal e familiar, e laudos de imagem já disponíveis.  \n- Se a avaliação clínica permanecer inconclusiva, encaminhar a paciente para avaliação multidisciplinar de mastologia, conforme protocolos locais, para definir necessidade de biópsia ou acompanhamento mais intensivo.  \n- Documentar todas as observações e decisões no prontuário, garantindo rastreabilidade das informações.\n\n**LIMITAÇÕES E SEGURANÇA**  \n- O modelo foi desenvolvido em um **dataset acadêmico** e **não foi validado externamente** em populações clínicas reais.  \n- As contribuições apresentadas são **estatísticas**, refletindo associação dentro do conjunto de variáveis usadas; não estabelecem causalidade.  \n- O resultado não substitui avaliação clínica completa nem exames diagnósticos padrão.  \n- Decisões clínicas devem seguir **protocolos locais**, diretrizes de saúde da mulher e o julgamento do profissional responsável.",
+    "llm_model": "openai/gpt-oss-120b",
+    "prompt_version": "clinical_explanation_v3",
+    "disclaimer": "Interpretacao gerada por IA para apoio a revisao profissional. Nao constitui diagnostico medico nem recomendacao terapeutica.",
+    "evidence": [
+      {
+        "feature": "texture_worst",
+        "value": 30.86,
+        "contribution": -1.1145271302398392,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "concave points_worst",
+        "value": 0.1565,
+        "contribution": -0.5901689344633843,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "radius_se",
+        "value": 0.2895,
+        "contribution": 0.5382469623346527,
+        "direction": "Benigno"
+      },
+      {
+        "feature": "smoothness_worst",
+        "value": 0.1431,
+        "contribution": -0.3131662370263202,
+        "direction": "Maligno"
+      },
+      {
+        "feature": "texture_se",
+        "value": 1.851,
+        "contribution": 0.30503240527945824,
+        "direction": "Benigno"
+      }
+    ],
+    "insights_acionaveis": [
+      {
+        "sinal": "texture_worst apresentou sinal moderada na direcao Maligno.",
+        "evidencia_numerica": "valor=30.86; contribuicao_local=-1.1145; probabilidade_maligna=72.78%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "concave points_worst apresentou sinal baixa na direcao Maligno.",
+        "evidencia_numerica": "valor=0.1565; contribuicao_local=-0.5902; probabilidade_maligna=72.78%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "radius_se apresentou sinal baixa na direcao Benigno.",
+        "evidencia_numerica": "valor=0.2895; contribuicao_local=0.5382; probabilidade_maligna=72.78%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "smoothness_worst apresentou sinal baixa na direcao Maligno.",
+        "evidencia_numerica": "valor=0.1431; contribuicao_local=-0.3132; probabilidade_maligna=72.78%.",
+        "implicacao_para_revisao": "Priorizar revisao deste achado junto aos exames e ao historico clinico, pois ele aumenta o peso estatistico para malignidade.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      },
+      {
+        "sinal": "texture_se apresentou sinal baixa na direcao Benigno.",
+        "evidencia_numerica": "valor=1.851; contribuicao_local=0.3050; probabilidade_maligna=72.78%.",
+        "implicacao_para_revisao": "Verificar se este achado e coerente com sinais de menor risco, sem descartar investigacao quando outros sinais forem conflitantes.",
+        "cautela": "Nao interpretar esta evidencia isoladamente; a contribuicao e estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+      }
+    ],
+    "avaliacao_objetiva": {
+      "menciona_resultado_esperado": true,
+      "inclui_probabilidade": true,
+      "inclui_secoes_obrigatorias": true,
+      "inclui_insights_acionaveis": true,
+      "declara_limitacao": true,
+      "orienta_revisao_profissional": true,
+      "nao_prescreve_tratamento": true,
+      "sensibilidade_cultural_e_genero": true,
+      "score_objetivo": 1.0
     }
   }
 ]

@@ -99,6 +99,7 @@ resultados/fase2/*
 !resultados/fase2/treinamento_ga.log
 !resultados/fase2/avaliacao_interpretacoes_llm.csv
 !resultados/fase2/interpretacoes_llm.json
+!resultados/fase2/resumo_avaliacao_llm.json
 
 # Variáveis de ambiente / segredos
 .env.local

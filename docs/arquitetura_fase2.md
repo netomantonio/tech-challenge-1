@@ -168,9 +168,13 @@ A integracao utiliza a API do Groq com o modelo configuravel
 envia apenas classificacao, probabilidades e cinco contribuicoes locais, sem
 `id` nem o vetor completo de features.
 
-O prompt versionado `clinical_explanation_v1` exige linguagem apropriada ao
+O prompt versionado `clinical_explanation_v3` exige linguagem apropriada ao
 contexto medico, quatro secoes padronizadas, declaracao de limitacoes e
-ausencia de prescricao. A qualidade pode ser avaliada com:
+ausencia de prescricao. A v3 acrescenta regras de saude da mulher (situar
+achados em cuidados tipicos do contexto sem presumir dados nao fornecidos),
+sensibilidade de genero (veta linguagem alarmista/estigmatizante) e
+privacidade/confidencialidade (veta qualquer identificador pessoal da
+paciente). A qualidade pode ser avaliada com:
 
 ```bash
 python -m src.evaluate_llm

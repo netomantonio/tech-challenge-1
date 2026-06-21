@@ -81,7 +81,7 @@ para contexto médico.
 | Escalabilidade automática | API containerizada e `HorizontalPodAutoscaler` em `deploy/k8s/` |
 | Arquitetura e decisões | `docs/arquitetura_fase2.md` e `relatorio_tecnico_fase2.md` |
 | Integração com LLM | `src/llm_interpretation.py` e endpoint `POST /interpret` |
-| Prompt engineering | Instruções clínicas versionadas em `clinical_explanation_v2` |
+| Prompt engineering | Instruções clínicas versionadas em `clinical_explanation_v3` |
 | Avaliação da interpretação | `src/evaluate_llm.py` e notebook `03_interpretacao_llm_cancer_mama.ipynb` |
 
 ## Estrutura do Repositório
@@ -173,11 +173,20 @@ Regressão Logística, KNN e Árvore de Decisão. Assim, a LLM interpreta o
 resultado que seria efetivamente entregue em produção, e não uma votação ou
 comparação simultânea entre os três modelos.
 
-O prompt `clinical_explanation_v2` exige quatro seções (`Resumo do Resultado`,
+O prompt `clinical_explanation_v3` exige quatro seções (`Resumo do Resultado`,
 `Evidências do Modelo`, `Insights Acionáveis para Médicos` e `Limitações e
 Segurança`). Além do texto livre, o sistema persiste `insights_acionaveis` em
 estrutura própria, relacionando sinal, evidência numérica, implicação para
 revisão e cautela.
+
+A versão v3 reforça três cuidados específicos do enunciado: (1) contexto de
+saúde da mulher, situando os achados em cuidados tipicamente associados a
+esse contexto sem presumir dados não fornecidos; (2) sensibilidade de gênero,
+proibindo termos alarmistas ou sentenciosos; e (3) privacidade e
+confidencialidade, vetando qualquer identificador pessoal da paciente. A
+rubrica de avaliação (`evaluate_interpretation_quality`) ganhou o critério
+`sensibilidade_cultural_e_genero`, que reprova respostas com linguagem
+estigmatizante.
 
 Para gerar interpretações reais:
 
