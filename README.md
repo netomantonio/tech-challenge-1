@@ -229,6 +229,21 @@ Os notebooks da Fase 2 são:
 - `notebooks/02_otimizacao_genetica_cancer_mama.ipynb`: otimização genética;
 - `notebooks/03_interpretacao_llm_cancer_mama.ipynb`: interpretação com GPT e avaliação.
 
+## Preview na Cloudflare
+
+O repositório inclui uma implantação integral e isolada para Cloudflare Pages,
+Python Workers e R2, acionada exclusivamente pelo Cloudflare Builds conectado
+ao GitHub. O frontend React oferece o formulário das 30 features, a
+classificação e a interpretação protegida por Turnstile e rate limiting.
+
+A implantação não usa D1, não persiste entradas ou resultados clínicos e não
+altera os algoritmos de treinamento. O `joblib` original continua versionado;
+o Worker usa um manifesto JSON matematicamente equivalente, validado nas 569
+amostras do dataset.
+
+As instruções de conexão do GitHub, secrets, comandos do pipeline e critérios
+de validação estão em [docs/cloudflare-deploy.md](docs/cloudflare-deploy.md).
+
 Com a API em execução:
 
 - **Swagger UI (documentação interativa): `http://127.0.0.1:8000/docs`**

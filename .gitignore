@@ -26,6 +26,7 @@ MANIFEST
 
 # Ambientes virtuais
 .venv
+.venv-workers/
 env/
 venv/
 ENV/
@@ -52,6 +53,23 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+coverage/
+
+# Node.js / Vite / TypeScript
+node_modules/
+.npm/
+.pnpm-store/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Cloudflare Workers / Pages / Pywrangler
+.wrangler/
+python_modules/
+pylock.toml
 
 # mypy / type checkers
 .mypy_cache/
@@ -102,8 +120,14 @@ resultados/fase2/*
 !resultados/fase2/resumo_avaliacao_llm.json
 
 # Variáveis de ambiente / segredos
+.env
+.env.*
+!.env.example
 .env.local
 .env.*.local
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 *.pem
 secrets.json
 

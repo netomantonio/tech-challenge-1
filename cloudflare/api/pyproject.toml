@@ -1,0 +1,29 @@
+[project]
+name = "cancer-mama-api-worker"
+version = "1.0.0"
+description = "API de inferência de câncer de mama para Cloudflare Workers"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "fastapi>=0.115.0,<1.0.0",
+  "httpx>=0.28.0,<1.0.0",
+  "prometheus-client>=0.20.0,<1.0.0",
+]
+
+[dependency-groups]
+dev = [
+  "workers-py>=1.14.0,<2.0.0",
+  "workers-runtime-sdk>=1.4.3,<2.0.0",
+]
+test = [
+  "joblib>=1.4.2,<2.0.0",
+  "numpy>=1.26.4,<3.0.0",
+  "pandas>=2.2.2,<4.0.0",
+  "scikit-learn>=1.5.1,<2.0.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

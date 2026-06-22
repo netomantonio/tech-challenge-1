@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -20,7 +21,6 @@ from src.genetic_optimization import (
 from src.llm_interpretation import (
     FeatureEvidence,
     LLMInterpretation,
-    LLMUnavailableError,
     ModelResult,
     build_interpretation_prompt,
     derive_actionable_insights,
@@ -111,7 +111,7 @@ class PhaseTwoContractTests(unittest.TestCase):
 
     def test_api_predicts_using_persisted_artifact(self) -> None:
         payload = self.api.PredictRequest(features=self.features.iloc[0].to_dict())
-        response = self.api.predict(payload)
+        response = asyncio.run(self.api.predict(payload))
         self.assertIn(response.diagnosis, {"Maligno", "Benigno"})
         self.assertAlmostEqual(
             response.probability_malignant + response.probability_benign, 1.0, places=6
@@ -120,7 +120,7 @@ class PhaseTwoContractTests(unittest.TestCase):
     def test_api_rejects_incomplete_features(self) -> None:
         payload = self.api.PredictRequest(features={"radius_mean": 10.0})
         with self.assertRaises(HTTPException) as context:
-            self.api.predict(payload)
+            asyncio.run(self.api.predict(payload))
         self.assertEqual(context.exception.status_code, 422)
 
     def test_prompt_and_quality_check_are_clinically_constrained(self) -> None:
@@ -129,8 +129,13 @@ class PhaseTwoContractTests(unittest.TestCase):
         prompt = build_interpretation_prompt(result, evidence)
         self.assertIn("Probabilidade estimada de malignidade: 98.00%", prompt)
         self.assertIn("INSIGHTS ACIONAVEIS PARA MEDICOS", prompt)
-        interpretation = generate_interpretation(
-            result, evidence, client=FakeGroqClient(), model_name="gpt-test"
+        interpretation = asyncio.run(
+            generate_interpretation(
+                result,
+                evidence,
+                client=FakeGroqClient(),
+                model_name="gpt-test",
+            )
         )
         quality = evaluate_interpretation_quality(interpretation.explanation, "Maligno")
         self.assertEqual(interpretation.llm_model, "gpt-test")
@@ -156,8 +161,14 @@ class PhaseTwoContractTests(unittest.TestCase):
             evidence=[],
             insights_acionaveis=[],
         )
-        with patch.object(self.api, "generate_interpretation", return_value=fake):
-            response = self.api.interpret(payload)
+
+        async def fake_generate(*_args, **_kwargs):
+            return fake
+
+        with patch.object(
+            self.api, "generate_interpretation", side_effect=fake_generate
+        ):
+            response = asyncio.run(self.api.interpret(payload, None))
         self.assertEqual(response.llm_model, "gpt-test")
         self.assertEqual(response.quality_checks["score_objetivo"], 1.0)
         self.assertEqual(response.insights_acionaveis, [])
@@ -166,7 +177,7 @@ class PhaseTwoContractTests(unittest.TestCase):
         payload = self.api.PredictRequest(features=self.features.iloc[0].to_dict())
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(HTTPException) as context:
-                self.api.interpret(payload)
+                asyncio.run(self.api.interpret(payload, None))
         self.assertEqual(context.exception.status_code, 503)
 
 

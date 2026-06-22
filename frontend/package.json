@@ -1,0 +1,32 @@
+{
+  "name": "cancer-mama-web-preview",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b && vite build",
+    "dev": "vite",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "types:cloudflare": "wrangler types"
+  },
+  "dependencies": {
+    "@marsidev/react-turnstile": "1.5.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260621.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "jsdom": "29.0.1",
+    "typescript": "5.9.3",
+    "vite": "8.0.16",
+    "vitest": "4.1.9",
+    "wrangler": "4.103.0"
+  }
+}

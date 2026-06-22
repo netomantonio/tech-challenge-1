@@ -9,6 +9,7 @@ notebook==7.2.1
 kagglehub
 joblib==1.4.2
 fastapi>=0.115.0,<1.0.0
+httpx>=0.28.0,<1.0.0
 uvicorn[standard]>=0.30.0,<1.0.0
 prometheus-client>=0.20.0,<1.0.0
 anthropic>=0.50.0,<2.0.0

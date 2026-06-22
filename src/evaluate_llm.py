@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -36,7 +37,9 @@ def predict_case(artifact: dict, row: pd.Series) -> ModelResult:
     )
 
 
-def select_representative_cases(artifact: dict, csv_path: Path) -> list[tuple[str, pd.Series]]:
+def select_representative_cases(
+    artifact: dict, csv_path: Path
+) -> list[tuple[str, pd.Series]]:
     data = pd.read_csv(csv_path)
     features = data.drop(columns=["id", "diagnosis"])
     probabilities = artifact["model"].predict_proba(features)
@@ -61,7 +64,11 @@ def select_representative_cases(artifact: dict, csv_path: Path) -> list[tuple[st
         selected.append(
             (
                 label,
-                int((candidates["probability_malignant"] - target_probability).abs().idxmin()),
+                int(
+                    (candidates["probability_malignant"] - target_probability)
+                    .abs()
+                    .idxmin()
+                ),
             )
         )
 
@@ -80,10 +87,12 @@ def summarize_quality(dataframe: pd.DataFrame, llm_model: str) -> dict:
     quality_columns = [
         column
         for column in dataframe.columns
-        if column not in {"caso", "classificacao", "probabilidade_maligna", "score_objetivo"}
+        if column
+        not in {"caso", "classificacao", "probabilidade_maligna", "score_objetivo"}
     ]
     failed_by_criterion = {
-        column: int((~dataframe[column].astype(bool)).sum()) for column in quality_columns
+        column: int((~dataframe[column].astype(bool)).sum())
+        for column in quality_columns
     }
     return {
         "quantidade_casos": int(len(dataframe)),
@@ -95,7 +104,9 @@ def summarize_quality(dataframe: pd.DataFrame, llm_model: str) -> dict:
     }
 
 
-def evaluate_cases(model_path: Path, csv_path: Path, output_dir: Path) -> pd.DataFrame:
+async def evaluate_cases(
+    model_path: Path, csv_path: Path, output_dir: Path
+) -> pd.DataFrame:
     if not os.getenv("GROQ_API_KEY"):
         raise LLMUnavailableError(
             "GROQ_API_KEY nao configurada. "
@@ -109,7 +120,7 @@ def evaluate_cases(model_path: Path, csv_path: Path, output_dir: Path) -> pd.Dat
     for case_name, row in select_representative_cases(artifact, csv_path):
         result = predict_case(artifact, row)
         evidence = derive_feature_evidence(artifact, row.to_dict())
-        interpretation = generate_interpretation(result, evidence)
+        interpretation = await generate_interpretation(result, evidence)
         llm_model = interpretation.llm_model
         quality = evaluate_interpretation_quality(
             interpretation.explanation, result.diagnosis
@@ -143,13 +154,17 @@ def evaluate_cases(model_path: Path, csv_path: Path, output_dir: Path) -> pd.Dat
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Avaliacao das interpretacoes geradas pela LLM")
+    parser = argparse.ArgumentParser(
+        description="Avaliacao das interpretacoes geradas pela LLM"
+    )
     parser.add_argument("--model", default="resultados/fase2/modelo_serving.joblib")
     parser.add_argument("--data", default="data/cancer_mama.csv")
     parser.add_argument("--output", default="resultados/fase2")
     args = parser.parse_args()
     try:
-        result = evaluate_cases(Path(args.model), Path(args.data), Path(args.output))
+        result = asyncio.run(
+            evaluate_cases(Path(args.model), Path(args.data), Path(args.output))
+        )
     except LLMUnavailableError as error:
         raise SystemExit(str(error))
     print(result.round(4).to_string(index=False))

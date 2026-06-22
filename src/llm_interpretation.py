@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict, dataclass
+import inspect
 import os
 import re
-import time
 from typing import Any
 import unicodedata
 
-import numpy as np
-import pandas as pd
+import httpx
+
+try:
+    from src.model_inference import ServingModel, serving_model_from_joblib_artifact
+except ModuleNotFoundError:
+    from model_inference import ServingModel, serving_model_from_joblib_artifact
 
 
 DEFAULT_LLM_MODEL = "openai/gpt-oss-120b"
@@ -50,7 +55,7 @@ LIMITACOES E SEGURANCA
 
 
 class LLMUnavailableError(RuntimeError):
-    """Raised when the LLM cannot be used in the current environment."""
+    """Indica que a LLM não pode ser usada no ambiente atual."""
 
 
 @dataclass(frozen=True)
@@ -100,27 +105,29 @@ PROMPT_VERSION = "clinical_explanation_v3"
 
 
 def derive_feature_evidence(
-    artifact: dict[str, Any], features: dict[str, float], top_k: int = 5
+    artifact: ServingModel | dict[str, Any],
+    features: dict[str, float],
+    top_k: int = 5,
 ) -> list[FeatureEvidence]:
     """Retorna contribuicoes locais sem expor todos os valores brutos de entrada."""
 
-    pipeline = artifact["model"]
-    model = pipeline.named_steps.get("model")
-    scaler = pipeline.named_steps.get("scaler")
-    if scaler is None or not hasattr(model, "coef_"):
-        return []
-
-    feature_names = list(artifact["feature_names"])
-    row = pd.DataFrame([{name: features[name] for name in feature_names}])
-    transformed = scaler.transform(row)[0]
-    # Em classificacao binaria, coef_ aponta para classes_[1] no scikit-learn.
-    coefficients = model.coef_[0]
-    classes = list(model.classes_)
+    serving_model = (
+        artifact
+        if isinstance(artifact, ServingModel)
+        else serving_model_from_joblib_artifact(artifact)
+    )
+    feature_names = list(serving_model.feature_names)
+    classes = list(serving_model.classes)
     positive_class = classes[1]
-    contributions = transformed * coefficients
+    contributions = serving_model.contributions(features)
 
     evidence: list[FeatureEvidence] = []
-    for index in np.argsort(np.abs(contributions))[::-1][:top_k]:
+    strongest_indices = sorted(
+        range(len(contributions)),
+        key=lambda index: abs(contributions[index]),
+        reverse=True,
+    )[:top_k]
+    for index in strongest_indices:
         value = float(features[feature_names[index]])
         contribution = float(contributions[index])
         moves_to_positive = contribution >= 0
@@ -228,43 +235,61 @@ Na secao INSIGHTS ACIONAVEIS PARA MEDICOS, transforme as evidencias em acoes de 
 """
 
 
-def _groq_client() -> Any:
-    if not os.getenv("GROQ_API_KEY"):
+async def _call_groq(
+    client: Any | None,
+    llm_model: str,
+    prompt: str,
+    *,
+    api_key: str | None = None,
+    _retries: int = 3,
+) -> str:
+    api_key = api_key or os.getenv("GROQ_API_KEY")
+    if client is None and not api_key:
         raise LLMUnavailableError(
             "Configure GROQ_API_KEY para gerar interpretacoes. "
             "Obtenha sua chave gratuita em console.groq.com/keys"
         )
-    try:
-        from groq import Groq
-    except ImportError as error:
-        raise LLMUnavailableError(
-            "Dependencia `groq` ausente. Execute: pip install groq"
-        ) from error
-    return Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-
-def _call_groq(client: Any, llm_model: str, prompt: str, *, _retries: int = 3) -> str:
     for attempt in range(_retries):
         try:
-            response = client.chat.completions.create(
-                model=llm_model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_INSTRUCTIONS},
-                    {"role": "user", "content": prompt},
-                ],
-            )
-            return (response.choices[0].message.content or "").strip()
+            messages = [
+                {"role": "system", "content": SYSTEM_INSTRUCTIONS},
+                {"role": "user", "content": prompt},
+            ]
+            if client is not None:
+                response = client.chat.completions.create(
+                    model=llm_model,
+                    messages=messages,
+                )
+                if inspect.isawaitable(response):
+                    response = await response
+                content = response.choices[0].message.content
+            else:
+                async with httpx.AsyncClient(timeout=60.0) as http_client:
+                    response = await http_client.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={"model": llm_model, "messages": messages},
+                    )
+                response.raise_for_status()
+                content = response.json()["choices"][0]["message"]["content"]
+            return (content or "").strip()
         except LLMUnavailableError:
             raise
         except Exception as error:
             if "429" in str(error) and attempt < _retries - 1:
                 retry_delay = _parse_retry_delay(str(error)) or 60
-                time.sleep(retry_delay)
+                await asyncio.sleep(retry_delay)
                 continue
             raise LLMUnavailableError(
                 f"Falha ao solicitar interpretacao ao modelo {llm_model}: {error}"
             ) from error
-    raise LLMUnavailableError(f"Limite de tentativas esgotado para o modelo {llm_model}.")
+    raise LLMUnavailableError(
+        f"Limite de tentativas esgotado para o modelo {llm_model}."
+    )
 
 
 def _parse_retry_delay(message: str) -> float | None:
@@ -273,11 +298,12 @@ def _parse_retry_delay(message: str) -> float | None:
     return float(match.group(1)) if match else None
 
 
-def generate_interpretation(
+async def generate_interpretation(
     result: ModelResult,
     evidence: list[FeatureEvidence],
     client: Any | None = None,
     model_name: str | None = None,
+    api_key: str | None = None,
 ) -> LLMInterpretation:
     """Solicita uma explicacao clinica controlada ao backend de LLM."""
 
@@ -288,7 +314,12 @@ def generate_interpretation(
         or DEFAULT_LLM_MODEL
     )
     prompt = build_interpretation_prompt(result, evidence)
-    explanation = _call_groq(client or _groq_client(), llm_model, prompt)
+    explanation = await _call_groq(
+        client,
+        llm_model,
+        prompt,
+        api_key=api_key,
+    )
     if not explanation:
         raise LLMUnavailableError("A LLM nao retornou texto de interpretacao.")
     return LLMInterpretation(
@@ -326,7 +357,8 @@ def evaluate_interpretation_quality(
         ("limitacoes e seguranca",),
     )
     checks: dict[str, bool] = {
-        "menciona_resultado_esperado": _normalize_text(expected_diagnosis) in normalized,
+        "menciona_resultado_esperado": _normalize_text(expected_diagnosis)
+        in normalized,
         "inclui_probabilidade": bool(re.search(r"\d+(?:[,.]\d+)?\s*%", interpretation)),
         "inclui_secoes_obrigatorias": all(
             any(section in normalized for section in group)

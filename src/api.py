@@ -1,4 +1,4 @@
-"""HTTP inference service for the recommended breast cancer classifier."""
+"""Serviço HTTP de inferência para o classificador recomendado."""
 
 from __future__ import annotations
 
@@ -7,13 +7,16 @@ import json
 import logging
 import os
 from pathlib import Path
+import sys
 import time
-from typing import Any
-
-from fastapi import FastAPI, HTTPException, Response
-import joblib
-import pandas as pd
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from fastapi import FastAPI, HTTPException, Request, Response
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 from pydantic import BaseModel, Field
 
 try:
@@ -25,6 +28,7 @@ try:
         evaluate_interpretation_quality,
         generate_interpretation,
     )
+    from src.model_inference import ServingModel, load_serving_model
 except ModuleNotFoundError:
     from llm_interpretation import (
         DEFAULT_LLM_MODEL,
@@ -34,15 +38,16 @@ except ModuleNotFoundError:
         evaluate_interpretation_quality,
         generate_interpretation,
     )
+    from model_inference import ServingModel, load_serving_model
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MODEL_PATH = PROJECT_ROOT / "resultados" / "fase2" / "modelo_serving.joblib"
+DEFAULT_MODEL_PATH = Path(__file__).resolve().with_name("modelo_serving.json")
 MODEL_PATH = Path(os.getenv("MODEL_PATH", str(DEFAULT_MODEL_PATH)))
 
 logger = logging.getLogger("diagnostico_api")
 if not logger.handlers:
-    handler = logging.StreamHandler()
+    handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
@@ -80,7 +85,7 @@ MODEL_READY = Gauge(
     "Indica se o artefato de modelo foi carregado (1) ou nao (0).",
 )
 
-_artifact: dict[str, Any] | None = None
+_artifact: ServingModel | None = None
 
 
 class PredictRequest(BaseModel):
@@ -110,26 +115,18 @@ class InterpretResponse(PredictResponse):
     quality_checks: dict[str, bool | float]
 
 
-def load_model_artifact(path: Path | None = None) -> dict[str, Any]:
-    """Carrega e valida o payload do pipeline criado pela otimizacao genetica."""
+def load_model_artifact(path: Path | None = None) -> ServingModel:
+    """Carrega e valida o modelo portátil ou o artefato legado local."""
 
-    path = path or MODEL_PATH
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Modelo nao encontrado em {path}. Execute a otimizacao genetica antes da API."
-        )
-    artifact = joblib.load(path)
-    required = {"model", "feature_names", "model_label"}
-    missing = required.difference(artifact)
-    if missing:
-        raise ValueError(f"Artefato de modelo invalido; faltam campos: {sorted(missing)}")
-    return artifact
+    return load_serving_model(path or MODEL_PATH)
 
 
 def initialize_model() -> None:
     """Inicializa o modelo mantendo liveness disponivel em caso de falha."""
 
     global _artifact
+    if _artifact is not None:
+        return
     try:
         _artifact = load_model_artifact()
         MODEL_READY.set(1)
@@ -138,11 +135,11 @@ def initialize_model() -> None:
                 {
                     "event": "model_loaded",
                     "path": str(MODEL_PATH),
-                    "model": _artifact["model_label"],
+                    "model": _artifact.model_label,
                 }
             )
         )
-    except (FileNotFoundError, ValueError) as error:
+    except (FileNotFoundError, KeyError, TypeError, ValueError) as error:
         _artifact = None
         MODEL_READY.set(0)
         logger.error(json.dumps({"event": "model_load_failed", "error": str(error)}))
@@ -163,20 +160,20 @@ app = FastAPI(
 
 
 @app.get("/health/live")
-def liveness() -> dict[str, str]:
+async def liveness() -> dict[str, str]:
     return {"status": "alive"}
 
 
 @app.get("/health")
 @app.get("/health/ready")
-def readiness() -> dict[str, str]:
+async def readiness() -> dict[str, str]:
     if _artifact is None:
         raise HTTPException(status_code=503, detail="Modelo ainda nao esta disponivel.")
-    return {"status": "ready", "model": str(_artifact["model_label"])}
+    return {"status": "ready", "model": _artifact.model_label}
 
 
 @app.get("/metrics")
-def metrics() -> Response:
+async def metrics() -> Response:
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
@@ -184,7 +181,7 @@ def _run_prediction(features: dict[str, float]) -> PredictResponse:
     if _artifact is None:
         raise HTTPException(status_code=503, detail="Modelo ainda nao esta disponivel.")
 
-    expected = list(_artifact["feature_names"])
+    expected = list(_artifact.feature_names)
     received = set(features)
     missing = sorted(set(expected).difference(received))
     unexpected = sorted(received.difference(expected))
@@ -194,20 +191,14 @@ def _run_prediction(features: dict[str, float]) -> PredictResponse:
             detail={"missing_features": missing, "unexpected_features": unexpected},
         )
 
-    sample = pd.DataFrame([{feature: features[feature] for feature in expected}])
-    model = _artifact["model"]
-    prediction = int(model.predict(sample)[0])
-    probabilities = model.predict_proba(sample)[0]
-    classes = list(model.named_steps["model"].classes_)
-    probability_malignant = float(probabilities[classes.index(0)])
-    probability_benign = float(probabilities[classes.index(1)])
+    prediction, probability_malignant, probability_benign = _artifact.predict(features)
     diagnosis = "Maligno" if prediction == 0 else "Benigno"
     return PredictResponse(
         prediction=prediction,
         diagnosis=diagnosis,
         probability_malignant=probability_malignant,
         probability_benign=probability_benign,
-        model=str(_artifact["model_label"]),
+        model=_artifact.model_label,
     )
 
 
@@ -218,9 +209,6 @@ def _record_prediction(result: PredictResponse, endpoint: str) -> None:
             {
                 "event": "prediction",
                 "endpoint": endpoint,
-                "prediction": result.prediction,
-                "diagnosis": result.diagnosis,
-                "probability_malignant": round(result.probability_malignant, 6),
                 "model": result.model,
             }
         )
@@ -228,7 +216,7 @@ def _record_prediction(result: PredictResponse, endpoint: str) -> None:
 
 
 @app.post("/predict", response_model=PredictResponse)
-def predict(request: PredictRequest) -> PredictResponse:
+async def predict(request: PredictRequest) -> PredictResponse:
     start = time.perf_counter()
     request_status = "success"
     try:
@@ -236,17 +224,36 @@ def predict(request: PredictRequest) -> PredictResponse:
         _record_prediction(result, "/predict")
         return result
     except HTTPException as error:
-        request_status = "invalid_features" if error.status_code == 422 else "model_unavailable"
+        request_status = (
+            "invalid_features" if error.status_code == 422 else "model_unavailable"
+        )
         raise
     finally:
         REQUESTS.labels(endpoint="/predict", status=request_status).inc()
         PREDICTION_LATENCY.observe(time.perf_counter() - start)
 
 
+def _runtime_value(
+    request: Request | None, name: str, default: str | None = None
+) -> str | None:
+    """Lê bindings do Worker com fallback para variáveis do processo local."""
+
+    if request is not None:
+        environment = request.scope.get("env")
+        if environment is not None:
+            value = getattr(environment, name, None)
+            if value is not None:
+                return str(value)
+    return os.getenv(name, default)
+
+
 @app.post("/interpret", response_model=InterpretResponse)
-def interpret(request: PredictRequest) -> InterpretResponse:
+async def interpret(
+    request: PredictRequest, http_request: Request
+) -> InterpretResponse:
     start = time.perf_counter()
-    llm_model = os.getenv("GROQ_LLM_MODEL", DEFAULT_LLM_MODEL)
+    llm_model = _runtime_value(http_request, "GROQ_LLM_MODEL", DEFAULT_LLM_MODEL)
+    assert llm_model is not None
     status = "success"
     try:
         prediction = _run_prediction(request.features)
@@ -254,7 +261,12 @@ def interpret(request: PredictRequest) -> InterpretResponse:
         assert _artifact is not None
         evidence = derive_feature_evidence(_artifact, request.features)
         result = ModelResult(**prediction.model_dump())
-        interpretation = generate_interpretation(result, evidence, model_name=llm_model)
+        interpretation = await generate_interpretation(
+            result,
+            evidence,
+            model_name=llm_model,
+            api_key=_runtime_value(http_request, "GROQ_API_KEY"),
+        )
         quality = evaluate_interpretation_quality(
             interpretation.explanation, prediction.diagnosis
         )
