@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 
 import { requestAnalysis } from "./api";
 import { academicExample, featureGroups, features } from "./features";
-import type { ApiResponse } from "./types";
+import type { ApiResponse, InterpretResponse } from "./types";
 import { isInterpretResponse } from "./types";
 
 type FormValues = Record<string, string>;
@@ -94,30 +94,40 @@ function ResultPanel({ result }: { result: ApiResponse }) {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
 
-      {isInterpretResponse(result) && (
-        <div className="interpretation">
-          <div className="interpretation-copy">
-            <span className="eyebrow">Explicação assistida por IA</span>
-            <div className="explanation markdown-body">
-              {/* react-markdown é seguro por padrão: não renderiza HTML cru e
-                  sanitiza URLs — adequado para conteúdo vindo do LLM. */}
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  table: ({ node: _node, ...props }) => (
-                    <div className="table-scroll">
-                      <table {...props} />
-                    </div>
-                  ),
-                }}
-              >
-                {result.explanation}
-              </ReactMarkdown>
-            </div>
+// Região de largura total, irmã do .workspace: aproveita toda a largura útil da
+// tela para a explicação assistida por IA, evidências, insights e disclaimer.
+// O JSX interno (markdown, evidências, insights, disclaimer) é preservado;
+// apenas o container/posição no layout muda em relação à versão anterior.
+function InterpretationRegion({ result }: { result: InterpretResponse }) {
+  return (
+    <section className="interpretation-region" aria-live="polite">
+      <div className="interpretation">
+        <div className="interpretation-copy">
+          <span className="eyebrow">Explicação assistida por IA</span>
+          <div className="explanation markdown-body">
+            {/* react-markdown é seguro por padrão: não renderiza HTML cru e
+                sanitiza URLs — adequado para conteúdo vindo do LLM. */}
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ node: _node, ...props }) => (
+                  <div className="table-scroll">
+                    <table {...props} />
+                  </div>
+                ),
+              }}
+            >
+              {result.explanation}
+            </ReactMarkdown>
           </div>
+        </div>
 
-          <div>
+        <div className="interpretation-aside">
+          <div className="interpretation-block">
             <h3>Principais evidências do modelo</h3>
             <div className="evidence-list">
               {result.evidence.map((item) => (
@@ -137,7 +147,7 @@ function ResultPanel({ result }: { result: ApiResponse }) {
             </div>
           </div>
 
-          <div>
+          <div className="interpretation-block">
             <h3>Insights para revisão profissional</h3>
             <div className="insights-list">
               {result.insights_acionaveis.map((insight, index) => (
@@ -149,9 +159,10 @@ function ResultPanel({ result }: { result: ApiResponse }) {
               ))}
             </div>
           </div>
-          <p className="disclaimer">{result.disclaimer}</p>
         </div>
-      )}
+
+        <p className="disclaimer">{result.disclaimer}</p>
+      </div>
     </section>
   );
 }
@@ -366,6 +377,10 @@ export default function App() {
           )}
         </aside>
       </section>
+
+      {result && isInterpretResponse(result) && (
+        <InterpretationRegion result={result} />
+      )}
 
       <footer>
         <p>Projeto acadêmico · Wisconsin Breast Cancer Diagnostic Dataset</p>
