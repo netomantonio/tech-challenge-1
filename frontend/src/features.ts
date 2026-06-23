@@ -4,34 +4,38 @@ export interface FeatureDefinition {
   name: string;
   label: string;
   description: string;
+  unit: string;
   group: FeatureGroup;
 }
 
-const measurements = [
-  ["radius", "Raio"],
-  ["texture", "Textura"],
-  ["perimeter", "Perímetro"],
-  ["area", "Área"],
-  ["smoothness", "Suavidade"],
-  ["compactness", "Compacidade"],
-  ["concavity", "Concavidade"],
-  ["concave points", "Pontos côncavos"],
-  ["symmetry", "Simetria"],
-  ["fractal_dimension", "Dimensão fractal"],
-] as const;
+// Unidade de medida de cada característica conforme o Wisconsin Diagnostic Dataset.
+// Raio, perímetro: mm · Área: mm² · Demais: adimensional (razão).
+const measurementMeta: Record<string, { label: string; unit: string }> = {
+  radius:            { label: "Raio",              unit: "mm" },
+  texture:           { label: "Textura",           unit: "adim." },
+  perimeter:         { label: "Perímetro",         unit: "mm" },
+  area:              { label: "Área",              unit: "mm²" },
+  smoothness:        { label: "Suavidade",         unit: "adim." },
+  compactness:       { label: "Compacidade",       unit: "adim." },
+  concavity:         { label: "Concavidade",       unit: "adim." },
+  "concave points":  { label: "Pontos côncavos",   unit: "adim." },
+  symmetry:          { label: "Simetria",          unit: "adim." },
+  fractal_dimension: { label: "Dimensão fractal",  unit: "adim." },
+};
 
-const groups = [
-  ["mean", "Médias", "valor médio observado"],
-  ["se", "Erro padrão", "erro padrão da medição"],
+const groups: Array<[string, FeatureGroup, string]> = [
+  ["mean",  "Médias",         "valor médio observado"],
+  ["se",    "Erro padrão",    "erro padrão da medição"],
   ["worst", "Piores valores", "maior valor observado"],
-] as const;
+];
 
 export const features: FeatureDefinition[] = groups.flatMap(
   ([suffix, group, detail]) =>
-    measurements.map(([name, label]) => ({
+    Object.entries(measurementMeta).map(([name, { label, unit }]) => ({
       name: `${name}_${suffix}`,
       label,
-      description: `${label}: ${detail}.`,
+      unit,
+      description: `${label}: ${detail}. Unidade: ${unit === "adim." ? "adimensional (razão)" : unit}.`,
       group,
     })),
 );

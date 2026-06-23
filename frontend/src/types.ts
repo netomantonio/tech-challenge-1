@@ -11,6 +11,7 @@ export interface Evidence {
   value: number;
   contribution: number;
   direction: string;
+  unit: string;
 }
 
 export interface ActionableInsight {

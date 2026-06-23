@@ -66,6 +66,7 @@ class FeatureEvidence:
     value: float
     contribution: float
     direction: str
+    unit: str = ""
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,24 @@ class LLMInterpretation:
 
 PROMPT_VERSION = "clinical_explanation_v3"
 
+# Unidades de medida conforme o Wisconsin Diagnostic Dataset.
+# Raio e perímetro: mm · Área: mm² · Demais características: adimensional (razão).
+_FEATURE_UNITS: dict[str, str] = {}
+for _suffix in ("_mean", "_se", "_worst"):
+    _FEATURE_UNITS[f"radius{_suffix}"]            = "mm"
+    _FEATURE_UNITS[f"perimeter{_suffix}"]         = "mm"
+    _FEATURE_UNITS[f"area{_suffix}"]              = "mm²"
+    for _feat in (
+        "texture", "smoothness", "compactness",
+        "concavity", "concave points", "symmetry", "fractal_dimension",
+    ):
+        _FEATURE_UNITS[f"{_feat}{_suffix}"] = "adim."
+
+
+def _unit_for(feature: str) -> str:
+    """Retorna a unidade de medida ou string vazia para features desconhecidas."""
+    return _FEATURE_UNITS.get(feature, "")
+
 
 def derive_feature_evidence(
     artifact: ServingModel | dict[str, Any],
@@ -140,6 +159,7 @@ def derive_feature_evidence(
                 value=value,
                 contribution=contribution,
                 direction=direction,
+                unit=_unit_for(feature_names[index]),
             )
         )
     return evidence
@@ -164,8 +184,9 @@ def derive_actionable_insights(
             f"{item.feature} apresentou sinal {intensidade} na direcao "
             f"{item.direction}."
         )
+        unit_suffix = f" {item.unit}" if item.unit and item.unit != "adim." else ""
         evidencia_numerica = (
-            f"valor={item.value:.5g}; contribuicao_local={item.contribution:.4f}; "
+            f"valor={item.value:.5g}{unit_suffix}; contribuicao_local={item.contribution:.4f}; "
             f"probabilidade_maligna={result.probability_malignant:.2%}."
         )
         if item.direction == "Maligno":
@@ -221,8 +242,9 @@ def build_interpretation_prompt(
     evidence_lines = (
         "\n".join(
             (
-                f"- {item.feature}: valor={item.value:.5g}; "
-                f"contribuicao_local={item.contribution:.4f}; "
+                f"- {item.feature}: valor={item.value:.5g}"
+                + (f" {item.unit}" if item.unit and item.unit != "adim." else "")
+                + f"; contribuicao_local={item.contribution:.4f}; "
                 f"direcao={item.direction}"
             )
             for item in evidence

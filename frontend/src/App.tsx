@@ -10,6 +10,11 @@ import { isInterpretResponse } from "./types";
 
 type FormValues = Record<string, string>;
 
+// Mapa rápido de feature → unidade para uso nos cards de evidência.
+const featureUnitMap: Record<string, string> = Object.fromEntries(
+  features.map(({ name, unit }) => [name, unit]),
+);
+
 const emptyValues = Object.fromEntries(features.map(({ name }) => [name, ""]));
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
@@ -120,7 +125,11 @@ function ResultPanel({ result }: { result: ApiResponse }) {
                   <strong>{item.feature}</strong>
                   <span>Direção: {item.direction}</span>
                   <small>
-                    Valor {item.value.toPrecision(5)} · contribuição{" "}
+                    Valor {item.value.toPrecision(5)}{" "}
+                    {featureUnitMap[item.feature] && featureUnitMap[item.feature] !== "adim."
+                      ? featureUnitMap[item.feature]
+                      : ""}
+                    {" "}· contribuição{" "}
                     {item.contribution.toFixed(4)}
                   </small>
                 </article>

@@ -87,8 +87,14 @@ para contexto médico.
 ## Estrutura do Repositório
 
 ```text
+cloudflare/api/        # toolchain e configuração do Python Worker
+  pyproject.toml
+  wrangler.jsonc
 data/
   download_datasets.py
+deploy/cloudflare/      # pipeline de deploy do Worker e testes (Cloudflare Builds)
+  deploy-worker.sh
+  test-worker.sh
 deploy/k8s/
   deployment.yaml
   hpa.yaml
@@ -96,6 +102,13 @@ deploy/k8s/
   service.yaml
 docs/
   arquitetura_fase2.md
+  cloudflare-deploy.md  # infraestrutura de nuvem e procedimentos de deploy
+  frontend.md           # documentação do frontend
+frontend/               # aplicação React (Cloudflare Pages)
+  functions/[[path]].ts # Pages Function: proxy via Service Binding
+  public/               # _headers (CSP) e _routes.json
+  src/                  # App.tsx, api.ts, features.ts, types.ts, styles.css
+  wrangler.jsonc
 notebooks/
   01_cancer_mama.ipynb
   02_otimizacao_genetica_cancer_mama.ipynb
@@ -110,14 +123,21 @@ resultados/fase2/
   avaliacao_interpretacoes_llm.csv  # gerado com GROQ_API_KEY
   interpretacoes_llm.json           # gerado com GROQ_API_KEY
   resumo_avaliacao_llm.json         # gerado com GROQ_API_KEY
+scripts/
+  export_serving_model.py # exporta o manifesto JSON servido na borda
 src/
   api.py
+  edge_security.py        # validação do Turnstile na borda
   evaluate_llm.py
   genetic_optimization.py
   llm_interpretation.py
+  model_inference.py      # inferência a partir do manifesto JSON
+  modelo_serving.json     # manifesto do modelo empacotado no Worker
   utils.py
+  worker.py               # entrypoint do Python Worker (ASGI + segurança)
 tests/
   test_fase2.py
+  test_cloudflare.py      # equivalência do manifesto e validação do Turnstile
 Dockerfile
 requirements.txt
 relatorio_tecnico_01_cancer_mama.md
@@ -229,20 +249,63 @@ Os notebooks da Fase 2 são:
 - `notebooks/02_otimizacao_genetica_cancer_mama.ipynb`: otimização genética;
 - `notebooks/03_interpretacao_llm_cancer_mama.ipynb`: interpretação com GPT e avaliação.
 
-## Preview na Cloudflare
+## Aplicação na Cloudflare
 
-O repositório inclui uma implantação integral e isolada para Cloudflare Pages,
-Python Workers e R2, acionada exclusivamente pelo Cloudflare Builds conectado
-ao GitHub. O frontend React oferece o formulário das 30 features, a
-classificação e a interpretação protegida por Turnstile e rate limiting.
+O repositório inclui uma implantação integral e isolada na Cloudflare, com
+frontend React no **Pages**, API em **Python Workers**, artefatos no **R2** e
+proteção por **Turnstile**, **Rate Limiting** e **Service Bindings**.
+
+### Acesso ao ambiente
+
+| Recurso | Endereço |
+| --- | --- |
+| **Aplicação web** | https://cancer-mama-web-preview.pages.dev |
+| **API (Worker)** | https://cancer-mama-api-preview.antonio-5b5.workers.dev |
+| Health check | https://cancer-mama-api-preview.antonio-5b5.workers.dev/health |
+| Swagger UI | https://cancer-mama-api-preview.antonio-5b5.workers.dev/docs |
+
+Abra a **aplicação web**, preencha as 30 medições (ou use "Preencher exemplo
+acadêmico"), e escolha *Classificar* ou *Classificar e interpretar*. A
+interpretação é protegida por Turnstile e exibida em Markdown formatado.
+
+### Infraestrutura de nuvem
+
+| Serviço | Recurso | Papel |
+| --- | --- | --- |
+| Cloudflare Pages | `cancer-mama-web-preview` | Frontend estático + Pages Functions. |
+| Python Workers | `cancer-mama-api-preview` | FastAPI via ASGI (Pyodide): inferência e LLM. |
+| R2 | `cancer-mama-artifacts-preview` | Artefatos imutáveis por commit (`builds/<sha>/`). |
+| Service Binding | `API` | Liga a Pages Function ao Worker sem internet pública. |
+| Turnstile + Rate Limiting | — | Desafio anti-bot e limites em `/predict` e `/interpret`. |
 
 A implantação não usa D1, não persiste entradas ou resultados clínicos e não
 altera os algoritmos de treinamento. O `joblib` original continua versionado;
 o Worker usa um manifesto JSON matematicamente equivalente, validado nas 569
 amostras do dataset.
 
-As instruções de conexão do GitHub, secrets, comandos do pipeline e critérios
-de validação estão em [docs/cloudflare-deploy.md](docs/cloudflare-deploy.md).
+### Documentação detalhada
+
+- **Frontend** (stack, estrutura, fluxo de dados, build e testes):
+  [docs/frontend.md](docs/frontend.md).
+- **Infraestrutura e deploy** (serviços de nuvem, secrets, deploy via CLI ou
+  Cloudflare Builds e critérios de validação):
+  [docs/cloudflare-deploy.md](docs/cloudflare-deploy.md).
+
+### Procedimento rápido de deploy
+
+Publicação direta via `wrangler` autenticado (detalhes e o fluxo por GitHub
+Builds em [docs/cloudflare-deploy.md](docs/cloudflare-deploy.md)):
+
+```bash
+# API (Python Worker) + secrets
+cd cloudflare/api && uv run pywrangler deploy
+printf '%s' "$GROQ_API_KEY" | wrangler secret put GROQ_API_KEY
+
+# Frontend (Pages)
+cd frontend && npm ci
+VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA npm run build
+wrangler pages deploy --branch feat/cloudflare-fullstack
+```
 
 Com a API em execução:
 
