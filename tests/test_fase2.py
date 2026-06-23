@@ -38,6 +38,8 @@ As evidências numéricas fornecidas direcionam a classificação estimada para 
 
 **INSIGHTS ACIONÁVEIS PARA MÉDICOS**
 Recomenda-se revisão clínica por profissional e confirmação conforme protocolo local.
+Sugere-se agendamento de exames complementares como mamografia e encaminhamento
+para mastologista, respeitando a realidade de acesso da paciente ao sistema de saúde.
 
 **LIMITAÇÕES E SEGURANÇA**
 Esta explicação não constitui diagnóstico médico; o dataset é acadêmico e sem validação externa."""

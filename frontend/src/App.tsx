@@ -1,5 +1,7 @@
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { FormEvent, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { requestAnalysis } from "./api";
 import { academicExample, featureGroups, features } from "./features";
@@ -20,11 +22,33 @@ function normalizeValues(values: FormValues): Record<string, number> | null {
 }
 
 function formatPercentage(value: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "percent",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+  const clamped = Math.min(Math.max(value, 0), 1);
+  // Trunca (floor) em 2 casas decimais percentuais em vez de arredondar.
+  // Em um contexto clínico, arredondar 99,9999% para 100% (ou 0,0001% para 0%)
+  // transmitiria uma certeza que o modelo não tem. O toFixed(6) elimina o ruído
+  // de ponto flutuante (ex.: 0,91 * 10000 = 9099,9999...) antes do truncamento.
+  const percentScaled = Number((clamped * 10000).toFixed(6));
+  const truncated = Math.floor(percentScaled) / 10000;
+  const format = (fraction: number) =>
+    new Intl.NumberFormat("pt-BR", {
+      style: "percent",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(fraction);
+  // Probabilidade pequena, porém não nula, que cairia em 0,00% após o
+  // truncamento: sinaliza "< 0,01%" sem afirmar zero absoluto.
+  if (clamped > 0 && truncated === 0) {
+    return `< ${format(0.0001)}`;
+  }
+  return format(truncated);
+}
+
+// Largura da barra como valor CSS válido (ponto decimal, não a vírgula do pt-BR),
+// truncada de forma idêntica ao rótulo para manter texto e barra consistentes.
+function fillWidth(value: number): string {
+  const clamped = Math.min(Math.max(value, 0), 1);
+  const percent = Math.floor(Number((clamped * 10000).toFixed(6))) / 100;
+  return `${percent.toFixed(2)}%`;
 }
 
 function ResultPanel({ result }: { result: ApiResponse }) {
@@ -48,7 +72,7 @@ function ResultPanel({ result }: { result: ApiResponse }) {
           <div className="probability-track" aria-hidden="true">
             <span
               className="probability-fill malignant-fill"
-              style={{ width: formatPercentage(result.probability_malignant) }}
+              style={{ width: fillWidth(result.probability_malignant) }}
             />
           </div>
         </div>
@@ -60,7 +84,7 @@ function ResultPanel({ result }: { result: ApiResponse }) {
           <div className="probability-track" aria-hidden="true">
             <span
               className="probability-fill benign-fill"
-              style={{ width: formatPercentage(result.probability_benign) }}
+              style={{ width: fillWidth(result.probability_benign) }}
             />
           </div>
         </div>
@@ -70,7 +94,22 @@ function ResultPanel({ result }: { result: ApiResponse }) {
         <div className="interpretation">
           <div className="interpretation-copy">
             <span className="eyebrow">Explicação assistida por IA</span>
-            <p className="explanation">{result.explanation}</p>
+            <div className="explanation markdown-body">
+              {/* react-markdown é seguro por padrão: não renderiza HTML cru e
+                  sanitiza URLs — adequado para conteúdo vindo do LLM. */}
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  table: ({ node: _node, ...props }) => (
+                    <div className="table-scroll">
+                      <table {...props} />
+                    </div>
+                  ),
+                }}
+              >
+                {result.explanation}
+              </ReactMarkdown>
+            </div>
           </div>
 
           <div>

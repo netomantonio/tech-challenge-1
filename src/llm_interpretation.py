@@ -87,6 +87,7 @@ class ActionableInsight:
     evidencia_numerica: str
     implicacao_para_revisao: str
     cautela: str
+    proximos_passos: str
 
 
 @dataclass(frozen=True)
@@ -181,12 +182,32 @@ def derive_actionable_insights(
             "Nao interpretar esta evidencia isoladamente; a contribuicao e "
             "estatistica, nao causal, e depende do conjunto de variaveis do modelo."
         )
+        if item.direction == "Maligno":
+            proximos_passos = (
+                "Sugerir agendamento de exames de imagem complementares "
+                "(mamografia, ultrassonografia mamaria ou ressonancia magnetica "
+                "conforme protocolo local) e, se pertinente, encaminhamento "
+                "para mastologista. Considerar biopsia quando indicado por "
+                "avaliacao clinica integrada. Orientar a paciente sobre a "
+                "importancia do acompanhamento regular, respeitando a realidade "
+                "de acesso ao sistema de saude."
+            )
+        else:
+            proximos_passos = (
+                "Recomendar manutencao do acompanhamento ginecologico ou "
+                "mastologico periodico conforme faixa etaria e historico "
+                "clinico da paciente. Avaliar necessidade de exames de rotina "
+                "adicionais se houver outros fatores de risco nao capturados "
+                "por este modelo. Orientar a paciente sobre sinais de alerta "
+                "que justifiquem retorno antecipado ao servico de saude."
+            )
         insights.append(
             ActionableInsight(
                 sinal=sinal,
                 evidencia_numerica=evidencia_numerica,
                 implicacao_para_revisao=implicacao,
                 cautela=cautela,
+                proximos_passos=proximos_passos,
             )
         )
     return insights
@@ -214,7 +235,8 @@ def build_interpretation_prompt(
             f"- sinal: {item.sinal}\n"
             f"  evidencia_numerica: {item.evidencia_numerica}\n"
             f"  implicacao_para_revisao: {item.implicacao_para_revisao}\n"
-            f"  cautela: {item.cautela}"
+            f"  cautela: {item.cautela}\n"
+            f"  proximos_passos: {item.proximos_passos}"
         )
         for item in derive_actionable_insights(result, evidence)
     )
@@ -413,6 +435,47 @@ def evaluate_interpretation_quality(
                 "desesperador",
                 "doente terminal",
                 "vai morrer",
+            )
+        ),
+        "preserva_privacidade": not (
+            # CPF (xxx.xxx.xxx-xx)
+            bool(re.search(r"\d{3}\.\d{3}\.\d{3}-\d{2}", interpretation))
+            # RG, CNS (Cartão Nacional de Saúde), número de prontuário
+            or bool(re.search(r"\b(rg|cns|prontuario|matricula)\s*[:#n]?\s*\d", normalized))
+            # Nome completo presumido (3+ palavras em maiúsculas, típico de identificação pessoal)
+            # Usa normalized (sem ** de markdown) para evitar falsos positivos em títulos de seção
+            or bool(re.search(r"\b[a-záàâãéèêíìóòôõúùûç]{4,}(?:\s+[a-záàâãéèêíìóòôõúùûç]{4,}){2,}\b", normalized)
+                    # Remove o falso positivo se o "nome" for parte de um título de seção
+                    and not re.search(r"\b(resumo do resultado|evidencias do modelo|insights acionaveis para medicos|limitacoes e seguranca)\b", normalized))
+            # Telefone (padrões brasileiros)
+            or bool(re.search(r"\(\d{2}\)\s*\d{4,5}-\d{4}", interpretation))
+            or bool(re.search(r"\b\d{4,5}-\d{4}\b", interpretation))
+            # Endereço (rua, av., travessa etc.)
+            or bool(re.search(r"\b(rua|avenida|travessa|praca|alameda|rodovia|estrada)\s+[\w\s]+[,.]?\s*\d+", normalized))
+            # Data de nascimento
+            or bool(re.search(r"\b\d{2}/\d{2}/\d{4}\b.*\b(nascimento|nasceu)\b", normalized))
+        ),
+        "inclui_proximos_passos_praticos": any(
+            term in normalized
+            for term in (
+                "agendamento",
+                "encaminhamento",
+                "mastologista",
+                "ginecologista",
+                "exames complementares",
+                "exame complementar",
+                "mamografia",
+                "ultrassonografia",
+                "ressonancia magnetica",
+                "biopsia",
+                "acompanhamento",
+                "retorno",
+                "proximo passo",
+                "proximos passos",
+                "seguimento",
+                "consulta",
+                "protocolo local",
+                "sistema de saude",
             )
         ),
     }

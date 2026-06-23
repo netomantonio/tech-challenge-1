@@ -18,6 +18,7 @@ export interface ActionableInsight {
   evidencia_numerica: string;
   implicacao_para_revisao: string;
   cautela: string;
+  proximos_passos: string;
 }
 
 export interface InterpretResponse extends PredictResponse {

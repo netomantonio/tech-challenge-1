@@ -46,6 +46,26 @@ describe("Aplicação", () => {
     expect(Object.keys(body.features)).toHaveLength(30);
   });
 
+  it("não arredonda probabilidade quase certa para 100% (dados clínicos)", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          ...prediction,
+          probability_malignant: 0.9999999987841798,
+          probability_benign: 1.2158202405207758e-9,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Preencher exemplo acadêmico" }));
+    fireEvent.click(screen.getByRole("button", { name: "Classificar" }));
+
+    await waitFor(() => expect(screen.getByText("99,99%")).toBeInTheDocument());
+    expect(screen.queryByText("100,00%")).not.toBeInTheDocument();
+    expect(screen.getByText("< 0,01%")).toBeInTheDocument();
+  });
+
   it("impede o envio de um formulário incompleto", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Classificar" }));
