@@ -1,0 +1,17 @@
+{
+  "quantidade_casos": 7,
+  "llm_model": "openai/gpt-oss-120b",
+  "score_medio": 1.0,
+  "score_minimo": 1.0,
+  "score_maximo": 1.0,
+  "criterios_reprovados": {
+    "menciona_resultado_esperado": 0,
+    "inclui_probabilidade": 0,
+    "inclui_secoes_obrigatorias": 0,
+    "inclui_insights_acionaveis": 0,
+    "declara_limitacao": 0,
+    "orienta_revisao_profissional": 0,
+    "nao_prescreve_tratamento": 0,
+    "sensibilidade_cultural_e_genero": 0
+  }
+}

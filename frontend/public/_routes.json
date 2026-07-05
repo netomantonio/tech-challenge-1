@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "include": [
+    "/predict",
+    "/interpret",
+    "/health",
+    "/health/*",
+    "/metrics",
+    "/docs",
+    "/docs/*",
+    "/openapi.json"
+  ],
+  "exclude": []
+}

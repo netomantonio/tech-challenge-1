@@ -1,0 +1,13 @@
+{
+  "name": "cancer-mama-cloudflare",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "check:worker": "cd cloudflare/api && uv run pywrangler deploy --dry-run --outdir ../../dist/worker",
+    "deploy:worker": "bash deploy/cloudflare/deploy-worker.sh",
+    "test:worker": "bash deploy/cloudflare/test-worker.sh"
+  },
+  "devDependencies": {
+    "wrangler": "4.103.0"
+  }
+}

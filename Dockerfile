@@ -2,15 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copiar e instalar dependências
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar todo o projeto
-COPY . .
+COPY src ./src
+COPY resultados/fase2/modelo_serving.joblib ./resultados/fase2/modelo_serving.joblib
 
-# Expor porta do Jupyter
-EXPOSE 8888
+ENV MODEL_PATH=/app/resultados/fase2/modelo_serving.joblib
+EXPOSE 8000
 
-# Comando para iniciar o Jupyter Notebook
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]

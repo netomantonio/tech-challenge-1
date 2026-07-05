@@ -1,0 +1,41 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "cancer-mama-api-preview",
+  "main": "../../src/worker.py",
+  "compatibility_date": "2026-06-22",
+  "compatibility_flags": ["python_workers"],
+  "workers_dev": true,
+  "rules": [
+    {
+      "type": "Text",
+      "globs": ["**/*.json"],
+      "fallthrough": true
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "preview",
+    "GROQ_LLM_MODEL": "openai/gpt-oss-120b"
+  },
+  "ratelimits": [
+    {
+      "name": "PREDICT_RATE_LIMITER",
+      "namespace_id": "22062601",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    },
+    {
+      "name": "INTERPRET_RATE_LIMITER",
+      "namespace_id": "22062602",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

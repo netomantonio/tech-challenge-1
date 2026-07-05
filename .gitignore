@@ -25,8 +25,8 @@ share/python-wheels/
 MANIFEST
 
 # Ambientes virtuais
-.env
 .venv
+.venv-workers/
 env/
 venv/
 ENV/
@@ -53,6 +53,23 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+coverage/
+
+# Node.js / Vite / TypeScript
+node_modules/
+.npm/
+.pnpm-store/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Cloudflare Workers / Pages / Pywrangler
+.wrangler/
+python_modules/
+pylock.toml
 
 # mypy / type checkers
 .mypy_cache/
@@ -85,17 +102,38 @@ logs/
 data/*.csv
 data/*.parquet
 
-# Resultados gerados automaticamente pela execução dos notebooks
-resultados/
+# Resultados intermediarios sao reproduziveis. Os artefatos finais da fase 2
+# ficam versionaveis para sustentar o relatorio e permitir executar a API.
+resultados/*
+!resultados/fase2/
+resultados/fase2/*
+!resultados/fase2/comparacao_baseline_otimizados.csv
+!resultados/fase2/comparacao_recall_maligno.png
+!resultados/fase2/evolucao_fitness.png
+!resultados/fase2/experimentos_ga.csv
+!resultados/fase2/historico_geracoes.csv
+!resultados/fase2/modelo_serving.joblib
+!resultados/fase2/resumo_execucao.json
+!resultados/fase2/treinamento_ga.log
+!resultados/fase2/avaliacao_interpretacoes_llm.csv
+!resultados/fase2/interpretacoes_llm.json
+!resultados/fase2/resumo_avaliacao_llm.json
 
 # Variáveis de ambiente / segredos
+.env
+.env.*
+!.env.example
 .env.local
 .env.*.local
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 *.pem
 secrets.json
 
 # Docker
 .dockerignore.bak
+.claude/
 
 # Arquivos temporários do sistema operacional
 *.tmp
