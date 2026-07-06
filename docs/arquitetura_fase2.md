@@ -19,7 +19,7 @@ Portanto, a decisao de otimizacao prioriza `recall` da classe Maligno.
 | `notebooks/02_otimizacao_genetica_cancer_mama.ipynb` | Relatorio executavel, experimentos e visualizacoes |
 | `src/genetic_optimization.py` | Preparacao dos dados, algoritmo genetico, avaliacao e persistencia |
 | `src/api.py` | API FastAPI para inferencia, interpretacao, health checks, metricas e logging |
-| `src/llm_interpretation.py` | Prompt controlado e chamada ao Groq (LLaMA) |
+| `src/llm_interpretation.py` | Prompt controlado e chamada a LLM via Groq |
 | `src/evaluate_llm.py` | Avaliacao objetiva de interpretacoes em tres casos |
 | `resultados/fase2/` | CSVs, logs, graficos e modelo serializado gerados em execucao |
 | `Dockerfile` | Imagem da camada de inferencia |
@@ -27,27 +27,42 @@ Portanto, a decisao de otimizacao prioriza `recall` da classe Maligno.
 
 Fluxo:
 
-```text
-cancer_mama.csv
-      |
-      v
-treino/teste estratificado (80/20)
-      |
-      +--> AG em treino + validacao cruzada 5-fold
-      |       |
-      |       v
-      |   melhor individuo por modelo/configuracao
-      |
-      +--> avaliacao final no teste reservado
-              |
-              v
-       modelo recomendado reajustado com todos os dados
-              |
-              v
-          modelo_serving.joblib --> FastAPI --> Service Kubernetes --> HPA
-                                      |
-                                      v
-                            Groq/LLaMA (explicacao controlada)
+```mermaid
+flowchart TD
+    CSV[(cancer_mama.csv\n569 amostras\n30 features)] --> SPLIT
+
+    SPLIT["Divisao treino/teste\nEstratificada 80/20\nrandom_state=42"]
+    SPLIT --> TREINO["Treino\n455 amostras"]
+    SPLIT --> TESTE[("Teste reservado\n114 amostras\nnunca visto pelo AG")]
+
+    TREINO --> AG
+
+    subgraph AG["Algoritmo Genetico — src/genetic_optimization.py"]
+        direction TB
+        INIT["Inicializacao\npopulacao aleatoria"] --> EVAL
+        EVAL["Avaliacao\nStratifiedKFold 5-fold\nem treino"] --> SEL
+        SEL["Selecao\nTorneio 3 individuos"] --> CROSS
+        CROSS["Cruzamento uniforme\n+ Elitismo"] --> MUT
+        MUT["Mutacao\npor gene"] --> CONV{Todas as\ngeracoes?}
+        CONV -- Nao --> SEL
+        CONV -- Sim --> BEST["Melhor individuo\npor modelo e experimento"]
+    end
+
+    BEST --> COMP["Comparacao no\nteste reservado"]
+    TESTE --> COMP
+    COMP --> REC["Modelo recomendado\npriorizando recall maligno"]
+    REC --> RETRAIN["Reajuste com\ntodos os dados"]
+    RETRAIN --> JOBLIB[("modelo_serving.joblib")]
+
+    JOBLIB --> API["API FastAPI\nsrc/api.py"]
+
+    subgraph SERVING["Serving — Kubernetes + Cloudflare"]
+        direction LR
+        API --> PRED["POST /predict\nClasse + Probabilidades"]
+        API --> INTERP["POST /interpret\nExplicacao LLM"]
+        API --> OBS["GET /metrics\nGET /health\nlogs JSON"]
+        INTERP --> GROQ["Groq — LLM\nexplicacao controlada"]
+    end
 ```
 
 ## 3. Algoritmo genetico
@@ -76,6 +91,35 @@ Logistica otimizada, o solver `liblinear` foi fixado porque suporta os alelos
 | Cruzamento | Uniforme, gene a gene |
 | Mutacao | Substituicao aleatoria independente por gene |
 | Elitismo | Melhor individuo preservado a cada geracao |
+
+```mermaid
+flowchart TD
+    subgraph POP["Populacao — N individuos"]
+        I1["Individuo 1\n(C=1.0, penalty=l2, ...)"]
+        I2["Individuo 2\n(C=0.1, penalty=l1, ...)"]
+        IN["... Individuo N"]
+    end
+
+    POP --> EVAL
+
+    subgraph EVAL["Avaliacao de Fitness"]
+        CV["StratifiedKFold 5-fold\nem treino"]
+        FIT["fitness = 0.65 x recall_maligno\n+ 0.25 x f1_maligno\n+ 0.10 x accuracy"]
+        CACHE["Cache por\ngenotipo"]
+        CV --> FIT
+        FIT --> CACHE
+    end
+
+    EVAL --> RANK["Ordenar por fitness\ndescrescente"]
+    RANK --> ELITE["Elitismo\npreserva top-k"]
+    RANK --> TOUR["Selecao por\nTorneio (k=3)"]
+    TOUR --> CROSS["Cruzamento\nuniforme gene a gene\n(taxa configuravel)"]
+    CROSS --> MUT["Mutacao\npor gene\n(taxa configuravel)"]
+    MUT & ELITE --> NEXTPOP["Nova Populacao"]
+    NEXTPOP --> CONV{Geracao\nfinal?}
+    CONV -- Nao --> EVAL
+    CONV -- Sim --> OUT["Melhor genotipo\n+ parametros decodificados"]
+```
 
 ### 3.3 Fitness e avaliacao
 
@@ -164,7 +208,7 @@ paciente.
 ## 5. Interpretacao com LLM
 
 A integracao utiliza a API do Groq com o modelo configuravel
-`GROQ_LLM_MODEL` (`llama-3.1-8b-instant` por padrao). O endpoint `/interpret`
+`GROQ_LLM_MODEL` (`openai/gpt-oss-120b` por padrao). O endpoint `/interpret`
 envia apenas classificacao, probabilidades e cinco contribuicoes locais, sem
 `id` nem o vetor completo de features.
 
@@ -185,6 +229,31 @@ O comando requer `GROQ_API_KEY` e produz os arquivos
 integracao permanece testavel com cliente simulado, mas nao produz avaliacao
 de respostas reais.
 
+```mermaid
+sequenceDiagram
+    actor Cliente
+    participant API as FastAPI<br/>src/api.py
+    participant MOD as ServingModel<br/>modelo_serving.joblib
+    participant LLM as src/llm_interpretation.py
+    participant GROQ as Groq API<br/>LLM
+
+    Cliente->>+API: POST /interpret<br/>{"features": {30 valores}}
+    API->>API: Validar 30 features<br/>(422 se ausentes)
+    API->>+MOD: predict(features)
+    MOD-->>-API: classe, prob_maligno, prob_benigno
+    API->>+LLM: derive_feature_evidence()<br/>top-5 contribuicoes locais
+    LLM-->>-API: [FeatureEvidence x5]
+    API->>+LLM: derive_actionable_insights()
+    LLM-->>-API: [ActionableInsight x5]
+    API->>+LLM: build_interpretation_prompt()
+    LLM-->>-API: prompt clinical_explanation_v3
+    API->>+GROQ: system_instructions + prompt<br/>(sem ID do paciente)
+    GROQ-->>-API: explicacao em 4 secoes
+    API->>LLM: evaluate_interpretation_quality()
+    LLM-->>API: score_objetivo + 10 checks
+    API-->>-Cliente: explanation, evidence,<br/>insights_acionaveis, quality_checks
+```
+
 Documentacao oficial utilizada:
 
 - https://console.groq.com/docs/openai
@@ -196,7 +265,7 @@ O `Deployment` executa inicialmente duas replicas da API, com `requests` e
 `limits` de CPU/memoria definidos. Esses `requests` sao necessarios para que
 o HPA avalie utilizacao de CPU de forma coerente.
 
-O modelo LLaMA e configurado por `GROQ_LLM_MODEL`. A variavel
+O modelo LLM e configurado por `GROQ_LLM_MODEL`. A variavel
 `GROQ_API_KEY` e obtida opcionalmente do Secret
 `cancer-mama-llm-secrets`: sem esse Secret, predicoes continuam disponiveis,
 mas `POST /interpret` retorna indisponibilidade da LLM.
@@ -211,6 +280,49 @@ O `HorizontalPodAutoscaler` utiliza `autoscaling/v2`:
 Em Kubernetes, o HPA por CPU depende do `metrics-server` instalado no cluster.
 Prometheus e opcional para o HPA configurado, mas necessario para dashboards e
 alertas baseados em latencia, erros ou distribuicao de predicoes.
+
+```mermaid
+flowchart TD
+    subgraph INTERNET["Internet"]
+        CLI["Cliente\nbrowser / curl"]
+    end
+
+    subgraph CF["Cloudflare (borda)"]
+        PAGES["Cloudflare Pages\nfrontend React\ncancer-mama-web-preview"]
+        WORKER["Cloudflare Worker\nPython ASGI\ncancer-mama-api-preview"]
+        SEC["edge_security.py\nRate Limiting + Turnstile"]
+        JSON[("modelo_serving.json\nmanifesto portavel")]
+        PAGES -- "Service Binding" --> WORKER
+        WORKER --> SEC
+        WORKER --> JSON
+    end
+
+    subgraph K8S["Kubernetes Cluster"]
+        SVC["Service\nClusterIP :80"]
+        subgraph DEPLOY["Deployment — 2 a 10 replicas"]
+            POD1["Pod\nFastAPI + joblib"]
+            POD2["Pod\nFastAPI + joblib"]
+            PODN["... Pod N"]
+        end
+        HPA["HorizontalPodAutoscaler\nCPU > 60% → escala\nscale-down: 300s"]
+        MS["metrics-server\nCPU metrics"]
+        PROM["Prometheus\nGET /metrics"]
+
+        SVC --> POD1
+        SVC --> POD2
+        SVC --> PODN
+        HPA --> DEPLOY
+        MS --> HPA
+        PROM --> POD1
+    end
+
+    GROQ["Groq API\nLLM"]
+
+    CLI --> PAGES
+    CLI --> SVC
+    POD1 --> GROQ
+    WORKER --> GROQ
+```
 
 ## 7. Execucao
 

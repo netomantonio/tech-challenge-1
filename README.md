@@ -65,7 +65,7 @@ deixar passar apenas um caso maligno no conjunto de teste.
 A Fase 2 estende o pipeline original com algoritmo genético para otimização
 dos três modelos, comparação com os baselines, logging, monitoramento e uma
 API mínima para sustentar a configuração de autoscaling. A API também integra
-LLaMA via Groq para explicar resultados em linguagem natural sob restrições de segurança
+uma LLM via Groq para explicar resultados em linguagem natural sob restrições de segurança
 para contexto médico.
 
 ### Entregas Atendidas
@@ -212,7 +212,7 @@ Para gerar interpretações reais:
 
 ```powershell
 $env:GROQ_API_KEY="sua-chave"      # console.groq.com/keys
-$env:GROQ_LLM_MODEL="llama-3.1-8b-instant"  # opcional
+$env:GROQ_LLM_MODEL="openai/gpt-oss-120b"  # opcional
 python -m src.evaluate_llm
 ```
 

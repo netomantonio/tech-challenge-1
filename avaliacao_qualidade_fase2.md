@@ -63,14 +63,13 @@ A implementação é **robusta, bem estruturada e de boa qualidade geral**, com 
 | 22 | Insights acionáveis estruturados | ✅ Aderente | `derive_actionable_insights()` classifica intensidade (forte/moderada/baixa) |
 | 23 | Retry com backoff para rate-limit (429) | ✅ Aderente | Até 3 tentativas com extração de `retry in Xs` |
 | 24 | Suporte a cliente customizado (testes) | ✅ Aderente | `_call_groq` aceita `client` externo |
-| 25 | Avaliação objetiva com rubrica | ✅ Aderente | `evaluate_interpretation_quality()` com 8 critérios booleanos + score |
+| 25 | Avaliação objetiva com rubrica | ✅ Aderente | `evaluate_interpretation_quality()` com 10 critérios booleanos + score |
 | 26 | Sensibilidade cultural e de gênero | ✅ Aderente | Verifica termos alarmistas/estigmatizantes; parte da rubrica |
 
 **Gaps e observações na LLM:**
 
-- **Gap 6 – `DEFAULT_LLM_MODEL` divergente:** O código define `DEFAULT_LLM_MODEL = "openai/gpt-oss-120b"`, mas o relatório menciona `llama-3.1-8b-instant` e o deployment do K8s usa `gpt-4.1-mini`. O nome no código não corresponde a nenhum modelo existente na Groq (os modelos reais são `llama-3.1-8b-instant`, `mixtral-8x7b-32768`, etc.). O `wrangler.jsonc` repete o mesmo valor. Isso indica que o default nunca foi atualizado após a definição inicial.
-- **Gap 7 – Prompt não inclui contexto de saúde da mulher nos insights práticos:** O prompt exige "proximos passos praticos (agendamento de exames, encaminhamento)", mas `derive_actionable_insights()` não gera esse campo. A LLM precisa inferir sozinha — o que é frágil.
-- **Gap 8 – `evaluate_interpretation_quality` não cobre todos os critérios do relatório:** A rubrica não verifica explicitamente "proximos passos praticos", "realidade de acesso ao sistema de saúde" nem "privacidade/confidencialidade" (ausência de identificadores pessoais no texto gerado). São critérios mencionados no relatório que a rubrica automática não mede.
+- **Observação – modelo padrão:** `DEFAULT_LLM_MODEL` foi mantido como `openai/gpt-oss-120b` por decisão do projeto e está alinhado com `GROQ_LLM_MODEL` nos ambientes documentados.
+- **Observação – próximos passos e privacidade:** `derive_actionable_insights()` inclui `proximos_passos`, e `evaluate_interpretation_quality()` passou a verificar privacidade e próximos passos práticos. Os artefatos de avaliação devem ser regenerados quando houver nova execução real da LLM.
 
 ### 1.4 Modelo Portátil e Inferência (`src/model_inference.py`)
 
@@ -109,7 +108,7 @@ A implementação é **robusta, bem estruturada e de boa qualidade geral**, com 
 
 **Gaps e observações em infra:**
 
-- **Gap 10 – Deployment do K8s referencia variáveis incorretas:** O `deployment.yaml` usa `OPENAI_LLM_MODEL` e `OPENAI_API_KEY` como nomes de variáveis de ambiente, mas o código (`src/api.py`) lê `GROQ_LLM_MODEL` e `GROQ_API_KEY` via `_runtime_value()`. Isso faria com que a API no K8s nunca encontrasse as credenciais corretas — usaria o fallback `os.getenv("GROQ_API_KEY")` e falharia.
+- **Observação – Deployment K8s:** O `deployment.yaml` referencia `GROQ_LLM_MODEL` e `GROQ_API_KEY`, alinhado com `src/api.py`.
 - **Gap 11 – HPA depende de `metrics-server`:** O relatório menciona isso como requisito, mas não há Helm chart ou script de instalação. Um `README` ou `make` target seria útil.
 - **Gap 12 – Ausência de NetworkPolicy:** Não há restrições de rede no K8s — o pod da API pode iniciar conexões de saída arbitrárias.
 
@@ -150,8 +149,8 @@ A implementação é **robusta, bem estruturada e de boa qualidade geral**, com 
 | §3 – Experimentos realizados | 100% | E1, E2, E3 implementados conforme especificado |
 | §4 – Comparação com originais | 100% | Métricas batem com o código; `_holdout_rank` prioriza recall maligno |
 | §5 – Monitoramento e logging | 100% | Todos os artefatos e endpoints descritos existem |
-| §6 – Arquitetura escalável | 95% | K8s completo; variáveis de ambiente incorretas no deployment |
-| §7 – Integração com LLM | 90% | Prompt e rubrica OK; default model divergente; rubrica não cobre "próximos passos" |
+| §6 – Arquitetura escalável | 100% | K8s completo e variáveis de ambiente alinhadas com a API |
+| §7 – Integração com LLM | 95% | Prompt e rubrica OK; artefatos de avaliação devem ser regenerados após a ampliação da rubrica |
 | §8 – Reprodução | 85% | Comandos documentados funcionam; `kagglehub` duplicado |
 | §9 – Limitações | 100% | Declaradas no relatório; sem código específico esperado |
 
@@ -161,17 +160,13 @@ A implementação é **robusta, bem estruturada e de boa qualidade geral**, com 
 
 ### 🔴 Alta Prioridade
 
-| ID | Gap | Impacto | Recomendação |
-|----|-----|---------|--------------|
-| **G-01** | Variáveis de ambiente incorretas no `deployment.yaml` | API no K8s não consegue acessar Groq | Trocar `OPENAI_LLM_MODEL` → `GROQ_LLM_MODEL` e `OPENAI_API_KEY` → `GROQ_API_KEY` no `deploy/k8s/deployment.yaml` e no `Secret` referenciado |
-| **G-02** | `DEFAULT_LLM_MODEL` inexistente (`openai/gpt-oss-120b`) | Fallback usa modelo que não existe na Groq | Alterar para `llama-3.1-8b-instant` ou `mixtral-8x7b-32768` em `src/llm_interpretation.py` e `cloudflare/api/wrangler.jsonc` |
+Nenhum gap crítico ativo após os ajustes de variáveis `GROQ_*` no Kubernetes e a decisão de manter `openai/gpt-oss-120b` como modelo padrão via Groq.
 
 ### 🟡 Média Prioridade
 
 | ID | Gap | Impacto | Recomendação |
 |----|-----|---------|--------------|
-| **G-03** | Rubrica não verifica "próximos passos práticos" e "privacidade" | Avaliação automática incompleta | Adicionar critérios de verificação de privacidade (busca por nomes, CPF, etc.) e de recomendações práticas (exames, encaminhamento) em `evaluate_interpretation_quality()` |
-| **G-04** | Prompt não inclui dados estruturados de próximos passos | LLM precisa inferir sozinha ações práticas | Estender `derive_actionable_insights()` para gerar campo `proximos_passos` e incluí-lo no prompt |
+| **G-03** | Artefatos de avaliação LLM desatualizados após a ampliação da rubrica | Arquivos em `resultados/fase2/` podem não refletir os 10 critérios atuais | Regerar `avaliacao_interpretacoes_llm.csv`, `interpretacoes_llm.json` e `resumo_avaliacao_llm.json` com `python -m src.evaluate_llm` |
 | **G-05** | Ausência de testes de integração HTTP para a API | Regressões em endpoints não são capturadas | Adicionar `TestClient` do FastAPI em `tests/test_fase2.py` para `/predict`, `/health`, `/metrics` |
 | **G-06** | Timeout do uvicorn não configurado | Conexões lentas podem acumular em produção | Adicionar `--timeout-keep-alive 5` no `CMD` do `Dockerfile` |
 
@@ -179,7 +174,6 @@ A implementação é **robusta, bem estruturada e de boa qualidade geral**, com 
 
 | ID | Gap | Impacto | Recomendação |
 |----|-----|---------|--------------|
-| **G-07** | `requirements.txt` com duplicata de `kagglehub` | Estético, sem impacto funcional | Remover linha duplicada |
 | **G-08** | Rota `GET /` retorna 404 sem mensagem útil | Experiência de descoberta ruim | Adicionar redirect para `/docs` ou mensagem de boas-vindas |
 | **G-09** | Ausência de `NetworkPolicy` no K8s | Risco de segurança em produção | Adicionar política que permita apenas HTTPS para Groq e tráfego de entrada |
 | **G-10** | Solver sobrescrito no baseline da LR | Risco de não reproduzir o baseline exato | Separar `BASELINE_PARAMETERS` com `solver` explícito para cada modelo |
@@ -204,17 +198,15 @@ A implementação é **robusta, bem estruturada e de boa qualidade geral**, com 
 
 ## 5. Recomendações de Curto Prazo (Quick Wins)
 
-1. **Corrigir `deployment.yaml`** (G-01): 5 minutos, impacto alto.
-2. **Corrigir `DEFAULT_LLM_MODEL`** (G-02): 2 arquivos, 5 minutos.
-3. **Remover `kagglehub` duplicado** (G-07): 1 minuto.
-4. **Adicionar `--timeout-keep-alive` no Dockerfile** (G-06): 1 minuto.
-5. **Adicionar rota `GET /` com redirect para `/docs`** (G-08): 5 linhas de código.
+1. **Regenerar os artefatos da avaliação LLM** (G-03) com a rubrica atualizada.
+2. **Adicionar `--timeout-keep-alive` no Dockerfile** (G-06): 1 minuto.
+3. **Adicionar rota `GET /` com redirect para `/docs`** (G-08): 5 linhas de código.
 
 ---
 
 ## 6. Conclusão
 
-A implementação está **fortemente aderente** ao relatório técnico de referência. Dos 49 critérios avaliados, 42 (86%) estão plenamente atendidos. Os 7 gaps restantes são majoritariamente de baixa criticidade, com exceção de **2 gaps de alta prioridade** (variáveis de ambiente incorretas no K8s e modelo LLM default inexistente) que devem ser corrigidos antes de qualquer deploy em produção.
+A implementação está **fortemente aderente** ao relatório técnico de referência. Os gaps críticos previamente apontados foram tratados: as variáveis de ambiente do K8s usam `GROQ_*`, e `openai/gpt-oss-120b` foi mantido como modelo LLM padrão por decisão do projeto. Os pontos restantes são majoritariamente de reprodutibilidade, documentação operacional e regeneração dos artefatos de avaliação da LLM.
 
 A arquitetura é coerente com o domínio clínico: separação entre experimentação (notebooks + AG) e serving (API + K8s + Cloudflare Workers), métricas voltadas a recall maligno, e interpretações com LLM que respeitam privacidade e sensibilidade de gênero. O projeto demonstra maturidade de engenharia com testes, CI, observabilidade e deploy multi-ambiente (K8s + Cloudflare).
 

@@ -25,13 +25,13 @@ spec:
           env:
             - name: MODEL_PATH
               value: /app/resultados/fase2/modelo_serving.joblib
-            - name: OPENAI_LLM_MODEL
-              value: gpt-4.1-mini
-            - name: OPENAI_API_KEY
+            - name: GROQ_LLM_MODEL
+              value: openai/gpt-oss-120b
+            - name: GROQ_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: cancer-mama-llm-secrets
-                  key: openai-api-key
+                  key: groq-api-key
                   optional: true
           ports:
             - name: http
