@@ -20,8 +20,8 @@ except ModuleNotFoundError:
 
 DEFAULT_LLM_MODEL = "openai/gpt-oss-120b"
 DISCLAIMER = (
-    "Interpretacao gerada por IA para apoio a revisao profissional. "
-    "Nao constitui diagnostico medico nem recomendacao terapeutica."
+    "Interpretação gerada por IA para apoio à revisão profissional. "
+    "Não constitui diagnóstico médico nem recomendação terapêutica."
 )
 
 SYSTEM_INSTRUCTIONS = """Voce e um assistente de apoio a interpretacao de um modelo academico de cancer de mama,
@@ -181,46 +181,46 @@ def derive_actionable_insights(
             else "baixa"
         )
         sinal = (
-            f"{item.feature} apresentou sinal {intensidade} na direcao "
+            f"{item.feature} apresentou sinal {intensidade} na direção "
             f"{item.direction}."
         )
         unit_suffix = f" {item.unit}" if item.unit and item.unit != "adim." else ""
         evidencia_numerica = (
-            f"valor={item.value:.5g}{unit_suffix}; contribuicao_local={item.contribution:.4f}; "
+            f"valor={item.value:.5g}{unit_suffix}; contribuição_local={item.contribution:.4f}; "
             f"probabilidade_maligna={result.probability_malignant:.2%}."
         )
         if item.direction == "Maligno":
             implicacao = (
-                "Priorizar revisao deste achado junto aos exames e ao historico "
-                "clinico, pois ele aumenta o peso estatistico para malignidade."
+                "Priorizar revisão deste achado junto aos exames e ao histórico "
+                "clínico, pois ele aumenta o peso estatístico para malignidade."
             )
         else:
             implicacao = (
-                "Verificar se este achado e coerente com sinais de menor risco, "
-                "sem descartar investigacao quando outros sinais forem conflitantes."
+                "Verificar se este achado é coerente com sinais de menor risco, "
+                "sem descartar investigação quando outros sinais forem conflitantes."
             )
         cautela = (
-            "Nao interpretar esta evidencia isoladamente; a contribuicao e "
-            "estatistica, nao causal, e depende do conjunto de variaveis do modelo."
+            "Não interpretar esta evidência isoladamente; a contribuição é "
+            "estatística, não causal, e depende do conjunto de variáveis do modelo."
         )
         if item.direction == "Maligno":
             proximos_passos = (
                 "Sugerir agendamento de exames de imagem complementares "
-                "(mamografia, ultrassonografia mamaria ou ressonancia magnetica "
+                "(mamografia, ultrassonografia mamária ou ressonância magnética "
                 "conforme protocolo local) e, se pertinente, encaminhamento "
-                "para mastologista. Considerar biopsia quando indicado por "
-                "avaliacao clinica integrada. Orientar a paciente sobre a "
-                "importancia do acompanhamento regular, respeitando a realidade "
-                "de acesso ao sistema de saude."
+                "para mastologista. Considerar biópsia quando indicado por "
+                "avaliação clínica integrada. Orientar a paciente sobre a "
+                "importância do acompanhamento regular, respeitando a realidade "
+                "de acesso ao sistema de saúde."
             )
         else:
             proximos_passos = (
-                "Recomendar manutencao do acompanhamento ginecologico ou "
-                "mastologico periodico conforme faixa etaria e historico "
-                "clinico da paciente. Avaliar necessidade de exames de rotina "
-                "adicionais se houver outros fatores de risco nao capturados "
+                "Recomendar manutenção do acompanhamento ginecológico ou "
+                "mastológico periódico conforme faixa etária e histórico "
+                "clínico da paciente. Avaliar necessidade de exames de rotina "
+                "adicionais se houver outros fatores de risco não capturados "
                 "por este modelo. Orientar a paciente sobre sinais de alerta "
-                "que justifiquem retorno antecipado ao servico de saude."
+                "que justifiquem retorno antecipado ao serviço de saúde."
             )
         insights.append(
             ActionableInsight(

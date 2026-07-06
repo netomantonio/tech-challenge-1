@@ -40,9 +40,9 @@ from sklearn.metrics import make_scorer
 RANDOM_STATE = 42
 
 MODEL_LABELS = {
-    "logistic_regression": "Regressao Logistica",
+    "logistic_regression": "Regressão Logística",
     "knn": "KNN",
-    "decision_tree": "Arvore de Decisao",
+    "decision_tree": "Árvore de Decisão",
 }
 
 # Each chromosome is a tuple of allele indexes, one index for each gene below.

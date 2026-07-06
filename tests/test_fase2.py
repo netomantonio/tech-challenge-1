@@ -109,7 +109,7 @@ class PhaseTwoContractTests(unittest.TestCase):
     def test_api_serves_the_recommended_baseline_when_it_outperforms_ga(self) -> None:
         serving_model = self.result["summary"]["serving_model"]
         self.assertEqual(serving_model["source"], "baseline_fase_1")
-        self.assertEqual(serving_model["model"], "Regressao Logistica")
+        self.assertEqual(serving_model["model"], "Regressão Logística")
 
     def test_api_predicts_using_persisted_artifact(self) -> None:
         payload = self.api.PredictRequest(features=self.features.iloc[0].to_dict())
@@ -126,7 +126,7 @@ class PhaseTwoContractTests(unittest.TestCase):
         self.assertEqual(context.exception.status_code, 422)
 
     def test_prompt_and_quality_check_are_clinically_constrained(self) -> None:
-        result = ModelResult(0, "Maligno", 0.98, 0.02, "Regressao Logistica")
+        result = ModelResult(0, "Maligno", 0.98, 0.02, "Regressão Logística")
         evidence = [FeatureEvidence("radius_worst", 25.0, -2.1, "Maligno")]
         prompt = build_interpretation_prompt(result, evidence)
         self.assertIn("Probabilidade estimada de malignidade: 98.00%", prompt)
@@ -145,13 +145,13 @@ class PhaseTwoContractTests(unittest.TestCase):
         self.assertEqual(len(interpretation.insights_acionaveis), 1)
 
     def test_actionable_insights_translate_numeric_evidence(self) -> None:
-        result = ModelResult(0, "Maligno", 0.76, 0.24, "Regressao Logistica")
+        result = ModelResult(0, "Maligno", 0.76, 0.24, "Regressão Logística")
         evidence = [FeatureEvidence("area_worst", 1200.0, -2.4, "Maligno")]
         insights = derive_actionable_insights(result, evidence)
         self.assertEqual(len(insights), 1)
         self.assertIn("area_worst", insights[0].sinal)
         self.assertIn("probabilidade_maligna=76.00%", insights[0].evidencia_numerica)
-        self.assertIn("revisao", insights[0].implicacao_para_revisao)
+        self.assertIn("revisão", insights[0].implicacao_para_revisao)
 
     def test_api_interpret_uses_llm_explanation(self) -> None:
         payload = self.api.PredictRequest(features=self.features.iloc[0].to_dict())
