@@ -12,6 +12,7 @@ from src.edge_security import validate_turnstile
 from src.model_inference import (
     load_serving_model,
     serving_model_from_joblib_artifact,
+    serving_model_from_manifest,
 )
 
 
@@ -37,6 +38,24 @@ class FakeHttpClient:
 
 
 class CloudflareServingTests(unittest.TestCase):
+    def test_manifest_rejects_unknown_schema_version(self) -> None:
+        payload = json.loads(
+            Path("src/modelo_serving.json").read_text(encoding="utf-8")
+        )
+        payload["schema_version"] = 2
+
+        with self.assertRaisesRegex(ValueError, "Versão de manifesto"):
+            serving_model_from_manifest(payload)
+
+    def test_manifest_rejects_non_positive_scaler_value(self) -> None:
+        payload = json.loads(
+            Path("src/modelo_serving.json").read_text(encoding="utf-8")
+        )
+        payload["preprocessing"]["scale"][0] = 0
+
+        with self.assertRaisesRegex(ValueError, "escalas"):
+            serving_model_from_manifest(payload)
+
     def test_manifest_matches_joblib_for_all_dataset_rows(self) -> None:
         joblib_artifact = joblib.load(Path("resultados/fase2/modelo_serving.joblib"))
         legacy_model = serving_model_from_joblib_artifact(joblib_artifact)

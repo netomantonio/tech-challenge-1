@@ -226,9 +226,65 @@ há resposta real de LLM para reportar.
 
 ## Execução Local
 
+### Pré-requisitos e configuração do ambiente
+
+- Python 3.11;
+- Node.js na versão indicada em `.node-version`;
+- acesso à internet para instalar dependências e baixar o dataset na primeira
+  execução;
+- `GROQ_API_KEY` apenas para interpretações reais com LLM. Predição, treinamento
+  e testes não dependem dessa chave.
+
+Crie e ative um ambiente virtual antes de instalar as dependências:
+
 ```bash
+python -m venv .venv
+# Linux/macOS: source .venv/bin/activate
+# PowerShell: .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 python data/download_datasets.py
+```
+
+O download cria `data/cancer_mama.csv`, arquivo local deliberadamente ignorado
+pelo Git. Para o frontend:
+
+```bash
+cd frontend
+npm ci
+cp .env.example .env.local
+npm run dev
+```
+
+Consulte `.env.example` e `cloudflare/api/.dev.vars.example` para conhecer as
+variáveis de cada runtime. Nunca versione chaves reais.
+
+### Fluxo de dados
+
+```text
+Kaggle CSV
+  -> limpeza e separação treino/teste
+  -> baselines + otimização genética com validação cruzada
+  -> comparação por recall maligno, F1 e accuracy
+  -> seleção da Regressão Logística
+  -> modelo_serving.joblib
+  -> exportação equivalente para src/modelo_serving.json
+  -> API /predict
+  -> evidências numéricas -> Groq -> API /interpret
+  -> Pages Function -> interface React
+```
+
+O conjunto de teste reservado participa somente da comparação final. O Worker
+usa o manifesto JSON, enquanto o `joblib` permanece como artefato de referência;
+um teste automatizado verifica a equivalência das previsões nas 569 amostras.
+A aplicação não persiste features enviadas nem respostas clínicas.
+
+### Comandos principais
+
+```bash
+python -m unittest discover -s tests -v
+python scripts/export_serving_model.py --check
+cd frontend && npm test && npm run build
 ```
 
 Para consultar ou reexecutar a Fase 1, abra:
@@ -248,6 +304,27 @@ Os notebooks da Fase 2 são:
 
 - `notebooks/02_otimizacao_genetica_cancer_mama.ipynb`: otimização genética;
 - `notebooks/03_interpretacao_llm_cancer_mama.ipynb`: interpretação com GPT e avaliação.
+
+## Testes automatizados e CI/CD
+
+O workflow `.github/workflows/ci.yml` é executado em pull requests e pushes
+para `main`/`master`. Ele baixa o dataset, executa os testes Python, valida a
+equivalência do manifesto, roda os testes do frontend e produz o build React.
+As chamadas externas de Turnstile e Groq são substituídas por dublês nos testes,
+portanto nenhuma chave é necessária no CI.
+
+Após um CI bem-sucedido, `.github/workflows/deploy.yml` publica o ambiente
+Cloudflare `preview`. Configure no ambiente GitHub `preview`:
+
+| Tipo | Nome | Finalidade |
+| --- | --- | --- |
+| Secret | `CLOUDFLARE_API_TOKEN` | Autenticar deploy de Workers e Pages |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | Identificar a conta Cloudflare |
+| Variable | `VITE_TURNSTILE_SITE_KEY` | Chave pública incluída no frontend |
+
+Os secrets de runtime `GROQ_API_KEY` e `TURNSTILE_SECRET_KEY` continuam
+armazenados diretamente no Worker e não são expostos ao workflow. O deploy
+também pode ser disparado manualmente pela aba **Actions**.
 
 ## Aplicação na Cloudflare
 

@@ -79,7 +79,7 @@
     "recall_weighted": 0.9824561403508771
   },
   "model_key": "logistic_regression",
-  "model_label": "Regressão Logística",
+  "model_label": "Regressao Logistica",
   "parameters": {
     "C": 1.0,
     "class_weight": null,

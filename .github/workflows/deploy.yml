@@ -1,0 +1,84 @@
+name: CD - Cloudflare Preview
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publicar Worker e Pages
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: preview
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Baixar o commit validado
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Verificar configuração de deploy
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Secret CLOUDFLARE_API_TOKEN ausente"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Secret CLOUDFLARE_ACCOUNT_ID ausente"; exit 1; }
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - name: Configurar Python para o Worker
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Instalar ferramentas da Cloudflare
+        run: npm ci
+
+      - name: Publicar API
+        working-directory: cloudflare/api
+        run: uv run pywrangler deploy
+
+      - name: Preparar frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Gerar frontend
+        working-directory: frontend
+        env:
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+        run: npm run build
+
+      - name: Publicar frontend
+        working-directory: frontend
+        run: npx wrangler pages deploy dist --project-name cancer-mama-web-preview --branch preview
