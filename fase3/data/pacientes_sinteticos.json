@@ -1,0 +1,68 @@
+[
+  {
+    "paciente_id": "PAC-0001",
+    "idade": 52,
+    "sexo": "F",
+    "diagnostico": "Carcinoma ductal invasivo, mama esquerda, triplo negativo",
+    "estagio": "IIB",
+    "exames_pendentes": ["ecocardiograma_basal", "sorologia_hbv_hcv_hiv"],
+    "exames_realizados": ["hemograma_completo", "funcao_hepatica_renal"],
+    "alertas_ativos": [],
+    "observacoes": "Aguardando exames obrigatorios antes do primeiro ciclo de quimioterapia neoadjuvante (PROT-006)."
+  },
+  {
+    "paciente_id": "PAC-0002",
+    "idade": 61,
+    "sexo": "F",
+    "diagnostico": "Carcinoma ductal invasivo, mama direita, receptor hormonal positivo",
+    "estagio": "IIIA",
+    "exames_pendentes": [],
+    "exames_realizados": ["hemograma_completo", "funcao_hepatica_renal", "ecocardiograma_basal", "sorologia_hbv_hcv_hiv"],
+    "alertas_ativos": [],
+    "observacoes": "Exames pre-tratamento completos e dentro da validade. Apta a iniciar tratamento conforme decisao da equipe."
+  },
+  {
+    "paciente_id": "PAC-0003",
+    "idade": 45,
+    "sexo": "F",
+    "diagnostico": "Carcinoma ductal in situ (DCIS), mama esquerda",
+    "estagio": "0",
+    "exames_pendentes": ["biopsia_confirmatoria"],
+    "exames_realizados": ["mamografia", "ultrassonografia_mamaria"],
+    "alertas_ativos": ["BI-RADS 4 identificado, biopsia pendente ha 12 dias"],
+    "observacoes": "Prazo do protocolo (15 dias uteis) proximo do limite (PROT-001)."
+  },
+  {
+    "paciente_id": "PAC-0004",
+    "idade": 68,
+    "sexo": "M",
+    "diagnostico": "Carcinoma de mama masculino, receptor hormonal positivo",
+    "estagio": "II",
+    "exames_pendentes": [],
+    "exames_realizados": ["hemograma_completo", "funcao_hepatica_renal", "ecocardiograma_basal"],
+    "alertas_ativos": [],
+    "observacoes": "Caso raro; encaminhado para segunda opiniao em reuniao multidisciplinar."
+  },
+  {
+    "paciente_id": "PAC-0005",
+    "idade": 39,
+    "sexo": "F",
+    "diagnostico": "Suspeita de recidiva pos-mastectomia, em investigacao",
+    "estagio": "a_definir",
+    "exames_pendentes": ["tomografia_torax_abdome"],
+    "exames_realizados": ["hemograma_completo"],
+    "alertas_ativos": ["Febre de 38.6C registrada ha 2 horas, associada a taquicardia (110 bpm)"],
+    "observacoes": "Quadro compativel com possivel resposta inflamatoria sistemica; avaliar protocolo de sepse (PROT-011)."
+  },
+  {
+    "paciente_id": "PAC-0006",
+    "idade": 55,
+    "sexo": "F",
+    "diagnostico": "Pos-operatorio de mastectomia (dia 2)",
+    "estagio": "IIA",
+    "exames_pendentes": [],
+    "exames_realizados": ["hemograma_completo"],
+    "alertas_ativos": ["Dor relatada em 7/10 apos analgesico prescrito"],
+    "observacoes": "Reavaliar conforme protocolo de manejo da dor pos-operatoria (PROT-004)."
+  }
+]

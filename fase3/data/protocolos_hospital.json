@@ -1,0 +1,74 @@
+[
+  {
+    "id": "PROT-001",
+    "titulo": "Protocolo de rastreamento e diagnostico precoce de cancer de mama",
+    "categoria": "oncologia",
+    "conteudo": "O rastreamento de rotina e recomendado para mulheres a partir dos 40 anos com mamografia bienal, e anual a partir dos 50 anos ou antes em pacientes de alto risco (historico familiar, mutacao BRCA1/BRCA2). Achados suspeitos (BI-RADS 4 ou 5) devem ser encaminhados para biopsia percutanea guiada por imagem em ate 15 dias uteis. O resultado histopatologico deve ser discutido em reuniao multidisciplinar (oncologia clinica, mastologia, radiologia e patologia) antes da definicao da conduta terapeutica."
+  },
+  {
+    "id": "PROT-002",
+    "titulo": "Protocolo de conduta em cancer de mama triplo negativo",
+    "categoria": "oncologia",
+    "conteudo": "Casos com receptores de estrogenio, progesterona e HER2 negativos (triplo negativo) tem indicacao preferencial de quimioterapia neoadjuvante antes da cirurgia, com esquema baseado em antraciclina e taxano, associado a carboplatina quando ha mutacao BRCA confirmada. A resposta patologica completa deve ser reavaliada por imagem a cada dois ciclos. Toda decisao terapeutica deve ser validada por medico oncologista responsavel; o assistente virtual NAO deve indicar dose, principio ativo ou substituir a avaliacao clinica presencial."
+  },
+  {
+    "id": "PROT-003",
+    "titulo": "Protocolo de profilaxia de trombose venosa profunda (TVP) em pos-operatorio",
+    "categoria": "cirurgia",
+    "conteudo": "Pacientes submetidas a cirurgia oncologica de mama com tempo cirurgico superior a 60 minutos ou fatores de risco adicionais (obesidade, idade acima de 60 anos, historico de TVP) devem receber profilaxia mecanica (meias de compressao ou compressao pneumatica intermitente) no intraoperatorio e deambulacao precoce a partir de 6 horas apos a cirurgia, quando estavel. A indicacao de anticoagulante farmacologico e decisao medica individualizada e deve ser validada pelo cirurgiao responsavel, nunca sugerida automaticamente pelo assistente."
+  },
+  {
+    "id": "PROT-004",
+    "titulo": "Protocolo de manejo da dor pos-operatoria",
+    "categoria": "cirurgia",
+    "conteudo": "A escala numerica de dor (0 a 10) deve ser registrada a cada 4 horas nas primeiras 48 horas de pos-operatorio. Dor leve a moderada (ate 4) e manejada com analgesicos comuns conforme prescricao medica vigente no prontuario. Dor persistente acima de 6 apos administracao do analgesico prescrito deve gerar alerta imediato para a equipe medica responsavel para reavaliacao presencial; o assistente nao deve sugerir troca ou aumento de dose de medicamento."
+  },
+  {
+    "id": "PROT-005",
+    "titulo": "Protocolo de alta hospitalar pos-mastectomia",
+    "categoria": "enfermagem",
+    "conteudo": "Antes da alta, verificar: ausencia de sinais de infeccao no sitio cirurgico, dreno com debito inferior a 30 ml em 24 horas (quando presente), orientacao escrita sobre cuidados com a ferida operatoria e sinais de alerta (febre, secrecao purulenta, dor crescente), e agendamento de retorno ambulatorial em ate 10 dias. Pacientes sem retorno agendado devem ser sinalizadas para a equipe de enfermagem antes da liberacao."
+  },
+  {
+    "id": "PROT-006",
+    "titulo": "Protocolo de exames pre-tratamento oncologico",
+    "categoria": "oncologia",
+    "conteudo": "Antes do inicio de quimioterapia sistemica e obrigatoria a checagem de: hemograma completo, funcao hepatica e renal, ecocardiograma ou MUGA basal quando o esquema incluir antraciclina ou trastuzumabe, e sorologias (HBV, HCV, HIV) conforme protocolo institucional. Nenhum ciclo deve ser iniciado com exames pendentes ou fora do prazo de validade (30 dias); o sistema deve emitir alerta para a equipe medica quando identificar exame obrigatorio pendente."
+  },
+  {
+    "id": "PROT-007",
+    "titulo": "Protocolo de comunicacao de resultados criticos",
+    "categoria": "seguranca_do_paciente",
+    "conteudo": "Resultados de exame considerados criticos (por exemplo, neutropenia febril, alteracao cardiaca significativa, ou biopsia com achado de malignidade) devem ser comunicados ao medico assistente em ate 1 hora a partir da liberacao do laudo, com registro do horario de notificacao no prontuario. O assistente virtual pode sinalizar a pendencia de comunicacao, mas a confirmacao do contato com a equipe medica deve ser feita por um profissional humano."
+  },
+  {
+    "id": "PROT-008",
+    "titulo": "Perguntas frequentes de medicos sobre conduta em cancer de mama",
+    "categoria": "faq",
+    "conteudo": "P: Posso liberar quimioterapia com hemograma de 35 dias atras? R: Nao, o protocolo institucional exige exames laboratoriais com no maximo 30 dias de validade antes de cada ciclo. P: Toda paciente com BI-RADS 4 precisa de biopsia? R: Sim, achados BI-RADS 4 ou 5 tem indicacao de biopsia percutanea guiada por imagem conforme o Protocolo PROT-001. P: Radioterapia pode ser iniciada antes do fechamento completo da ferida cirurgica? R: Nao, recomenda-se aguardar cicatrizacao completa e avaliacao do cirurgiao responsavel."
+  },
+  {
+    "id": "PROT-009",
+    "titulo": "Modelo padrao de laudo de biopsia mamaria",
+    "categoria": "modelo_documento",
+    "conteudo": "MODELO DE LAUDO (uso interno, dados fictícios de treinamento): Identificacao: [ID do paciente anonimizado]. Material: fragmentos de biopsia percutanea de mama, quadrante [x]. Descricao microscopica: [achados histologicos]. Diagnostico: [tipo histologico, grau, status de receptores hormonais e HER2 quando aplicavel]. Observacoes: laudo sujeito a correlacao clinico-radiologica e discussao em reuniao multidisciplinar."
+  },
+  {
+    "id": "PROT-010",
+    "titulo": "Modelo padrao de receita e orientacoes pos-alta",
+    "categoria": "modelo_documento",
+    "conteudo": "MODELO DE RECEITA (uso interno, dados fictícios de treinamento): Nome do paciente: [anonimizado]. Data: [data]. Prescricao: conforme definicao exclusiva do medico assistente, incluindo principio ativo, dose, via e periodicidade. Orientacoes gerais: repouso relativo nas primeiras 48 horas, curativo diario conforme orientacao de enfermagem, retorno imediato ao pronto-atendimento em caso de febre acima de 38 graus, secrecao purulenta ou dor intensa nao controlada. Este modelo nao deve ser preenchido automaticamente pelo assistente virtual sem validacao medica."
+  },
+  {
+    "id": "PROT-011",
+    "titulo": "Protocolo de sepse e resposta inflamatoria sistemica",
+    "categoria": "seguranca_do_paciente",
+    "conteudo": "Pacientes com dois ou mais criterios de SIRS (temperatura acima de 38 ou abaixo de 36 graus, frequencia cardiaca acima de 90bpm, frequencia respiratoria acima de 20irpm, leucocitos acima de 12000 ou abaixo de 4000) associados a suspeita de infeccao devem acionar o protocolo de sepse: coleta de lactato e hemoculturas, inicio de antibioticoterapia empirica conforme diretriz institucional em ate 1 hora, e comunicacao imediata a equipe medica. O assistente deve emitir alerta de alta prioridade e nunca aguardar validacao assincrona nesses casos."
+  },
+  {
+    "id": "PROT-012",
+    "titulo": "Perguntas frequentes de medicos sobre uso do assistente virtual",
+    "categoria": "faq",
+    "conteudo": "P: O assistente pode prescrever medicamentos? R: Nao, o assistente apenas sugere consultas a protocolos e organiza informacoes; toda prescricao exige validacao de um medico humano. P: As respostas do assistente citam a fonte? R: Sim, cada resposta indica o protocolo ou documento utilizado como base, para fins de auditoria e explicabilidade. P: O que acontece se faltar informacao no prontuario? R: O assistente sinaliza a informacao ausente em vez de inferir ou completar dados clinicos por conta propria."
+  }
+]
