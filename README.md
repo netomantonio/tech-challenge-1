@@ -102,8 +102,22 @@ deploy/k8s/
   service.yaml
 docs/
   arquitetura_fase2.md
+  arquitetura_fase3.md
   cloudflare-deploy.md  # infraestrutura de nuvem e procedimentos de deploy
   frontend.md           # documentação do frontend
+  script_video_demonstracao_fase3.txt
+fase3/                  # assistente medico virtual (fine-tuning + LangChain + LangGraph)
+  data/                  # protocolos, prontuarios sinteticos e amostra MedQuAD/PubMedQA
+  finetuning/            # pipeline de fine-tuning LoRA/PEFT
+  assistant_chain.py     # pipeline LangChain (retrieval + LLM + guardrails)
+  clinical_flow_graph.py # fluxo de decisao LangGraph
+  ehr_tools.py           # mock de EHR estruturado (SQLite)
+  evaluate_assistant.py
+  guardrails.py
+  llm_backend.py
+  logging_utils.py
+  retrieval.py
+  cli_demo.py
 frontend/               # aplicação React (Cloudflare Pages)
   functions/[[path]].ts # Pages Function: proxy via Service Binding
   public/               # _headers (CSP) e _routes.json
@@ -113,6 +127,7 @@ notebooks/
   01_cancer_mama.ipynb
   02_otimizacao_genetica_cancer_mama.ipynb
   03_interpretacao_llm_cancer_mama.ipynb
+  04_assistente_medico_fase3.ipynb
 resultados/fase2/
   comparacao_baseline_otimizados.csv
   experimentos_ga.csv
@@ -123,6 +138,11 @@ resultados/fase2/
   avaliacao_interpretacoes_llm.csv  # gerado com GROQ_API_KEY
   interpretacoes_llm.json           # gerado com GROQ_API_KEY
   resumo_avaliacao_llm.json         # gerado com GROQ_API_KEY
+resultados/fase3/
+  finetuning/smoke/      # adapter LoRA + training_summary.json do smoke test
+  avaliacao_assistente.csv
+  avaliacao_assistente.json
+  resumo_avaliacao_assistente.json
 scripts/
   export_serving_model.py # exporta o manifesto JSON servido na borda
 src/
@@ -137,12 +157,15 @@ src/
   worker.py               # entrypoint do Python Worker (ASGI + segurança)
 tests/
   test_fase2.py
+  test_fase3.py
   test_cloudflare.py      # equivalência do manifesto e validação do Turnstile
 Dockerfile
 requirements.txt
+requirements-fase3.txt
 relatorio_tecnico_01_cancer_mama.md
 relatorio_tecnico_01_cancer_mama.pdf
 relatorio_tecnico_fase2.md
+relatorio_tecnico_fase3.md
 ```
 
 ### Experimentos Genéticos
@@ -498,6 +521,97 @@ utilização média de CPU. O cluster deve possuir `metrics-server`.
 Este projeto é acadêmico. O dataset possui apenas 569 amostras, não houve
 validação externa, e a API não deve ser usada como diagnóstico clínico
 autônomo.
+
+## Fase 3 - Assistente Médico Virtual
+
+A Fase 3 é um módulo novo e isolado (`fase3/`), que **não altera** o
+pipeline de diagnóstico das Fases 1/2. O desafio: um assistente virtual
+médico treinado com dados próprios (fictícios) do hospital, capaz de
+responder dúvidas clínicas e sugerir consultas a protocolos internos, com
+fluxos de decisão automatizados e seguros coordenados por LangChain e
+LangGraph.
+
+### Entregas Atendidas
+
+| Requisito | Implementação |
+| --- | --- |
+| Fine-tuning de LLM com dados médicos internos | `fase3/finetuning/train_lora.py` (LoRA/PEFT), dataset em `fase3/data/` |
+| Preprocessing, anonimização e curadoria | `fase3/data/build_finetuning_dataset.py` |
+| Pipeline LangChain integrando a LLM customizada | `fase3/assistant_chain.py` (`prompt \| llm \| StrOutputParser`) |
+| Consulta a base de dados estruturada (prontuários) | `fase3/ehr_tools.py` (mock de EHR em SQLite) |
+| Contextualização com dados atualizados do paciente | `fase3/assistant_chain.py` via `ehr_tools.get_paciente` |
+| Fluxos do LangGraph | `fase3/clinical_flow_graph.py` |
+| Nunca prescrever diretamente, sem validação humana | `fase3/guardrails.py` |
+| Logging detalhado para auditoria | `fase3/logging_utils.py` (+ `resultados/fase3/auditoria.jsonl`) |
+| Explainability (fonte da informação usada) | Toda resposta cita os protocolos usados (`fase3/retrieval.py`) |
+| Avaliação do assistente | `fase3/evaluate_assistant.py` |
+| Projeto modularizado em Python | Pacote `fase3/` |
+
+### Dataset
+
+| Fonte | Conteúdo | Observação |
+| --- | --- | --- |
+| `fase3/data/protocolos_hospital.json` | Protocolos internos, FAQs e modelos de documento | Fictícios, criados para este projeto |
+| `fase3/data/pacientes_sinteticos.json` | Prontuários fictícios (exames pendentes/realizados, alertas) | Identificação apenas por código (`PAC-000x`) |
+| `fase3/data/sample_medquad.jsonl` | 12 QAs do MedQuAD (CancerGov, foco *Breast Cancer*) + 8 do PubMedQA | Dados reais, com atribuição de fonte por linha |
+
+`python -m fase3.data.build_finetuning_dataset` combina as três fontes,
+aplica anonimização por regex (CPF, telefone, e-mail, nome) e curadoria
+(dedup + filtro de tamanho), gerando `finetuning_train.jsonl` (33
+exemplos) e `finetuning_val.jsonl` (6 exemplos).
+
+### Fine-tuning LoRA/PEFT
+
+Rodamos um smoke test real de ponta a ponta com `distilgpt2` (modelo
+pequeno, mas com pesos pré-treinados de verdade), comprovando que o
+pipeline aprende — a perda cai a cada época, tanto no treino quanto na
+validação:
+
+| Época | Loss médio (treino) | Loss (validação) |
+| ---: | ---: | ---: |
+| 1 | 4.7990 | 4.8405 |
+| 2 | 4.5711 | 4.7904 |
+| 3 | 4.4342 | 4.7692 |
+
+Artefatos versionados em `resultados/fase3/finetuning/smoke/`. As
+dependências pesadas (`torch`, `transformers`, `peft`, `datasets`) ficam
+em `requirements-fase3.txt`, separadas do `requirements.txt` principal
+para não afetar a CI das Fases 1/2:
+
+```bash
+python -m pip install -r requirements-fase3.txt
+python -m fase3.finetuning.train_lora --output-dir resultados/fase3/finetuning/smoke
+```
+
+Para um fine-tuning "de produção", troque `--base-model` por algo como
+`Qwen/Qwen2.5-0.5B-Instruct` (recomendado rodar com GPU, ex.: Google
+Colab).
+
+### Assistente, guardrails e fluxo de decisão
+
+```bash
+python -m pip install -r requirements.txt
+python -m fase3.data.build_finetuning_dataset
+
+# demo de ponta a ponta (fluxo LangGraph completo):
+python -m fase3.cli_demo --paciente-id PAC-0001 \
+  --pergunta "Posso iniciar a quimioterapia hoje?" --backend fake
+# com uma chave real: troque --backend fake por --backend groq e configure GROQ_API_KEY
+
+# avaliação determinística do assistente:
+python -m fase3.evaluate_assistant --backend fake   # ou groq
+```
+
+Toda resposta segura recebe um aviso obrigatório de validação médica
+humana; respostas com prescrição direta ou com informação pessoal
+identificável são bloqueadas pelo guardrail antes de chegar ao usuário
+(ver `fase3/guardrails.py`). Detalhes de arquitetura, diagramas do fluxo
+LangChain/LangGraph e decisões de projeto em
+[docs/arquitetura_fase3.md](docs/arquitetura_fase3.md), e a análise
+completa em [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md).
+
+Notebook executável: `notebooks/04_assistente_medico_fase3.ipynb`. Roteiro
+do vídeo de demonstração: `docs/script_video_demonstracao_fase3.txt`.
 
 ## Autores
 

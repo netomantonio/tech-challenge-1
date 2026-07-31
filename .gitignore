@@ -119,6 +119,21 @@ resultados/fase2/*
 !resultados/fase2/interpretacoes_llm.json
 !resultados/fase2/resumo_avaliacao_llm.json
 
+# Artefatos finais da fase 3 (adapter LoRA do smoke test + avaliacoes) ficam
+# versionaveis; o log de auditoria e gerado a cada execucao e nao e versionado.
+!resultados/fase3/
+resultados/fase3/**/auditoria.jsonl
+
+# Base SQLite mock de prontuarios e regenerada a partir do JSON sintetico.
+fase3/data/*.db
+
+# Dataset de fine-tuning gerado por build_finetuning_dataset.py a partir das
+# fontes versionadas (protocolos_hospital.json, pacientes_sinteticos.json,
+# sample_medquad.jsonl) — mesmo padrao de data/*.csv na fase 1.
+fase3/data/finetuning_dataset.jsonl
+fase3/data/finetuning_train.jsonl
+fase3/data/finetuning_val.jsonl
+
 # Variáveis de ambiente / segredos
 .env
 .env.*
