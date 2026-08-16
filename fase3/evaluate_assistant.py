@@ -5,6 +5,9 @@ segundo LLM para "notar" a resposta, aplicamos uma rubrica objetiva
 (fontes citadas, disclaimer presente, ausencia de PII, prescricao direta
 nunca sai sem ser bloqueada) sobre um conjunto de casos representativos, e
 salvamos os resultados em ``resultados/fase3/``.
+
+Tambem aceita ``--backend local`` para avaliar o assistente com o adapter
+LoRA treinado em ``resultados/fase3/finetuning/smoke/lora_adapter``.
 """
 
 from __future__ import annotations
@@ -75,11 +78,21 @@ _RESPOSTAS_FAKE_DEMONSTRACAO = [
 ]
 
 
-def executar_avaliacao(backend: str) -> list[dict]:
+def executar_avaliacao(
+    backend: str,
+    base_model: str | None = None,
+    adapter_path: str | None = None,
+    max_new_tokens: int = 200,
+) -> list[dict]:
     if backend == "fake":
         llm = get_llm("fake", respostas=_RESPOSTAS_FAKE_DEMONSTRACAO)
     else:
-        llm = get_llm(backend)
+        llm = get_llm(
+            backend,
+            base_model=base_model,
+            adapter_path=adapter_path,
+            max_new_tokens=max_new_tokens,
+        )
     retriever = construir_retriever()
 
     linhas = []
@@ -135,9 +148,33 @@ def salvar_resultados(linhas: list[dict], output_dir: Path = RESULTADOS_DIR) -> 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", default="groq", choices=["groq", "local", "fake"])
+    parser.add_argument(
+        "--base-model",
+        default=None,
+        help="Modelo base usado com --backend local (padrao academico: distilgpt2).",
+    )
+    parser.add_argument(
+        "--adapter-path",
+        default=None,
+        help=(
+            "Caminho do adapter LoRA usado com --backend local. Se omitido, "
+            "tenta resultados/fase3/finetuning/smoke/lora_adapter."
+        ),
+    )
+    parser.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=200,
+        help="Limite de tokens gerados pelo backend local.",
+    )
     args = parser.parse_args()
 
-    linhas = executar_avaliacao(args.backend)
+    linhas = executar_avaliacao(
+        args.backend,
+        base_model=args.base_model,
+        adapter_path=args.adapter_path,
+        max_new_tokens=args.max_new_tokens,
+    )
     salvar_resultados(linhas)
     print(f"Avaliados {len(linhas)} casos representativos.")
     print(f"Score objetivo medio: {sum(l['score_objetivo'] for l in linhas) / len(linhas):.2f}")

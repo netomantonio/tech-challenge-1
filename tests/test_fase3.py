@@ -23,7 +23,13 @@ from fase3.data.build_finetuning_dataset import (
     detectar_pii,
 )
 from fase3.guardrails import DISCLAIMER, aplicar_guardrails
-from fase3.llm_backend import GroqLLM, LLMUnavailableError, get_llm
+from fase3.llm_backend import (
+    DEFAULT_LOCAL_ADAPTER_PATH,
+    GroqLLM,
+    LLMUnavailableError,
+    _resolver_local_adapter_path,
+    get_llm,
+)
 from fase3.retrieval import buscar_protocolos, construir_retriever
 
 
@@ -94,6 +100,34 @@ class LLMBackendTests(unittest.TestCase):
     def test_backend_desconhecido_levanta_value_error(self) -> None:
         with self.assertRaises(ValueError):
             get_llm("inexistente")
+
+    def test_backend_local_repassa_modelo_e_adapter_lora(self) -> None:
+        with unittest.mock.patch("fase3.llm_backend._criar_llm_local") as criar_local:
+            esperado = object()
+            criar_local.return_value = esperado
+
+            llm = get_llm(
+                "local",
+                base_model="distilgpt2",
+                adapter_path="resultados/fase3/finetuning/smoke/lora_adapter",
+                max_new_tokens=64,
+            )
+
+            self.assertIs(llm, esperado)
+            criar_local.assert_called_once_with(
+                "distilgpt2",
+                "resultados/fase3/finetuning/smoke/lora_adapter",
+                max_new_tokens=64,
+            )
+
+    def test_backend_local_usa_adapter_smoke_apenas_com_modelo_padrao(self) -> None:
+        with unittest.mock.patch.dict(os.environ, {}, clear=True):
+            if DEFAULT_LOCAL_ADAPTER_PATH.exists():
+                self.assertEqual(
+                    _resolver_local_adapter_path("distilgpt2", None),
+                    str(DEFAULT_LOCAL_ADAPTER_PATH),
+                )
+            self.assertIsNone(_resolver_local_adapter_path("Qwen/Qwen2.5-0.5B-Instruct", None))
 
 
 class RetrievalTests(unittest.TestCase):

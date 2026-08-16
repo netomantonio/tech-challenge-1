@@ -19,12 +19,22 @@ from __future__ import annotations
 import os
 import re
 import time
+from pathlib import Path
 from typing import Any, Optional
 
 import httpx
 from langchain_core.language_models.llms import LLM
 
 DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant"
+DEFAULT_LOCAL_BASE_MODEL = "distilgpt2"
+DEFAULT_LOCAL_ADAPTER_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "resultados"
+    / "fase3"
+    / "finetuning"
+    / "smoke"
+    / "lora_adapter"
+)
 GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 SYSTEM_PROMPT_CLINICO = (
@@ -45,6 +55,15 @@ class LLMUnavailableError(RuntimeError):
 def _parse_retry_delay(mensagem: str, default: float = 2.0) -> float:
     match = re.search(r"retry in (\d+(?:\.\d+)?)s", mensagem, re.IGNORECASE)
     return float(match.group(1)) if match else default
+
+
+def _resolver_local_adapter_path(base_model: str, adapter_path: Optional[str]) -> Optional[str]:
+    adapter_resolvido = adapter_path or os.getenv("FASE3_LOCAL_ADAPTER_PATH")
+    if adapter_resolvido:
+        return adapter_resolvido
+    if base_model == DEFAULT_LOCAL_BASE_MODEL and DEFAULT_LOCAL_ADAPTER_PATH.exists():
+        return str(DEFAULT_LOCAL_ADAPTER_PATH)
+    return None
 
 
 class GroqLLM(LLM):
@@ -128,8 +147,8 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
             f"(erro original: {exc})"
         ) from exc
 
-    base_model = base_model or os.getenv("FASE3_LOCAL_BASE_MODEL", "distilgpt2")
-    adapter_path = adapter_path or os.getenv("FASE3_LOCAL_ADAPTER_PATH")
+    base_model = base_model or os.getenv("FASE3_LOCAL_BASE_MODEL", DEFAULT_LOCAL_BASE_MODEL)
+    adapter_path = _resolver_local_adapter_path(base_model, adapter_path)
 
     tokenizer = AutoTokenizer.from_pretrained(base_model)
     modelo = AutoModelForCausalLM.from_pretrained(base_model)
@@ -154,7 +173,8 @@ def get_llm(backend: Optional[str] = None, **kwargs: Any) -> LLM:
             model=kwargs.get("model", os.getenv("GROQ_LLM_MODEL", DEFAULT_GROQ_MODEL)),
         )
     if backend == "local":
-        return _criar_llm_local(kwargs.get("base_model"), kwargs.get("adapter_path"), **kwargs)
+        local_kwargs = {k: v for k, v in kwargs.items() if k not in {"base_model", "adapter_path"}}
+        return _criar_llm_local(kwargs.get("base_model"), kwargs.get("adapter_path"), **local_kwargs)
     if backend == "fake":
         return FakeLLM(respostas=kwargs.get("respostas", []))
     raise ValueError(f"Backend de LLM desconhecido: {backend!r} (use 'groq', 'local' ou 'fake')")

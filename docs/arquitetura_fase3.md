@@ -210,6 +210,13 @@ python -m fase3.data.build_finetuning_dataset
 python -m pip install -r requirements-fase3.txt
 python -m fase3.finetuning.train_lora --output-dir resultados/fase3/finetuning/smoke
 
+# demo usando a LLM customizada local (adapter LoRA treinado):
+python -m fase3.cli_demo --paciente-id PAC-0001 \
+  --pergunta "Posso iniciar a quimioterapia hoje?" \
+  --backend local \
+  --base-model distilgpt2 \
+  --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
+
 # demo de ponta a ponta:
 python -m fase3.cli_demo --paciente-id PAC-0001 --pergunta "Posso iniciar a quimioterapia hoje?"
 # sem GROQ_API_KEY, use --backend fake

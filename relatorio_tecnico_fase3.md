@@ -62,6 +62,17 @@ Hiperparametros: LoRA `r=8`, `alpha=16`, `dropout=0.05`, modulo alvo
 `c_attn` (atencao do GPT-2), 3 epocas, `batch_size=4`,
 `learning_rate=5e-4`.
 
+O mesmo adapter treinado e consumido pelo assistente quando o backend
+`local` e selecionado. Na entrega academica, o caminho versionado e:
+
+```bash
+python -m fase3.cli_demo --paciente-id PAC-0001 \
+  --pergunta "Posso iniciar a quimioterapia hoje?" \
+  --backend local \
+  --base-model distilgpt2 \
+  --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
+```
+
 Para um fine-tuning "de producao" com um modelo maior (ex.:
 `Qwen/Qwen2.5-0.5B-Instruct` ou `TinyLlama/TinyLlama-1.1B-Chat-v1.0`),
 basta trocar `--base-model` e `--lora-target-modules`

@@ -12,12 +12,16 @@ Exemplos:
 
     python -m fase3.cli_demo --paciente-id PAC-0005 \
         --pergunta "A paciente esta com febre, qual conduta?" --backend fake
+
+    python -m fase3.cli_demo --paciente-id PAC-0001 \
+        --pergunta "Posso iniciar a quimioterapia hoje?" --backend local \
+        --base-model distilgpt2 \
+        --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 
 from fase3.clinical_flow_graph import executar_fluxo_clinico
 from fase3.llm_backend import get_llm
@@ -28,15 +32,42 @@ def main() -> None:
     parser.add_argument("--paciente-id", default=None, help="Codigo do paciente, ex.: PAC-0001")
     parser.add_argument("--pergunta", required=True)
     parser.add_argument("--backend", default="groq", choices=["groq", "local", "fake"])
+    parser.add_argument(
+        "--base-model",
+        default=None,
+        help="Modelo base usado com --backend local (padrao academico: distilgpt2).",
+    )
+    parser.add_argument(
+        "--adapter-path",
+        default=None,
+        help=(
+            "Caminho do adapter LoRA usado com --backend local. Se omitido, "
+            "tenta resultados/fase3/finetuning/smoke/lora_adapter."
+        ),
+    )
+    parser.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=200,
+        help="Limite de tokens gerados pelo backend local.",
+    )
     args = parser.parse_args()
 
-    llm = get_llm(args.backend) if args.backend != "fake" else get_llm(
-        "fake",
-        respostas=[
-            "Com base no protocolo institucional, recomenda-se seguir a conduta padrao "
-            "e reavaliar o paciente conforme os criterios descritos."
-        ],
-    )
+    if args.backend == "fake":
+        llm = get_llm(
+            "fake",
+            respostas=[
+                "Com base no protocolo institucional, recomenda-se seguir a conduta padrao "
+                "e reavaliar o paciente conforme os criterios descritos."
+            ],
+        )
+    else:
+        llm = get_llm(
+            args.backend,
+            base_model=args.base_model,
+            adapter_path=args.adapter_path,
+            max_new_tokens=args.max_new_tokens,
+        )
 
     estado = executar_fluxo_clinico(args.paciente_id, args.pergunta, llm=llm)
 

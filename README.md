@@ -583,6 +583,17 @@ python -m pip install -r requirements-fase3.txt
 python -m fase3.finetuning.train_lora --output-dir resultados/fase3/finetuning/smoke
 ```
 
+O adapter LoRA treinado tambem pode ser carregado diretamente pelo
+assistente, usando o backend local:
+
+```bash
+python -m fase3.cli_demo --paciente-id PAC-0001 \
+  --pergunta "Posso iniciar a quimioterapia hoje?" \
+  --backend local \
+  --base-model distilgpt2 \
+  --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
+```
+
 Para um fine-tuning "de produção", troque `--base-model` por algo como
 `Qwen/Qwen2.5-0.5B-Instruct` (recomendado rodar com GPU, ex.: Google
 Colab).
@@ -596,10 +607,12 @@ python -m fase3.data.build_finetuning_dataset
 # demo de ponta a ponta (fluxo LangGraph completo):
 python -m fase3.cli_demo --paciente-id PAC-0001 \
   --pergunta "Posso iniciar a quimioterapia hoje?" --backend fake
-# com uma chave real: troque --backend fake por --backend groq e configure GROQ_API_KEY
+# para usar a LLM customizada local, troque para --backend local e informe
+# --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
+# com uma chave real remota: use --backend groq e configure GROQ_API_KEY
 
 # avaliação determinística do assistente:
-python -m fase3.evaluate_assistant --backend fake   # ou groq
+python -m fase3.evaluate_assistant --backend fake   # ou local/groq
 ```
 
 Toda resposta segura recebe um aviso obrigatório de validação médica
