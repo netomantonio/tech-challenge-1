@@ -22,9 +22,13 @@ from fase3.data.build_finetuning_dataset import (
     curar,
     detectar_pii,
 )
+from fase3.evaluate_assistant import avaliar_resposta
+from fase3.finetuning.train_lora import _tokenizar_exemplo_resposta
 from fase3.guardrails import DISCLAIMER, aplicar_guardrails
 from fase3.llm_backend import (
+    DEFAULT_LOCAL_BASE_MODEL,
     DEFAULT_LOCAL_ADAPTER_PATH,
+    LEGACY_DISTILGPT2_ADAPTER_PATH,
     GroqLLM,
     LLMUnavailableError,
     _resolver_local_adapter_path,
@@ -120,14 +124,78 @@ class LLMBackendTests(unittest.TestCase):
                 max_new_tokens=64,
             )
 
-    def test_backend_local_usa_adapter_smoke_apenas_com_modelo_padrao(self) -> None:
+    def test_backend_local_resolve_adapter_compativel_com_modelo(self) -> None:
         with unittest.mock.patch.dict(os.environ, {}, clear=True):
             if DEFAULT_LOCAL_ADAPTER_PATH.exists():
                 self.assertEqual(
-                    _resolver_local_adapter_path("distilgpt2", None),
+                    _resolver_local_adapter_path(DEFAULT_LOCAL_BASE_MODEL, None),
                     str(DEFAULT_LOCAL_ADAPTER_PATH),
                 )
-            self.assertIsNone(_resolver_local_adapter_path("Qwen/Qwen2.5-0.5B-Instruct", None))
+            if LEGACY_DISTILGPT2_ADAPTER_PATH.exists():
+                self.assertEqual(
+                    _resolver_local_adapter_path("distilgpt2", None),
+                    str(LEGACY_DISTILGPT2_ADAPTER_PATH),
+                )
+            self.assertIsNone(_resolver_local_adapter_path("modelo/inexistente", None))
+
+
+class _TokenizerMinimo:
+    eos_token = "<eos>"
+    chat_template = None
+
+    def __call__(self, texto: str, add_special_tokens: bool = False) -> dict:
+        return {"input_ids": [ord(char) for char in texto]}
+
+
+class FinetuningResponseOnlyTests(unittest.TestCase):
+    def test_loss_supervisiona_somente_tokens_da_resposta(self) -> None:
+        exemplo = {
+            "instruction": "Qual protocolo seguir?",
+            "input": "Paciente com exame pendente.",
+            "output": "Reavalie os exames antes da conduta.",
+        }
+        tokenizado = _tokenizar_exemplo_resposta(exemplo, _TokenizerMinimo(), max_length=512)
+
+        primeiro_supervisionado = next(
+            indice for indice, label in enumerate(tokenizado["labels"]) if label != -100
+        )
+        self.assertGreater(primeiro_supervisionado, 0)
+        self.assertTrue(all(label == -100 for label in tokenizado["labels"][:primeiro_supervisionado]))
+        self.assertEqual(
+            tokenizado["labels"][primeiro_supervisionado:],
+            tokenizado["input_ids"][primeiro_supervisionado:],
+        )
+
+
+class EvaluationQualityTests(unittest.TestCase):
+    def test_resposta_repetitiva_e_protocolo_inventado_reprovam(self) -> None:
+        resultado = {
+            "resposta": ("informacao " * 12) + "[PROT-013]\n\n" + DISCLAIMER,
+            "fontes": [{"id": "PROT-006", "titulo": "Exames pre-tratamento"}],
+            "bloqueado": False,
+        }
+        checks = avaliar_resposta(
+            resultado,
+            {"termos_esperados": ["hemograma", "funcao renal"]},
+        )
+        self.assertFalse(checks["baixa_repeticao"])
+        self.assertFalse(checks["sem_protocolo_alucinado"])
+        self.assertFalse(checks["conteudo_clinico_esperado"])
+
+    def test_resposta_fundamentada_passsa_criterios_de_qualidade(self) -> None:
+        resultado = {
+            "resposta": (
+                "Antes da quimioterapia, verifique hemograma, funcao renal e "
+                "avaliacao cardiaca conforme o PROT-006.\n\n" + DISCLAIMER
+            ),
+            "fontes": [{"id": "PROT-006", "titulo": "Exames pre-tratamento"}],
+            "bloqueado": False,
+        }
+        checks = avaliar_resposta(resultado, {"termos_esperados": ["hemograma"]})
+        self.assertTrue(checks["fontes_validas"])
+        self.assertTrue(checks["sem_protocolo_alucinado"])
+        self.assertTrue(checks["conteudo_clinico_esperado"])
+        self.assertTrue(checks["baixa_repeticao"])
 
 
 class RetrievalTests(unittest.TestCase):

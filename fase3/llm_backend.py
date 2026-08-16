@@ -6,10 +6,10 @@ Tres modos, escolhidos por ``backend=`` ou pela variavel de ambiente
 - ``"groq"`` (padrao): reaproveita o padrao de chamada HTTP + retry em 429
   ja usado em ``src/llm_interpretation.py`` (Fase 2), so que exposto como um
   LLM compativel com LangChain.
-- ``"local"``: carrega o modelo base + adapter LoRA treinado em
-  ``fase3/finetuning/train_lora.py`` via ``transformers``/``peft``, exposto
-  como um ``HuggingFacePipeline`` do LangChain. Requer
-  ``requirements-fase3.txt`` instalado.
+- ``"local"``: carrega o modelo base instrucional + adapter LoRA treinado em
+  ``fase3/finetuning/train_lora.py`` via ``transformers``/``peft``. A classe
+  local aplica o chat template do tokenizer, limita repeticao e devolve
+  somente os tokens novos. Requer ``requirements-fase3.txt`` instalado.
 - ``"fake"``: LLM determinístico usado em testes automatizados, sem rede e
   sem dependencias pesadas.
 """
@@ -26,8 +26,16 @@ import httpx
 from langchain_core.language_models.llms import LLM
 
 DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant"
-DEFAULT_LOCAL_BASE_MODEL = "distilgpt2"
+DEFAULT_LOCAL_BASE_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 DEFAULT_LOCAL_ADAPTER_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "resultados"
+    / "fase3"
+    / "finetuning"
+    / "qwen2.5-0.5b"
+    / "lora_adapter"
+)
+LEGACY_DISTILGPT2_ADAPTER_PATH = (
     Path(__file__).resolve().parent.parent
     / "resultados"
     / "fase3"
@@ -44,7 +52,9 @@ SYSTEM_PROMPT_CLINICO = (
     "diretamente: toda sugestao terapeutica deve ser explicitamente "
     "condicionada a validacao de um medico responsavel. Se a informacao "
     "necessaria nao estiver no contexto fornecido, diga isso claramente "
-    "em vez de inventar uma resposta."
+    "em vez de inventar uma resposta. Preserve os valores numericos do "
+    "contexto exatamente como recebidos e cite os protocolos no formato "
+    "[PROT-000]."
 )
 
 
@@ -63,6 +73,8 @@ def _resolver_local_adapter_path(base_model: str, adapter_path: Optional[str]) -
         return adapter_resolvido
     if base_model == DEFAULT_LOCAL_BASE_MODEL and DEFAULT_LOCAL_ADAPTER_PATH.exists():
         return str(DEFAULT_LOCAL_ADAPTER_PATH)
+    if base_model == "distilgpt2" and LEGACY_DISTILGPT2_ADAPTER_PATH.exists():
+        return str(LEGACY_DISTILGPT2_ADAPTER_PATH)
     return None
 
 
@@ -135,12 +147,97 @@ class FakeLLM(LLM):
         return self.resposta_padrao
 
 
+class LocalAdapterLLM(LLM):
+    """LLM LangChain para inferencia deterministica com modelo + adapter LoRA."""
+
+    hf_model: Any
+    tokenizer: Any
+    max_new_tokens: int = 160
+    max_input_tokens: int = 2048
+    repetition_penalty: float = 1.12
+    no_repeat_ngram_size: int = 4
+
+    @property
+    def _llm_type(self) -> str:  # noqa: D401
+        return "local_lora"
+
+    def _formatar_chat(self, prompt: str) -> str:
+        if getattr(self.tokenizer, "chat_template", None):
+            return self.tokenizer.apply_chat_template(
+                [
+                    {"role": "system", "content": SYSTEM_PROMPT_CLINICO},
+                    {"role": "user", "content": prompt},
+                ],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        return (
+            f"Sistema: {SYSTEM_PROMPT_CLINICO}\n\n"
+            f"Pergunta e contexto:\n{prompt}\n\nResposta:"
+        )
+
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[list[str]] = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> str:
+        import torch
+
+        texto = self._formatar_chat(prompt)
+        ids = self.tokenizer(
+            texto,
+            add_special_tokens=False,
+            return_tensors="pt",
+        )["input_ids"][0]
+
+        limite_modelo = int(
+            getattr(self.hf_model.config, "max_position_embeddings", self.max_input_tokens)
+            or self.max_input_tokens
+        )
+        limite_entrada = max(
+            64,
+            min(self.max_input_tokens, limite_modelo - self.max_new_tokens),
+        )
+        if len(ids) > limite_entrada:
+            # Preserva o system prompt no inicio e a pergunta no final.
+            cabeca = max(32, limite_entrada // 4)
+            ids = torch.cat((ids[:cabeca], ids[-(limite_entrada - cabeca) :]))
+
+        device = next(self.hf_model.parameters()).device
+        input_ids = ids.unsqueeze(0).to(device)
+        attention_mask = torch.ones_like(input_ids)
+        with torch.inference_mode():
+            output = self.hf_model.generate(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                max_new_tokens=kwargs.get("max_new_tokens", self.max_new_tokens),
+                do_sample=False,
+                repetition_penalty=self.repetition_penalty,
+                no_repeat_ngram_size=self.no_repeat_ngram_size,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
+            )
+
+        resposta = self.tokenizer.decode(
+            output[0, input_ids.shape[1] :],
+            skip_special_tokens=True,
+        ).strip()
+        if stop:
+            cortes = [resposta.find(token) for token in stop if token and token in resposta]
+            if cortes:
+                resposta = resposta[: min(cortes)].rstrip()
+        return resposta or "Nao ha informacao suficiente para responder com seguranca."
+
+
 def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **kwargs: Any) -> LLM:
-    os.environ.setdefault("USE_TF", "0")
+    os.environ["USE_TF"] = "0"
+    os.environ["TRANSFORMERS_NO_TF"] = "1"
+    os.environ.setdefault("USE_TORCH", "1")
     try:
-        from langchain_community.llms import HuggingFacePipeline
         from peft import PeftModel
-        from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+        from transformers import AutoModelForCausalLM, AutoTokenizer
     except ImportError as exc:  # pragma: no cover - exercitado so sem requirements-fase3.txt
         raise SystemExit(
             "Backend 'local' requer as dependencias de requirements-fase3.txt "
@@ -149,19 +246,27 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
 
     base_model = base_model or os.getenv("FASE3_LOCAL_BASE_MODEL", DEFAULT_LOCAL_BASE_MODEL)
     adapter_path = _resolver_local_adapter_path(base_model, adapter_path)
+    if not adapter_path:
+        raise LLMUnavailableError(
+            "Adapter LoRA local nao encontrado. Treine o modelo com "
+            "`python -m fase3.finetuning.train_lora` ou informe `adapter_path`."
+        )
 
     tokenizer = AutoTokenizer.from_pretrained(base_model)
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
     modelo = AutoModelForCausalLM.from_pretrained(base_model)
-    if adapter_path:
-        modelo = PeftModel.from_pretrained(modelo, adapter_path)
+    modelo = PeftModel.from_pretrained(modelo, adapter_path)
+    modelo.eval()
 
-    text_gen = pipeline(
-        "text-generation",
-        model=modelo,
+    return LocalAdapterLLM(
+        hf_model=modelo,
         tokenizer=tokenizer,
-        max_new_tokens=kwargs.get("max_new_tokens", 200),
+        max_new_tokens=kwargs.get("max_new_tokens", 160),
+        max_input_tokens=kwargs.get("max_input_tokens", 2048),
+        repetition_penalty=kwargs.get("repetition_penalty", 1.12),
+        no_repeat_ngram_size=kwargs.get("no_repeat_ngram_size", 4),
     )
-    return HuggingFacePipeline(pipeline=text_gen)
 
 
 def get_llm(backend: Optional[str] = None, **kwargs: Any) -> LLM:

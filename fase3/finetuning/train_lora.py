@@ -1,20 +1,21 @@
 """Fine-tuning LoRA/PEFT de um LLM causal com os dados internos do hospital (Fase 3).
 
-Uso tipico (smoke test rapido, sem GPU, modelo pequeno mas com pesos
-pretreinados de verdade, so para validar o pipeline de ponta a ponta e
-observar a perda caindo):
-
-    python -m fase3.finetuning.train_lora --base-model distilgpt2 \
-        --epochs 5 --output-dir resultados/fase3/finetuning/smoke
-
-Para um fine-tuning "de verdade" (recomendado rodar em Colab/GPU, por causa
-do tempo e do download do checkpoint), basta trocar o modelo base e ajustar
-os modulos de LoRA, por exemplo:
+Uso recomendado (modelo pequeno, instrucional e multilingue):
 
     python -m fase3.finetuning.train_lora \
         --base-model Qwen/Qwen2.5-0.5B-Instruct \
-        --lora-target-modules q_proj,v_proj,k_proj,o_proj \
         --epochs 3 --output-dir resultados/fase3/finetuning/qwen2.5-0.5b
+
+O treinamento usa loss somente nos tokens da resposta. Os tokens do system
+prompt e da instrucao recebem label ``-100`` e nao entram no calculo da loss.
+Isso evita que o modelo seja recompensado por copiar a pergunta e aproxima o
+treinamento do comportamento esperado no assistente.
+
+O ``distilgpt2`` continua suportado apenas para smoke tests de infraestrutura:
+
+    python -m fase3.finetuning.train_lora \
+        --base-model distilgpt2 --lora-target-modules c_attn \
+        --epochs 1 --output-dir resultados/fase3/finetuning/smoke-distilgpt2
 
 As dependencias pesadas (torch/transformers/peft/datasets/accelerate) estao
 em ``requirements-fase3.txt`` e sao importadas apenas aqui dentro, para nao
@@ -24,21 +25,33 @@ obrigar o restante do repositorio (Fases 1/2, CI) a instala-las.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
-import sys
 import time
 from pathlib import Path
 
 # Evita que o transformers tente importar um TensorFlow eventualmente
 # instalado no ambiente (nao usamos TF; so PyTorch). Precisa ser definido
 # antes do primeiro `import transformers`.
-os.environ.setdefault("USE_TF", "0")
+os.environ["USE_TF"] = "0"
+os.environ["TRANSFORMERS_NO_TF"] = "1"
+os.environ.setdefault("USE_TORCH", "1")
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 FASE3_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = FASE3_ROOT / "data"
 DEFAULT_OUTPUT_DIR = FASE3_ROOT.parent / "resultados" / "fase3" / "finetuning"
+DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+DEFAULT_QUALITY_OUTPUT_DIR = DEFAULT_OUTPUT_DIR / "qwen2.5-0.5b"
+
+SYSTEM_PROMPT_TREINO = (
+    "Voce e um assistente virtual de apoio clinico interno. Responda em portugues, "
+    "somente com base nas informacoes fornecidas. Nao prescreva diretamente e "
+    "condicione qualquer conduta a validacao de um medico responsavel. Preserve "
+    "valores numericos e cite as fontes no formato [PROT-000]."
+)
 
 _MISSING_DEPS_MSG = (
     "As dependencias de fine-tuning nao estao instaladas. Rode:\n"
@@ -55,7 +68,7 @@ def _import_ml_stack():
         from transformers import (
             AutoModelForCausalLM,
             AutoTokenizer,
-            DataCollatorForLanguageModeling,
+            DataCollatorForSeq2Seq,
             Trainer,
             TrainingArguments,
         )
@@ -68,7 +81,7 @@ def _import_ml_stack():
         "get_peft_model": get_peft_model,
         "AutoModelForCausalLM": AutoModelForCausalLM,
         "AutoTokenizer": AutoTokenizer,
-        "DataCollatorForLanguageModeling": DataCollatorForLanguageModeling,
+        "DataCollatorForSeq2Seq": DataCollatorForSeq2Seq,
         "Trainer": Trainer,
         "TrainingArguments": TrainingArguments,
     }
@@ -80,8 +93,17 @@ def _default_target_modules(base_model: str) -> list[str]:
         return ["c_attn"]
     if "falcon" in nome:
         return ["query_key_value"]
-    # Padrao para a familia Llama/Qwen/Mistral/TinyLlama (arquitetura Llama-like).
-    return ["q_proj", "v_proj"]
+    # Qwen/Llama-like: adapta atencao e MLP para dar capacidade suficiente ao
+    # formato clinico, ainda treinando menos de 2% dos parametros.
+    return [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj",
+    ]
 
 
 def _carregar_exemplos(path: Path) -> list[dict]:
@@ -98,12 +120,65 @@ def _carregar_exemplos(path: Path) -> list[dict]:
     return exemplos
 
 
-def _formatar_prompt(exemplo: dict) -> str:
+def _formatar_instrucao(exemplo: dict) -> str:
     entrada = f"\nContexto: {exemplo['input']}" if exemplo.get("input") else ""
+    return f"{exemplo['instruction']}{entrada}"
+
+
+def _formatar_prefixo(exemplo: dict, tokenizer) -> str:
+    """Formata system/user e deixa o cursor exatamente no inicio da resposta."""
+    instrucao = _formatar_instrucao(exemplo)
+    if getattr(tokenizer, "chat_template", None):
+        return tokenizer.apply_chat_template(
+            [
+                {"role": "system", "content": SYSTEM_PROMPT_TREINO},
+                {"role": "user", "content": instrucao},
+            ],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
     return (
-        f"Instrucao: {exemplo['instruction']}{entrada}\n"
-        f"Resposta: {exemplo['output']}"
+        f"Sistema: {SYSTEM_PROMPT_TREINO}\n\n"
+        f"Instrucao: {instrucao}\n"
+        "Resposta:"
     )
+
+
+def _tokenizar_exemplo_resposta(
+    exemplo: dict, tokenizer, max_length: int
+) -> dict[str, list[int]]:
+    """Tokeniza mantendo labels somente na resposta do assistente.
+
+    Quando o exemplo excede ``max_length``, preserva ao menos 32 tokens de
+    resposta e o final do prompt (onde ficam a pergunta e o marcador de
+    geracao). O padding fica a cargo do collator e usa ``-100`` nas labels.
+    """
+    if max_length < 64:
+        raise ValueError("max_length deve ser pelo menos 64")
+
+    prefixo = _formatar_prefixo(exemplo, tokenizer)
+    eos = tokenizer.eos_token or ""
+    resposta = exemplo["output"].strip() + eos
+
+    prompt_ids = tokenizer(prefixo, add_special_tokens=False)["input_ids"]
+    resposta_ids = tokenizer(resposta, add_special_tokens=False)["input_ids"]
+
+    if len(resposta_ids) > max_length - 32:
+        resposta_ids = resposta_ids[: max_length - 32]
+    limite_prompt = max_length - len(resposta_ids)
+    if len(prompt_ids) > limite_prompt:
+        prompt_ids = prompt_ids[-limite_prompt:]
+
+    input_ids = prompt_ids + resposta_ids
+    return {
+        "input_ids": input_ids,
+        "attention_mask": [1] * len(input_ids),
+        "labels": [-100] * len(prompt_ids) + list(resposta_ids),
+    }
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def treinar(args: argparse.Namespace) -> dict:
@@ -112,15 +187,33 @@ def treinar(args: argparse.Namespace) -> dict:
 
     train_examples = _carregar_exemplos(args.data_dir / "finetuning_train.jsonl")
     val_examples = _carregar_exemplos(args.data_dir / "finetuning_val.jsonl")
+    if not args.include_public_data:
+        fontes_publicas = {"medquad", "pubmedqa"}
+        train_examples = [
+            exemplo for exemplo in train_examples if exemplo["source_type"] not in fontes_publicas
+        ]
+        val_examples = [
+            exemplo for exemplo in val_examples if exemplo["source_type"] not in fontes_publicas
+        ]
+
+    clinical_examples = [
+        exemplo
+        for exemplo in train_examples
+        if exemplo["source_type"] == "assistente_clinico_sintetico"
+    ]
+    if args.clinical_repeat > 1:
+        train_examples = train_examples + clinical_examples * (args.clinical_repeat - 1)
+
+    if not train_examples or not val_examples:
+        raise SystemExit("Os filtros deixaram o split de treino ou validacao vazio.")
 
     tokenizer = stack["AutoTokenizer"].from_pretrained(args.base_model)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
 
     def tokenizar(exemplo: dict) -> dict:
-        texto = _formatar_prompt(exemplo) + tokenizer.eos_token
-        saida = tokenizer(texto, truncation=True, max_length=args.max_length)
-        return saida
+        return _tokenizar_exemplo_resposta(exemplo, tokenizer, args.max_length)
 
     train_dataset = stack["Dataset"].from_list(train_examples).map(
         tokenizar, remove_columns=list(train_examples[0].keys())
@@ -130,6 +223,7 @@ def treinar(args: argparse.Namespace) -> dict:
     )
 
     modelo = stack["AutoModelForCausalLM"].from_pretrained(args.base_model)
+    modelo.config.use_cache = False
 
     target_modules = args.lora_target_modules or _default_target_modules(args.base_model)
     lora_config = stack["LoraConfig"](
@@ -151,14 +245,24 @@ def treinar(args: argparse.Namespace) -> dict:
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
         learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
+        warmup_ratio=args.warmup_ratio,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
         logging_steps=1,
         eval_strategy="epoch",
         save_strategy="no",
         report_to=[],
         disable_tqdm=True,
+        seed=args.seed,
+        data_seed=args.seed,
     )
 
-    collator = stack["DataCollatorForLanguageModeling"](tokenizer=tokenizer, mlm=False)
+    collator = stack["DataCollatorForSeq2Seq"](
+        tokenizer=tokenizer,
+        padding=True,
+        label_pad_token_id=-100,
+        return_tensors="pt",
+    )
 
     trainer = stack["Trainer"](
         model=modelo,
@@ -198,17 +302,55 @@ def treinar(args: argparse.Namespace) -> dict:
         if historico_treino[i * passos_por_epoca : (i + 1) * passos_por_epoca]
     ]
 
+    ultimo_eval_loss = (
+        historico_validacao[-1]["eval_loss"] if historico_validacao else None
+    )
+    tokens_supervisionados = sum(
+        sum(label != -100 for label in exemplo["labels"])
+        for exemplo in train_dataset
+    )
+    tokens_totais = sum(len(exemplo["labels"]) for exemplo in train_dataset)
+    train_path = args.data_dir / "finetuning_train.jsonl"
+    val_path = args.data_dir / "finetuning_val.jsonl"
+
     resumo = {
         "base_model": args.base_model,
+        "modelo_instrucional": bool(getattr(tokenizer, "chat_template", None)),
+        "loss_apenas_na_resposta": True,
         "lora_target_modules": target_modules,
         "lora_r": args.lora_r,
         "lora_alpha": args.lora_alpha,
+        "lora_dropout": args.lora_dropout,
         "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "learning_rate": args.learning_rate,
+        "weight_decay": args.weight_decay,
+        "warmup_ratio": args.warmup_ratio,
+        "max_length": args.max_length,
+        "seed": args.seed,
+        "inclui_dados_publicos": args.include_public_data,
+        "repeticao_exemplos_clinicos": args.clinical_repeat,
         "n_exemplos_treino": len(train_examples),
         "n_exemplos_validacao": len(val_examples),
+        "tokens_supervisionados_resposta": tokens_supervisionados,
+        "fracao_tokens_supervisionados": round(
+            tokens_supervisionados / max(1, tokens_totais), 4
+        ),
+        "dataset_sha256": {
+            "treino": _sha256(train_path),
+            "validacao": _sha256(val_path),
+        },
+        "device": str(next(modelo.parameters()).device),
+        "torch_version": stack["torch"].__version__,
         "duracao_segundos": round(duracao, 2),
         "loss_final_treino": resultado_treino.training_loss,
+        "loss_final_validacao": ultimo_eval_loss,
+        "perplexidade_validacao": (
+            round(math.exp(min(ultimo_eval_loss, 20)), 3)
+            if ultimo_eval_loss is not None
+            else None
+        ),
         "perda_media_por_epoca": perda_media_por_epoca,
         "historico_perda_treino": historico_treino,
         "historico_perda_validacao": historico_validacao,
@@ -222,13 +364,31 @@ def treinar(args: argparse.Namespace) -> dict:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--base-model", default="distilgpt2")
+    parser.add_argument("--base-model", default=DEFAULT_BASE_MODEL)
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR / "smoke")
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_QUALITY_OUTPUT_DIR)
     parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--batch-size", type=int, default=4)
-    parser.add_argument("--learning-rate", type=float, default=5e-4)
-    parser.add_argument("--max-length", type=int, default=256)
+    parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--gradient-accumulation-steps", type=int, default=2)
+    parser.add_argument("--learning-rate", type=float, default=1e-4)
+    parser.add_argument("--weight-decay", type=float, default=0.01)
+    parser.add_argument("--warmup-ratio", type=float, default=0.1)
+    parser.add_argument("--max-length", type=int, default=384)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--include-public-data",
+        action="store_true",
+        help=(
+            "Inclui MedQuAD/PubMedQA no treino. Por padrao, o adapter clinico "
+            "usa apenas os dados internos em portugues para evitar degradacao de dominio."
+        ),
+    )
+    parser.add_argument(
+        "--clinical-repeat",
+        type=int,
+        default=3,
+        help="Fator de oversampling dos exemplos alinhados ao assistente clinico.",
+    )
     parser.add_argument("--lora-r", type=int, default=8)
     parser.add_argument("--lora-alpha", type=int, default=16)
     parser.add_argument("--lora-dropout", type=float, default=0.05)

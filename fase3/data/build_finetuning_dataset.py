@@ -154,6 +154,109 @@ def carregar_exemplos_pacientes(path: Path) -> list[FinetuningExample]:
     return exemplos
 
 
+def carregar_exemplos_assistente(path: Path) -> list[FinetuningExample]:
+    """Cria exemplos sinteticos alinhados ao uso real do assistente clinico.
+
+    Diferente dos exemplos de memorizacao de protocolo, estes pares ensinam o
+    formato esperado na inferencia: resposta objetiva, citacao explicita,
+    preservacao de valores do prontuario e validacao medica obrigatoria.
+    """
+    pacientes = {
+        paciente["paciente_id"]: paciente
+        for paciente in json.loads(path.read_text(encoding="utf-8"))
+    }
+    p1 = pacientes["PAC-0001"]
+    p3 = pacientes["PAC-0003"]
+    p5 = pacientes["PAC-0005"]
+    p6 = pacientes["PAC-0006"]
+
+    exemplos = [
+        FinetuningExample(
+            instruction="Posso iniciar a quimioterapia neoadjuvante hoje?",
+            input=(
+                f"Codigo {p1['paciente_id']}; exames pendentes: "
+                f"{', '.join(p1['exames_pendentes'])}."
+            ),
+            output=(
+                "Nao inicie o ciclo enquanto houver exames obrigatorios pendentes. "
+                "Confirme ecocardiograma basal e sorologias HBV, HCV e HIV; a decisao "
+                "final exige validacao do medico responsavel. Fonte: [PROT-006]."
+            ),
+            source_type="assistente_clinico_sintetico",
+            source_id="QA-CLIN-001",
+        ),
+        FinetuningExample(
+            instruction="O que fazer com achado BI-RADS 4 pendente de biopsia?",
+            input=f"Codigo {p3['paciente_id']}; diagnostico: {p3['diagnostico']}.",
+            output=(
+                "O achado BI-RADS 4 requer confirmacao histopatologica por biopsia. "
+                "Encaminhe o resultado para revisao da equipe assistente antes de "
+                "definir qualquer tratamento. Fonte: [PROT-001]."
+            ),
+            source_type="assistente_clinico_sintetico",
+            source_id="QA-CLIN-002",
+        ),
+        FinetuningExample(
+            instruction="A paciente esta com febre e taquicardia. Qual conduta seguir?",
+            input=(
+                f"Codigo {p5['paciente_id']}; alertas ativos: "
+                f"{', '.join(p5['alertas_ativos'])}."
+            ),
+            output=(
+                "Febre de 38.6 C associada a frequencia cardiaca de 110 bpm atende a "
+                "dois criterios de SIRS. Acione imediatamente o protocolo de sepse, "
+                "comunique a equipe medica e siga as coletas previstas no protocolo; "
+                "nao aguarde validacao assincrona. Fonte: [PROT-011]."
+            ),
+            source_type="assistente_clinico_sintetico",
+            source_id="QA-CLIN-003",
+        ),
+        FinetuningExample(
+            instruction="A dor pos-operatoria persiste em 7/10. O que fazer?",
+            input=f"Codigo {p6['paciente_id']}; observacao: {p6['observacoes']}.",
+            output=(
+                "Dor persistente em 7/10 exige reavaliacao clinica e comunicacao a "
+                "equipe cirurgica. Siga o protocolo institucional de manejo da dor, "
+                "sem indicar medicamento ou dose automaticamente. Fonte: [PROT-004]."
+            ),
+            source_type="assistente_clinico_sintetico",
+            source_id="QA-CLIN-004",
+        ),
+        FinetuningExample(
+            instruction="Quais exames sao obrigatorios antes da quimioterapia sistemica?",
+            input="Nenhum paciente informado.",
+            output=(
+                "Verifique hemograma completo, funcao hepatica e renal, sorologias "
+                "HBV, HCV e HIV e, quando o esquema exigir, ecocardiograma ou MUGA "
+                "basal. Confirme a validade dos exames antes do ciclo. Fonte: [PROT-006]."
+            ),
+            source_type="assistente_clinico_sintetico",
+            source_id="QA-CLIN-005",
+        ),
+        FinetuningExample(
+            instruction="Qual protocolo usar para um codigo de paciente inexistente?",
+            input="Codigo PAC-9999 nao encontrado no prontuario.",
+            output=(
+                "O codigo do paciente nao foi encontrado. Nao sugira conduta sem "
+                "contexto clinico confirmado; solicite a verificacao do identificador "
+                "e encerre o fluxo com seguranca."
+            ),
+            source_type="assistente_clinico_sintetico",
+            source_id="QA-CLIN-006",
+        ),
+    ]
+    return [
+        FinetuningExample(
+            instruction=anonimizar_texto(exemplo.instruction),
+            input=anonimizar_texto(exemplo.input),
+            output=anonimizar_texto(exemplo.output),
+            source_type=exemplo.source_type,
+            source_id=exemplo.source_id,
+        )
+        for exemplo in exemplos
+    ]
+
+
 def carregar_medquad(path: Path) -> list[FinetuningExample]:
     exemplos: list[FinetuningExample] = []
     for linha in path.read_text(encoding="utf-8").splitlines():
@@ -210,6 +313,7 @@ def construir_dataset(data_dir: Path = DATA_DIR) -> list[FinetuningExample]:
     exemplos = (
         carregar_protocolos(data_dir / "protocolos_hospital.json")
         + carregar_exemplos_pacientes(data_dir / "pacientes_sinteticos.json")
+        + carregar_exemplos_assistente(data_dir / "pacientes_sinteticos.json")
         + carregar_medquad(data_dir / "sample_medquad.jsonl")
     )
     return curar(exemplos)

@@ -9,6 +9,8 @@ notebook sem depender de rede.
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +20,38 @@ from langchain_core.documents import Document
 DATA_DIR = Path(__file__).resolve().parent / "data"
 DEFAULT_PROTOCOLOS_PATH = DATA_DIR / "protocolos_hospital.json"
 DEFAULT_TOP_K = 3
+
+_TOKEN_RE = re.compile(r"[a-z0-9]+")
+_SINONIMOS_CLINICOS = {
+    "febre": ("temperatura", "sepse", "sirs", "infeccao"),
+    "taquicardia": ("frequencia cardiaca", "sepse", "sirs"),
+    "bi-rads": ("birads", "biopsia", "diagnostico mamario"),
+    "birads": ("bi-rads", "biopsia", "diagnostico mamario"),
+    "quimioterapia": ("tratamento oncologico", "exames pre-tratamento"),
+    "dor pos-operatoria": ("manejo da dor cirurgia pos-operatorio"),
+}
+
+
+def _sem_acentos(texto: str) -> str:
+    return "".join(
+        char
+        for char in unicodedata.normalize("NFKD", texto)
+        if not unicodedata.combining(char)
+    ).lower()
+
+
+def _tokenizar_clinico(texto: str) -> list[str]:
+    return _TOKEN_RE.findall(_sem_acentos(texto))
+
+
+def expandir_pergunta_clinica(pergunta: str) -> str:
+    """Acrescenta sinonimos controlados para reduzir falhas lexicas do BM25."""
+    normalizada = _sem_acentos(pergunta)
+    extras: list[str] = []
+    for termo, sinonimos in _SINONIMOS_CLINICOS.items():
+        if _sem_acentos(termo) in normalizada:
+            extras.extend(sinonimos)
+    return f"{pergunta} {' '.join(extras)}".strip()
 
 
 def carregar_documentos(path: Path = DEFAULT_PROTOCOLOS_PATH) -> list[Document]:
@@ -39,14 +73,17 @@ def construir_retriever(
     path: Path = DEFAULT_PROTOCOLOS_PATH, k: int = DEFAULT_TOP_K
 ) -> BM25Retriever:
     documentos = carregar_documentos(path)
-    retriever = BM25Retriever.from_documents(documentos)
+    retriever = BM25Retriever.from_documents(
+        documentos,
+        preprocess_func=_tokenizar_clinico,
+    )
     retriever.k = k
     return retriever
 
 
 def buscar_protocolos(pergunta: str, retriever: Optional[BM25Retriever] = None) -> list[Document]:
     retriever = retriever or construir_retriever()
-    return retriever.invoke(pergunta)
+    return retriever.invoke(expandir_pergunta_clinica(pergunta))
 
 
 def formatar_fontes(documentos: list[Document]) -> list[dict]:

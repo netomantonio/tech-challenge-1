@@ -30,9 +30,15 @@ PROMPT = PromptTemplate.from_template(
     "Contexto do paciente:\n{contexto_paciente}\n\n"
     "Protocolos internos relevantes:\n{protocolos}\n\n"
     "Pergunta do medico: {pergunta}\n\n"
-    "Responda em portugues, de forma objetiva, com base apenas nas informacoes "
-    "acima. Se faltar informacao para responder com seguranca, diga isso "
-    "claramente em vez de supor."
+    "Responda em portugues, em 2 a 5 frases objetivas, seguindo obrigatoriamente "
+    "estas regras:\n"
+    "1. Use somente fatos presentes no contexto do paciente e nos protocolos acima.\n"
+    "2. Nao invente diagnosticos, medicamentos, exames, doses ou valores numericos.\n"
+    "3. Preserve exatamente os valores numericos recebidos no contexto.\n"
+    "4. Cite entre colchetes pelo menos um protocolo usado, por exemplo [PROT-006].\n"
+    "5. Condicione qualquer conduta a validacao da equipe medica.\n"
+    "6. Se o paciente nao foi encontrado ou faltar informacao, informe a limitacao "
+    "e nao sugira conduta."
 )
 
 

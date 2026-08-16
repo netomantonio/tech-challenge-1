@@ -586,6 +586,10 @@ python -m fase3.finetuning.train_lora --output-dir resultados/fase3/finetuning/s
 O adapter LoRA treinado tambem pode ser carregado diretamente pelo
 assistente, usando o backend local:
 
+O `lora_adapter/` versionado contem apenas o adapter; o modelo base
+(`distilgpt2`) e carregado do cache local do Hugging Face ou baixado
+automaticamente na primeira execucao do backend `local`.
+
 ```bash
 python -m fase3.cli_demo --paciente-id PAC-0001 \
   --pergunta "Posso iniciar a quimioterapia hoje?" \
@@ -628,4 +632,4 @@ do vídeo de demonstração: `docs/script_video_demonstracao_fase3.txt`.
 
 ## Autores
 
-Antonio Miranda, Elaine, Marcos Mol, Lucas da Costa, Ricardo Loureiro - AI for Devs (9IADT)
+Antonio Miranda, Elaine, Marcos Mol, Lucas da Costa, Ricardo Loureiro - AI for Devs (8IADT)
