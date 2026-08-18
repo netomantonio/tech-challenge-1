@@ -1,0 +1,78 @@
+"""Testes do servico HTTP e da interface local da Fase 3."""
+
+from __future__ import annotations
+
+import unittest
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
+
+from fase3.web_app import AssistantRuntime, create_app
+
+
+class Fase3WebTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.runtime = AssistantRuntime("fake")
+        self.client = TestClient(create_app(self.runtime))
+
+    def test_interface_e_status_estao_disponiveis(self) -> None:
+        page = self.client.get("/")
+        status = self.client.get("/api/status")
+
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Assistente de Protocolos Clinicos", page.text)
+        self.assertEqual(status.status_code, 200)
+        self.assertEqual(status.json()["backend"], "fake")
+        self.assertFalse(status.json()["modelo_carregado"])
+
+    def test_lista_somente_prontuarios_sinteticos(self) -> None:
+        response = self.client.get("/api/pacientes")
+
+        self.assertEqual(response.status_code, 200)
+        pacientes = response.json()
+        self.assertEqual(len(pacientes), 6)
+        self.assertTrue(all(item["paciente_id"].startswith("PAC-") for item in pacientes))
+        self.assertTrue(all("nome" not in item for item in pacientes))
+
+    def test_consulta_serializa_evidencias_e_decisao(self) -> None:
+        estado = {
+            "paciente_encontrado": True,
+            "paciente": {"paciente_id": "PAC-0001"},
+            "sugestao": {
+                "resposta": "Resposta fundamentada. Fonte: [PROT-006].",
+                "fontes": [{"id": "PROT-006", "titulo": "Checklist"}],
+                "modo_resposta": "llm",
+                "motivo_bloqueio": None,
+            },
+            "bloqueado": False,
+            "exames_pendentes": ["ecocardiograma_basal"],
+            "tem_exames_pendentes": True,
+            "rota_exames": "com_pendencias",
+            "alertas": ["Exame pendente"],
+        }
+        with patch.object(self.runtime, "consultar", return_value=estado):
+            response = self.client.post(
+                "/api/consultas",
+                json={
+                    "paciente_id": "PAC-0001",
+                    "pergunta": "Posso iniciar a quimioterapia hoje?",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["modo_resposta"], "llm")
+        self.assertEqual(body["rota_exames"], "com_pendencias")
+        self.assertEqual(body["fontes"][0]["id"], "PROT-006")
+        self.assertEqual(body["alertas"], ["Exame pendente"])
+
+    def test_rejeita_entrada_invalida(self) -> None:
+        response = self.client.post(
+            "/api/consultas",
+            json={"paciente_id": "PAC 0001", "pergunta": "x"},
+        )
+        self.assertEqual(response.status_code, 422)
+
+
+if __name__ == "__main__":
+    unittest.main()

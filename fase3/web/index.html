@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Interface local do assistente clinico academico da Fase 3." />
+    <title>Assistente de Protocolos Clinicos | Fase 3</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="/" aria-label="Assistente de Protocolos Clinicos, inicio">
+        <span class="brand-mark" aria-hidden="true">+</span>
+        <span><strong>Assistente de Protocolos Clinicos</strong><small>Projeto academico | Fase 3</small></span>
+      </a>
+      <div class="runtime-status" id="runtime-status" aria-live="polite">
+        <span class="status-dot"></span>
+        <span>Verificando servico</span>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="patient-panel" aria-labelledby="patient-heading">
+        <div class="panel-heading">
+          <p class="overline">Prontuario sintetico</p>
+          <h1 id="patient-heading">Contexto do paciente</h1>
+        </div>
+
+        <label class="field-label" for="patient-select">Paciente</label>
+        <div class="select-wrap">
+          <select id="patient-select" aria-describedby="synthetic-note"></select>
+        </div>
+        <p class="privacy-note" id="synthetic-note">Registros ficticios, sem dados pessoais reais.</p>
+
+        <section class="patient-summary" id="patient-summary" aria-live="polite">
+          <div class="summary-skeleton"></div>
+        </section>
+
+        <section class="pending-section">
+          <div class="section-label"><span>Exames pendentes</span><span class="count" id="pending-count">0</span></div>
+          <ul class="compact-list" id="pending-list"></ul>
+        </section>
+
+        <section class="active-alerts">
+          <div class="section-label"><span>Alertas ativos</span><span class="count alert-count" id="active-alert-count">0</span></div>
+          <ul class="compact-list" id="active-alert-list"></ul>
+        </section>
+      </aside>
+
+      <section class="consultation" aria-labelledby="consultation-heading">
+        <div class="consultation-header">
+          <div>
+            <p class="overline">Apoio a decisao</p>
+            <h2 id="consultation-heading">Consulta clinica</h2>
+          </div>
+          <span class="model-badge">Qwen2.5 + LoRA</span>
+        </div>
+
+        <div class="welcome" id="welcome">
+          <div class="signal" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+          <h3>Analise o caso com contexto e protocolos</h3>
+          <p>Escolha uma pergunta sugerida ou escreva uma duvida para percorrer o fluxo clinico completo.</p>
+        </div>
+
+        <div class="conversation" id="conversation" aria-live="polite" aria-busy="false"></div>
+
+        <div class="suggestion-area">
+          <p class="field-label">Perguntas sugeridas</p>
+          <div class="suggestions" id="suggestions"></div>
+        </div>
+
+        <form class="question-form" id="question-form">
+          <label class="sr-only" for="question">Pergunta clinica</label>
+          <textarea id="question" rows="3" maxlength="1200" placeholder="Digite uma pergunta sobre o caso selecionado..." required></textarea>
+          <div class="form-footer">
+            <span><strong id="character-count">0</strong>/1200</span>
+            <button class="primary-button" id="submit-button" type="submit">
+              <span>Analisar caso</span><span aria-hidden="true">&#8594;</span>
+            </button>
+          </div>
+        </form>
+        <div class="error-message" id="error-message" role="alert" hidden></div>
+      </section>
+
+      <aside class="evidence-panel" aria-labelledby="evidence-heading">
+        <div class="panel-heading">
+          <p class="overline">Explicabilidade</p>
+          <h2 id="evidence-heading">Evidencias do fluxo</h2>
+        </div>
+
+        <div class="empty-evidence" id="empty-evidence">
+          <div class="document-lines" aria-hidden="true"><i></i><i></i><i></i></div>
+          <p>As fontes, os alertas e a rota decisoria aparecerao aqui apos a analise.</p>
+        </div>
+
+        <div id="evidence-content" hidden>
+          <section class="flow-section">
+            <p class="field-label">Rota LangGraph</p>
+            <ol class="flow-list" id="flow-list"></ol>
+          </section>
+          <section class="evidence-section">
+            <p class="field-label">Fontes recuperadas</p>
+            <div id="source-list"></div>
+          </section>
+          <section class="evidence-section">
+            <p class="field-label">Alertas gerados</p>
+            <ul class="alert-list" id="generated-alerts"></ul>
+          </section>
+          <section class="validation-section">
+            <span aria-hidden="true">!</span>
+            <p><strong>Validacao humana obrigatoria</strong>Esta saida nao substitui avaliacao ou conduta medica.</p>
+          </section>
+        </div>
+      </aside>
+    </main>
+
+    <footer>
+      <span>FIAP AI for Devs</span>
+      <span>Uso exclusivamente academico</span>
+      <a href="/docs" target="_blank" rel="noreferrer">API</a>
+    </footer>
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

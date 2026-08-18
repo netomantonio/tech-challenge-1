@@ -18,6 +18,9 @@ flowchart TD
 
     EHR[(EHR SQLite sintético)] --> R[Consulta enriquecida]
     P[(Protocolos internos)] --> R
+    UI[Interface web local] --> API[FastAPI Fase 3]
+    API --> FLOW[LangGraph clínico]
+    FLOW --> R
     R --> PLAN[Plano factual autorizado]
     A --> CHAIN[LangChain: prompt / LLM / parser]
     PLAN --> CHAIN
@@ -42,6 +45,17 @@ flowchart TD
 | `fase3/clinical_flow_graph.py` | Rotas decisórias e alertas |
 | `fase3/guardrails.py` | Bloqueio de PII e prescrição direta |
 | `fase3/logging_utils.py` | Auditoria estruturada |
+| `fase3/web_app.py` | API local, ciclo de vida do modelo e serialização das consultas |
+| `fase3/web/` | Interface responsiva de prontuário, consulta e evidências |
+
+## Interface web
+
+O comando `python -m fase3.web_app --backend local` inicia o serviço em
+`http://127.0.0.1:8010` e abre a interface no navegador. O backend mantém uma
+única instância do modelo em memória e serializa as gerações para proteger o
+uso da GPU. A tela consome apenas os endpoints locais `/api/status`,
+`/api/pacientes` e `/api/consultas`; a lógica clínica continua centralizada no
+LangGraph e não é duplicada no frontend.
 
 ## Contrato da resposta
 

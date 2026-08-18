@@ -584,6 +584,9 @@ escalas e baseline fica em `resultados/fase3/calibracao_adapter.json`.
 python -m pip install -r requirements.txt -r requirements-fase3.txt
 python -m fase3.data.build_finetuning_dataset
 
+# Interface web local (abre o navegador automaticamente)
+python -m fase3.web_app --backend local
+
 python -m fase3.cli_demo --paciente-id PAC-0001 \
   --pergunta "Posso iniciar a quimioterapia hoje?" --backend local
 
@@ -594,6 +597,12 @@ python -m fase3.evaluate_assistant --backend local \
 
 python -m unittest discover -s tests -v
 ```
+
+A interface fica disponível em `http://127.0.0.1:8010`. O modelo é carregado
+na GPU somente na primeira consulta e permanece em memória nas seguintes. Para
+testar a experiência sem carregar o modelo, use
+`python -m fase3.web_app --backend fake`. A documentação dos endpoints fica em
+`http://127.0.0.1:8010/docs`.
 
 Toda resposta final é fundamentada em fontes válidas, recebe aviso de
 validação médica e nunca autoriza prescrição autônoma. O projeto é
