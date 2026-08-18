@@ -91,7 +91,9 @@ select:focus, textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px 
 
 .consultation { min-width: 0; padding: 28px clamp(24px, 4vw, 58px); display: flex; flex-direction: column; }
 .consultation-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.header-badges { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 7px; }
 .model-badge { color: var(--teal-dark); border-color: #bad8d1; background: var(--teal-soft); }
+.chat-patient-badge { border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 8px; color: var(--ink-soft); background: var(--surface-muted); font-size: 10px; font-weight: 700; }
 .welcome { max-width: 480px; margin: auto; padding: 40px 0 54px; text-align: center; }
 .welcome h3 { margin: 18px 0 8px; font-size: 18px; }
 .welcome p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }

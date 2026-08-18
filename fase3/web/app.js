@@ -1,4 +1,4 @@
-const state = { patients: [], selected: null, status: null };
+const state = { patients: [], selected: null, status: null, sessions: new Map() };
 
 const $ = (selector) => document.querySelector(selector);
 const elements = {
@@ -14,6 +14,7 @@ const elements = {
   question: $("#question"),
   characterCount: $("#character-count"),
   submit: $("#submit-button"),
+  chatPatientBadge: $("#chat-patient-badge"),
   welcome: $("#welcome"),
   conversation: $("#conversation"),
   error: $("#error-message"),
@@ -49,7 +50,17 @@ function fillList(container, items, emptyText) {
   items.forEach((item) => container.append(textElement("li", "", item.replaceAll("_", " "))));
 }
 
+function getSession(patientId) {
+  if (!state.sessions.has(patientId)) {
+    state.sessions.set(patientId, { messages: [], lastResult: null, draft: "" });
+  }
+  return state.sessions.get(patientId);
+}
+
 function renderPatient(patient) {
+  if (state.selected) {
+    getSession(state.selected.paciente_id).draft = elements.question.value;
+  }
   state.selected = patient;
   const heading = document.createElement("div");
   heading.className = "patient-id-line";
@@ -72,6 +83,7 @@ function renderPatient(patient) {
   fillList(elements.pendingList, patient.exames_pendentes, "Nenhum exame pendente");
   fillList(elements.alertList, patient.alertas_ativos, "Nenhum alerta ativo");
   renderSuggestions(patient.paciente_id);
+  renderSession(patient.paciente_id);
 }
 
 function renderSuggestions(patientId) {
@@ -82,6 +94,7 @@ function renderSuggestions(patientId) {
     button.addEventListener("click", () => {
       elements.question.value = question;
       elements.characterCount.textContent = question.length;
+      getSession(patientId).draft = question;
       elements.question.focus();
     });
     elements.suggestions.append(button);
@@ -97,6 +110,33 @@ function appendMessage(kind, text, meta = "") {
   elements.conversation.append(message);
   elements.conversation.classList.add("visible");
   return message;
+}
+
+function clearEvidence() {
+  elements.emptyEvidence.hidden = false;
+  elements.evidence.hidden = true;
+  elements.flow.replaceChildren();
+  elements.sources.replaceChildren();
+  elements.generatedAlerts.replaceChildren();
+}
+
+function renderSession(patientId) {
+  const session = getSession(patientId);
+  elements.chatPatientBadge.textContent = `Conversa ${patientId}`;
+  elements.question.value = session.draft;
+  elements.characterCount.textContent = session.draft.length;
+  elements.error.hidden = true;
+  elements.conversation.replaceChildren();
+  elements.conversation.classList.toggle("visible", session.messages.length > 0);
+  elements.welcome.hidden = session.messages.length > 0;
+
+  session.messages.forEach(({ kind, text, meta, blocked }) => {
+    const message = appendMessage(kind, text, meta);
+    if (blocked) message.classList.add("message-blocked");
+  });
+
+  if (session.lastResult) renderEvidence(session.lastResult);
+  else clearEvidence();
 }
 
 function showLoading() {
@@ -142,34 +182,42 @@ async function submitQuestion(event) {
   event.preventDefault();
   const question = elements.question.value.trim();
   if (!question || !state.selected) return;
+  const patientId = state.selected.paciente_id;
+  const session = getSession(patientId);
 
   elements.error.hidden = true;
-  elements.welcome.hidden = true;
-  appendMessage("user", question);
+  session.messages.push({ kind: "user", text: question, meta: "", blocked: false });
+  session.draft = question;
+  renderSession(patientId);
   const loading = showLoading();
   elements.submit.disabled = true;
+  elements.patientSelect.disabled = true;
   elements.conversation.setAttribute("aria-busy", "true");
 
   try {
     const response = await fetch("/api/consultas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paciente_id: state.selected.paciente_id, pergunta: question }),
+      body: JSON.stringify({ paciente_id: patientId, pergunta: question }),
     });
     const body = await response.json();
     if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Falha ao analisar o caso.");
-    loading.remove();
-    const message = appendMessage("assistant", body.resposta || "Paciente nao encontrado no prontuario.", humanizeMode(body.modo_resposta));
-    if (body.bloqueado) message.classList.add("message-blocked");
-    renderEvidence(body);
-    elements.question.value = "";
-    elements.characterCount.textContent = "0";
+    session.messages.push({
+      kind: "assistant",
+      text: body.resposta || "Paciente nao encontrado no prontuario.",
+      meta: humanizeMode(body.modo_resposta),
+      blocked: body.bloqueado,
+    });
+    session.lastResult = body;
+    session.draft = "";
+    renderSession(patientId);
   } catch (error) {
     loading.remove();
     elements.error.textContent = error instanceof Error ? error.message : "Nao foi possivel consultar o assistente.";
     elements.error.hidden = false;
   } finally {
     elements.submit.disabled = false;
+    elements.patientSelect.disabled = false;
     elements.conversation.setAttribute("aria-busy", "false");
   }
 }
@@ -204,6 +252,9 @@ elements.patientSelect.addEventListener("change", () => {
   const patient = state.patients.find((item) => item.paciente_id === elements.patientSelect.value);
   if (patient) renderPatient(patient);
 });
-elements.question.addEventListener("input", () => { elements.characterCount.textContent = elements.question.value.length; });
+elements.question.addEventListener("input", () => {
+  elements.characterCount.textContent = elements.question.value.length;
+  if (state.selected) getSession(state.selected.paciente_id).draft = elements.question.value;
+});
 elements.form.addEventListener("submit", submitQuestion);
 initialize();
