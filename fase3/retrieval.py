@@ -28,12 +28,13 @@ _SINONIMOS_CLINICOS = {
     "bi-rads": ("birads", "biopsia", "diagnostico mamario"),
     "birads": ("bi-rads", "biopsia", "diagnostico mamario"),
     "quimioterapia": ("tratamento oncologico", "exames pre-tratamento"),
+    "tratamento sistemico": ("quimioterapia", "exames pre-tratamento"),
     "dor pos-operatoria": ("manejo da dor cirurgia pos-operatorio"),
 }
 _PROTOCOLOS_PRIORITARIOS = (
     (("febre", "taquicardia", "sepse", "sirs"), "PROT-011"),
     (("dor pos-operatoria", "dor pos operatoria"), "PROT-004"),
-    (("quimioterapia", "exames obrigatorios", "exames pendentes"), "PROT-006"),
+    (("quimioterapia", "tratamento sistemico", "exames obrigatorios", "exames pendentes"), "PROT-006"),
     (("bi-rads", "birads", "biopsia"), "PROT-001"),
 )
 

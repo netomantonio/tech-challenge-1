@@ -1,80 +1,82 @@
 {
-  "objetivo": "Comparar execucao tecnica e qualidade de geracao dos adapters LoRA da Fase 3.",
-  "aviso_interpretacao": "Loss e perplexidade nao medem sozinhas seguranca ou adequacao clinica.",
-  "experimentos": [
+  "objetivo": "Comparar os experimentos LoRA sem atribuir ao adapter a qualidade produzida pelo fallback.",
+  "aviso_interpretacao": "Loss e perplexidade nao medem sozinhas seguranca ou adequacao clinica; a promocao usa geracao bruta, pipeline final e seguranca adversarial.",
+  "experimentos_historicos": [
     {
       "nome": "smoke_distilgpt2",
       "base_model": "distilgpt2",
-      "n_treino_efetivo": 33,
-      "n_validacao_efetivo": 6,
-      "epochs": 3,
-      "learning_rate": 0.0005,
-      "loss_treino_final": 4.6014355907,
-      "loss_validacao_final": 4.7692070007,
+      "loss_validacao_final": 4.769207,
       "perplexidade_validacao": 117.826,
-      "duracao_segundos": 43.76,
-      "resultado_geracao": "Repeticao, texto nao instrucional em portugues e protocolo inventado.",
-      "decisao": "Mantido apenas como smoke test historico."
+      "decisao": "Smoke test historico; nao promover."
     },
     {
       "nome": "qwen_0_5b_v1",
       "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
-      "n_treino_efetivo": 30,
-      "n_validacao_efetivo": 5,
-      "epochs": 4,
-      "learning_rate": 0.00005,
-      "parametros_lora": 4399104,
-      "percentual_treinavel": 0.8826,
-      "loss_treino_final": 2.5860936046,
-      "loss_validacao_final": 2.6581008434,
+      "loss_validacao_final": 2.658101,
       "perplexidade_validacao": 14.269,
-      "duracao_segundos": 377.8,
-      "resultado_geracao": "Recusas evasivas, termos corrompidos, fontes omitidas e valores inventados.",
-      "decisao": "Ampliar exemplos clinicos e testar novo ajuste."
+      "decisao": "Nao promover por fontes e valores inconsistentes."
     },
     {
       "nome": "qwen_0_5b_v2",
       "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
-      "n_treino_efetivo": 75,
-      "n_validacao_efetivo": 7,
-      "epochs": 5,
-      "learning_rate": 0.0001,
-      "parametros_lora": 4399104,
-      "percentual_treinavel": 0.8826,
-      "loss_treino_final": 1.2592047377,
-      "loss_validacao_final": 2.2172012329,
+      "loss_validacao_final": 2.217201,
       "perplexidade_validacao": 9.182,
-      "duracao_segundos": 457.67,
-      "resultado_geracao": "Alterou BI-RADS 4 para BI-RADS 5 e 7/10 para 7/9; misturou idiomas.",
-      "decisao": "Nao promover; aumentar a capacidade do modelo-base."
+      "decisao": "Nao promover por alteracao de BI-RADS e escala de dor."
     },
     {
-      "nome": "qwen_1_5b_selecionado",
+      "nome": "qwen_1_5b_v3_primeira_tentativa",
       "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
-      "n_treino_efetivo": 60,
-      "n_validacao_efetivo": 7,
-      "epochs": 3,
+      "n_treino": 40,
+      "n_validacao": 8,
+      "epochs": 4,
       "learning_rate": 0.00005,
-      "parametros_lora": 9232384,
-      "percentual_treinavel": 0.5945,
-      "loss_treino_final": 2.0047536744,
-      "loss_validacao_final": 2.1100904942,
-      "perplexidade_validacao": 8.249,
-      "duracao_segundos": 593.06,
-      "lora_scale_inferencia": 0.1,
-      "resultado_geracao": "Melhor validacao e linguagem-base; adapter total ainda alterou fatos, exigindo calibracao e grounding.",
-      "decisao": "Selecionado com escala 0.1 e barreira de grounding obrigatoria."
+      "lora_r": 16,
+      "lora_alpha": 32,
+      "loss_validacao_final": 0.313368,
+      "perplexidade_validacao": 1.368,
+      "decisao": "Nao promover; geracao bruta nao atingiu os gates."
     }
   ],
-  "avaliacao_final_pipeline": {
-    "backend": "local",
-    "n_casos_parafraseados": 6,
-    "score_objetivo_medio": 1.0,
-    "score_seguranca_medio": 1.0,
-    "score_qualidade_medio": 1.0,
-    "taxa_grounding_fallback": 1.0,
-    "taxa_reparo_citacao": 0.0,
-    "taxa_resposta_llm_aceita_sem_fallback": 0.0,
-    "conclusao": "O pipeline final e seguro nos casos avaliados, mas a LLM bruta ainda nao atingiu qualidade clinica suficiente."
+  "modelo_promovido": {
+    "nome": "qwen_1_5b_v4",
+    "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "adapter_path": "resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter",
+    "n_treino": 40,
+    "n_validacao": 8,
+    "epochs": 6,
+    "learning_rate": 0.00002,
+    "max_length": 512,
+    "batch_size": 2,
+    "gradient_accumulation_steps": 4,
+    "lora_r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "fp16": true,
+    "seed": 42,
+    "gpu": "NVIDIA GeForce RTX 3060",
+    "lora_scale": 0.75,
+    "loss_validacao_reavaliada": 0.435758,
+    "perplexidade_validacao_reavaliada": 1.546,
+    "decisao": "Promovido por atender todos os gates de geracao e seguranca."
+  },
+  "comparacao_final": {
+    "casos_regulares": 16,
+    "casos_adversariais": 8,
+    "modelo_base": {
+      "taxa_aceitacao_bruta_regular": 0.625,
+      "taxa_fallback_regular": 0.25,
+      "score_qualidade_bruta_regular": 0.945
+    },
+    "adapter_promovido": {
+      "taxa_aceitacao_bruta_regular": 0.812,
+      "taxa_fallback_regular": 0.188,
+      "score_qualidade_bruta_regular": 0.986,
+      "score_qualidade_final": 1.0,
+      "score_seguranca_final": 1.0,
+      "taxa_adversariais_seguros": 1.0
+    },
+    "delta_aceitacao_vs_base": 0.188,
+    "delta_qualidade_bruta_vs_base": 0.041,
+    "gates_aprovados": true
   }
 }

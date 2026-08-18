@@ -1,203 +1,124 @@
 SCRIPT - VIDEO DE DEMONSTRACAO
 Tech Challenge Fase 3 - Assistente Virtual Medico
-Duracao estimada: ~14 minutos (limite do enunciado: ate 15 minutos)
+Duracao estimada: 12 a 14 minutos
 
-================================================================================
+===============================================================================
 CENA 1 - ABERTURA (1 min)
-[Tela: README.md aberto no GitHub, secao "Fase 3"]
-================================================================================
+===============================================================================
 
-"Ola! Neste video vamos apresentar a entrega da Fase 3 do Tech Challenge da
-pos-graduacao AI for Devs da FIAP.
+"Nesta Fase 3 apresentamos um assistente virtual medico treinado com dados
+internos ficticios. A solucao usa fine-tuning LoRA, LangChain, LangGraph,
+consulta a prontuario estruturado, RAG, guardrails e auditoria. O projeto e
+academico e nenhuma resposta substitui a decisao de um medico responsavel."
 
-Nas fases anteriores construimos um pipeline de diagnostico de cancer de
-mama e uma API que usa uma LLM para interpretar os resultados. Nesta Fase 3
-o hospital quer ir alem: um assistente virtual medico treinado com dados
-proprios do hospital, capaz de responder duvidas clinicas de medicos e
-sugerir consultas a protocolos internos, com fluxos de decisao
-automatizados e seguros coordenados por LangChain e LangGraph.
+===============================================================================
+CENA 2 - DADOS E CURADORIA (2 min)
+===============================================================================
 
-Todo o codigo novo fica isolado na pasta fase3/, sem alterar nada das
-Fases 1 e 2."
+[Tela: fase3/data/assistant_training_cases.json e build_finetuning_dataset.py]
 
+"O dataset possui 48 casos clinicos revisados, seis para cada uma das oito
+familias: quimioterapia com pendencias, checklist pre-tratamento, BI-RADS e
+biopsia, sepse, dor pos-operatoria, paciente ausente, tentativa de prescricao
+e consultas a protocolos.
 
-================================================================================
-CENA 2 - ESTRUTURA E DADOS (1 min 30 s)
-[Tela: explorador de arquivos ou terminal com tree de fase3/]
-================================================================================
+O builder aplica anonimizacao, curadoria e split deterministico: 40 casos de
+treino e 8 de validacao, um por familia. MedQuAD e PubMedQA ficam apenas como
+referencia historica e nao entram no adapter promovido. A avaliacao final usa
+outros 24 casos: 16 regulares e 8 adversariais, sem vazamento do treino."
 
-"A estrutura da Fase 3 e organizada assim:
+[Terminal]
+python -m fase3.data.build_finetuning_dataset
 
-Em fase3/data/ temos os dados: protocolos internos ficticios do hospital
-em protocolos_hospital.json, prontuarios sinteticos em
-pacientes_sinteticos.json, e uma amostra real do MedQuAD e do PubMedQA,
-sobre cancer de mama, em sample_medquad.jsonl - com atribuicao de fonte em
-cada registro.
+===============================================================================
+CENA 3 - TREINAMENTO E PROMOCAO (2 min 30 s)
+===============================================================================
 
-O script build_finetuning_dataset.py combina essas tres fontes, aplica
-anonimizacao por expressao regular - removendo CPF, telefone, e-mail e
-nomes - e faz a curadoria, removendo duplicatas e respostas fora de uma
-faixa de tamanho aceitavel. O resultado sao os arquivos
-finetuning_train.jsonl e finetuning_val.jsonl. A versao final possui 57
-exemplos curados: 48 de treino e 9 de validacao. Dezoito exemplos sao
-clinicos e incluem parafrases para evitar memorizacao literal."
+[Tela: fase3/prompting.py e fase3/finetuning/train_lora.py]
 
-[Tela: terminal]
-> python -m fase3.data.build_finetuning_dataset
+"Treino e inferencia compartilham exatamente o mesmo prompt. A LLM recebe o
+contexto do paciente, as fontes autorizadas, a pergunta e um plano factual; sua
+funcao e redigir sem alterar fatos, numeros ou IDs.
 
+O modelo promovido e Qwen2.5-1.5B-Instruct com LoRA r 16, alpha 32, dropout
+0,05, seis epocas, learning rate 2e-5, sequencia 512, batch 2, acumulacao 4,
+FP16 e seed 42. O treino foi executado em uma RTX 3060 de 12 GB.
 
-================================================================================
-CENA 3 - FINE-TUNING LORA/PEFT (3 min)
-[Tela: fase3/finetuning/train_lora.py aberto]
-================================================================================
+As escalas 0,25, 0,5, 0,75 e 1,0 foram comparadas. A escala 0,75 foi promovida
+pelos gates de geracao e seguranca. Os experimentos anteriores continuam
+versionados para mostrar por que loss isolada nao basta."
 
-"Para o fine-tuning, usamos LoRA via PEFT sobre modelos causais.
-O treinamento roda inteiramente em CPU, ja que o ambiente do projeto nao
-tem GPU disponivel.
+[Terminal]
+python -m fase3.calibrate_adapter --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter --scales 0.25,0.5,0.75,1.0 --enforce-gates
 
-O primeiro smoke test usou DistilGPT-2. A loss de validacao caiu para
-4,7692, mas a perplexidade ficou em 117,826 e a geracao clinica era
-inadequada. Por isso, o smoke foi mantido apenas como evidencia historica."
+===============================================================================
+CENA 4 - LANGCHAIN, RAG E EXPLAINABILITY (2 min)
+===============================================================================
 
-[Tela: relatorio_tecnico_fase3.md, tabela comparativa]
+[Tela: assistant_chain.py, retrieval.py e ehr_tools.py]
 
-"Em seguida treinamos duas versoes do Qwen 2.5 de 0,5 bilhao de
-parametros. A versao 1 chegou a loss de validacao 2,6581 e perplexidade
-14,269. A versao 2, com mais exemplos clinicos e oversampling, chegou a
-loss 2,2172 e perplexidade 9,182.
+"O assistente consulta primeiro o EHR sintetico. A busca BM25 combina pergunta,
+diagnostico, exames pendentes, observacoes e alertas. Com essas fontes ele gera
+um plano factual e executa a chain prompt, LLM e parser.
 
-Mesmo com loss menor, a geracao alterou BI-RADS 4 para BI-RADS 5 e a escala
-7 de 10 para 7 de 9. Isso mostrou que loss menor nao garante qualidade
-clinica."
+Depois, o grounding verifica citacoes, numeros e adequacao clinica. O retorno
+registra um de quatro modos: llm, citacao reparada, fallback ou bloqueada. Toda
+resposta final mostra fontes validas e exige validacao medica."
 
-"A mudanca final foi para Qwen2.5-1.5B-Instruct. O LoRA treinou 9.232.384
-parametros, ou 0,5945 por cento do modelo. Em tres epocas, a loss de
-validacao caiu de 2,3172 para 2,1101 e a perplexidade chegou a 8,249. Foi o
-melhor resultado quantitativo e linguistico, por isso ele foi selecionado."
+[Terminal]
+python -m fase3.cli_demo --paciente-id PAC-0001 --pergunta "Posso iniciar a quimioterapia hoje?" --backend local
 
-[Tela: terminal]
-> python -m fase3.finetuning.train_lora --base-model Qwen/Qwen2.5-1.5B-Instruct --output-dir resultados/fase3/finetuning/qwen2.5-1.5b --epochs 3 --learning-rate 0.00005 --max-length 256 --clinical-repeat 3
+===============================================================================
+CENA 5 - GUARDRAILS (1 min 30 s)
+===============================================================================
 
-"O treino calcula loss somente nos tokens da resposta. O resumo tambem
-registra hiperparametros, hashes dos splits, perplexidade, dispositivo,
-duracao e parametros treinaveis."
+[Tela: guardrails.py e casos ADV-001/ADV-005]
 
-[Tela: notebooks/04_assistente_medico_fase3.ipynb, secao 2, grafico da curva de perda]
+"Pedidos de dose ou prescricao direta sao recusados ou bloqueados. CPF,
+telefone, e-mail e identificacao pessoal tambem sao interceptados. Os oito
+casos adversariais precisam ser seguros; uma unica falha reprova a promocao."
 
-"O adapter em intensidade total ainda sobrepunha parte do conhecimento do
-modelo-base. Por isso calibramos a escala LoRA em 0,1 e adicionamos uma
-barreira de grounding. Essa decisao e registrada na avaliacao e nao fica
-oculta no codigo."
+===============================================================================
+CENA 6 - LANGGRAPH (2 min)
+===============================================================================
 
+[Tela: clinical_flow_graph.py e docs/arquitetura_fase3.md]
 
-================================================================================
-CENA 4 - ASSISTENTE COM LANGCHAIN E EXPLAINABILITY (3 min)
-[Tela: fase3/assistant_chain.py e fase3/retrieval.py]
-================================================================================
+"O LangGraph busca o paciente e encerra sem chamar a LLM quando o identificador
+nao existe. Para pacientes encontrados, o no de exames preenche a lista de
+pendencias, o booleano tem_exames_pendentes e a rota escolhida.
 
-"O assistente usa LangChain para montar um pipeline que integra retrieval,
-contexto do paciente e o LLM. O retrieval usa BM25 sobre os protocolos
-internos - uma escolha deliberada para manter tudo offline e
-reproduzivel, sem depender de download de modelos de embedding.
+Sem pendencias o fluxo segue direto para a sugestao. Com pendencias, passa por
+um no de alerta antes da sugestao contextualizada. O evento final registra
+rota, exames, alertas, fontes e modo de resposta, sem alertas duplicados."
 
-O contexto do paciente vem de um mock de prontuario eletronico em SQLite,
-semeado a partir dos dados sinteticos - simulando a consulta a uma base de
-dados estruturada do hospital."
+===============================================================================
+CENA 7 - AVALIACAO E AUDITORIA (2 min)
+===============================================================================
 
-[Tela: terminal, executando o CLI demo]
-> python -m fase3.cli_demo --paciente-id PAC-0001 --pergunta "Posso iniciar a quimioterapia hoje?" --backend local --base-model Qwen/Qwen2.5-1.5B-Instruct --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter
+[Tela: resultados/fase3/resumo_avaliacao_assistente.json]
 
-"Este comando carrega o adapter LoRA selecionado e executa o
-mesmo fluxo do assistente com o backend local. Para uma gravacao mais
-rapida ou para ambientes sem as dependencias pesadas, tambem mantemos o
-backend fake, que usa uma resposta fixa apenas para demonstrar a
-orquestracao, os guardrails e os logs sem depender de rede ou GPU."
+"A avaliacao separa geracao bruta da resposta final. O adapter obteve 81,2 por
+cento de aceitacao bruta nos 16 casos regulares, 18,8 por cento de fallback,
+100 por cento de qualidade final, 100 por cento de seguranca e 100 por cento
+dos casos adversariais seguros.
 
-"Note que a resposta traz, ao final, a lista de protocolos usados como
-fonte - isso e a explainability pedida no desafio: sempre indicamos de
-onde veio a informacao. E toda resposta segura recebe um aviso obrigatorio
-de que exige validacao de um medico responsavel."
+O modelo-base teve 62,5 por cento de aceitacao. Portanto, o LoRA melhorou 18,8
+pontos percentuais, acima do gate de 10. Os JSON e CSV guardam resposta bruta,
+resposta final, fontes e motivo de cada rejeicao. O fallback nao e atribuido
+como qualidade do LoRA."
 
+[Terminal]
+python -m fase3.evaluate_assistant --backend local --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter --lora-scale 0.75 --baseline-summary resultados/fase3/resumo_avaliacao_assistente_base.json --enforce-gates
 
-================================================================================
-CENA 5 - GUARDRAILS DE SEGURANCA (2 min)
-[Tela: fase3/guardrails.py]
-================================================================================
+===============================================================================
+CENA 8 - TESTES E ENCERRAMENTO (1 min)
+===============================================================================
 
-"O desafio pede explicitamente que o assistente nunca prescreva
-diretamente, sem validacao humana. Vamos mostrar isso na pratica."
+[Terminal]
+python -m unittest discover -s tests -v
 
-[Tela: terminal ou notebook, forcando uma resposta insegura via backend fake]
-> Exemplo: resposta simulada "Tome 500mg de dipirona agora mesmo."
-
-"Quando a resposta do LLM contem uma prescricao direta - um verbo de acao
-seguido de dose ou via - o guardrail intercepta e substitui por uma
-mensagem padrao, pedindo revisao de um medico responsavel. O mesmo
-acontece se a resposta contiver informacao pessoal identificavel do
-paciente, como CPF, telefone ou nome completo."
-
-
-================================================================================
-CENA 6 - FLUXO DE DECISAO COM LANGGRAPH (2 min 30 s)
-[Tela: fase3/clinical_flow_graph.py, diagrama do fluxo no docs/arquitetura_fase3.md]
-================================================================================
-
-"O fluxo de decisao automatizado e coordenado com LangGraph: ao receber um
-paciente e uma pergunta, o sistema busca o paciente, verifica exames
-pendentes, sugere uma conduta com base nos protocolos, checa a seguranca
-da resposta e emite alertas para a equipe medica."
-
-[Tela: terminal]
-> python -m fase3.cli_demo --paciente-id PAC-0005 --pergunta "A paciente esta com febre e taquicardia, qual conduta seguir?" --backend fake
-
-"Nesse exemplo, o paciente tem um exame de tomografia pendente e um alerta
-clinico ativo de febre - ambos aparecem na lista de alertas para a equipe
-medica, junto com a sugestao de conduta baseada no protocolo de sepse.
-
-Se o codigo do paciente nao existir no prontuario, o fluxo tem uma
-bifurcacao real: ele encerra com seguranca antes de sugerir qualquer
-conduta, em vez de responder sem contexto."
-
-
-================================================================================
-CENA 7 - LOGS DE AUDITORIA E VALIDACAO (1 min 30 s)
-[Tela: resultados/fase3/auditoria.jsonl e resultados/fase3/avaliacao_assistente.csv]
-================================================================================
-
-"Toda interacao gera um log estruturado de auditoria, em JSON, com
-timestamp, as fontes usadas e se algum guardrail foi acionado - isso
-sustenta rastreabilidade para revisao posterior.
-
-Alem disso, temos uma avaliacao automatica e deterministica - sem usar
-outra LLM como juiz - que verifica, em casos representativos, se a
-resposta cita fontes, se tem o aviso obrigatorio, se nao vaza informacao
-pessoal e se nenhuma prescricao direta escapou do guardrail. A rubrica
-tambem reprova protocolos e numeros inventados, evasao, repeticao e
-inadequacao clinica especifica de cada caso."
-
-[Tela: terminal]
-> python -m fase3.evaluate_assistant --backend local --base-model Qwen/Qwen2.5-1.5B-Instruct --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter --lora-scale 0.1 --max-new-tokens 100
-
-"Nos seis casos parafraseados, o score final de qualidade e seguranca foi
-1,0. Porem a taxa de fallback foi 100 por cento e nenhuma resposta bruta
-da LLM foi aceita. Portanto, o grounding tornou o pipeline seguro, mas nao
-afirmamos que o LoRA bruto atingiu qualidade clinica. Essa limitacao e um
-resultado apresentado explicitamente, junto com a recomendacao de mais
-dados revisados por especialistas, modelo maior e validacao externa."
-
-
-================================================================================
-CENA 8 - TESTES AUTOMATIZADOS E ENCERRAMENTO (1 min)
-[Tela: terminal rodando a suite de testes]
-================================================================================
-
-"Por fim, toda essa logica esta coberta por testes automatizados, que
-rodam sem rede e sem precisar de chave de API - usando um LLM simulado."
-
-[Tela: terminal]
-> python -m unittest discover -s tests -v
-
-"Isso encerra a demonstracao da Fase 3: um assistente medico com quatro
-experimentos de fine-tuning real documentados, modelo selecionado por
-validacao e geracao, pipeline LangChain com grounding e explainability,
-fluxo LangGraph, guardrails e auditoria. Obrigado!"
+"A suite cobre prompts, dados, vazamento, grounding, guardrails, respostas
+brutas e finais e todas as rotas do LangGraph. Isso conclui a demonstracao
+tecnica. O sistema permanece academico, sintetico e dependente de validacao
+medica humana."

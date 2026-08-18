@@ -10,8 +10,12 @@ encontrado interrompe o fluxo antes de qualquer sugestao).
           |
        (encontrado)
           v
-    verificar_exames_pendentes -> sugerir_tratamento -> checar_seguranca
-          -> emitir_alertas -> registrar_auditoria -> END
+    verificar_exames_pendentes --(com pendencias)--> alertar_exames
+          |                                      |
+          +--(sem pendencias)--------------------+
+                                                 v
+          sugerir_tratamento -> checar_seguranca -> emitir_alertas
+          -> registrar_auditoria -> END
 """
 
 from __future__ import annotations
@@ -32,6 +36,9 @@ class EstadoFluxoClinico(TypedDict, total=False):
     pergunta: str
     paciente: Optional[dict]
     paciente_encontrado: bool
+    exames_pendentes: list[str]
+    tem_exames_pendentes: bool
+    rota_exames: str
     sugestao: Optional[dict]
     bloqueado: bool
     alertas: list[str]
@@ -51,11 +58,27 @@ def _rota_apos_busca(state: EstadoFluxoClinico) -> str:
 
 
 def _no_verificar_exames_pendentes(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
-    # A leitura ja foi feita em `_no_buscar_paciente`; este no existe como
-    # etapa propria do fluxo (conforme pedido no desafio) para deixar
-    # explicito o ponto de checagem de exames pendentes antes de sugerir
-    # qualquer conduta.
-    return state
+    exames_pendentes = list((state.get("paciente") or {}).get("exames_pendentes", []))
+    tem_pendencias = bool(exames_pendentes)
+    return {
+        **state,
+        "exames_pendentes": exames_pendentes,
+        "tem_exames_pendentes": tem_pendencias,
+        "rota_exames": "com_pendencias" if tem_pendencias else "sem_pendencias",
+    }
+
+
+def _rota_apos_verificar_exames(state: EstadoFluxoClinico) -> str:
+    return state["rota_exames"]
+
+
+def _no_alertar_exames_pendentes(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
+    alertas = list(state.get("alertas", []))
+    alertas.append(
+        f"Exames pendentes para {state['paciente_id']}: "
+        f"{', '.join(state['exames_pendentes'])}."
+    )
+    return {**state, "alertas": alertas}
 
 
 def _construir_no_sugerir_tratamento(llm: Optional[LLM], retriever: Optional[BM25Retriever]):
@@ -87,11 +110,6 @@ def _no_checar_seguranca(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
 def _no_emitir_alertas(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
     alertas = list(state.get("alertas", []))
     paciente = state.get("paciente") or {}
-    exames_pendentes = paciente.get("exames_pendentes", [])
-    if exames_pendentes:
-        alertas.append(
-            f"Exames pendentes para {state['paciente_id']}: {', '.join(exames_pendentes)}."
-        )
     for alerta_ativo in paciente.get("alertas_ativos", []):
         alertas.append(f"Alerta clinico ativo: {alerta_ativo}")
     return {**state, "alertas": alertas}
@@ -102,9 +120,13 @@ def _no_registrar_auditoria(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
         "fluxo_clinico_concluido",
         paciente_id=state["paciente_id"],
         paciente_encontrado=state.get("paciente_encontrado", False),
+        exames_pendentes=state.get("exames_pendentes", []),
+        tem_exames_pendentes=state.get("tem_exames_pendentes", False),
+        rota_exames=state.get("rota_exames"),
         alertas=state.get("alertas", []),
         bloqueado=state.get("bloqueado", False),
         fontes=(state.get("sugestao") or {}).get("fontes", []),
+        modo_resposta=(state.get("sugestao") or {}).get("modo_resposta"),
     )
     return state
 
@@ -115,6 +137,7 @@ def construir_grafo(llm: Optional[LLM] = None, retriever: Optional[BM25Retriever
 
     grafo.add_node("buscar_paciente", _no_buscar_paciente)
     grafo.add_node("verificar_exames_pendentes", _no_verificar_exames_pendentes)
+    grafo.add_node("alertar_exames_pendentes", _no_alertar_exames_pendentes)
     grafo.add_node("sugerir_tratamento", _construir_no_sugerir_tratamento(llm, retriever))
     grafo.add_node("checar_seguranca", _no_checar_seguranca)
     grafo.add_node("emitir_alertas", _no_emitir_alertas)
@@ -129,7 +152,15 @@ def construir_grafo(llm: Optional[LLM] = None, retriever: Optional[BM25Retriever
             "paciente_nao_encontrado": "registrar_auditoria",
         },
     )
-    grafo.add_edge("verificar_exames_pendentes", "sugerir_tratamento")
+    grafo.add_conditional_edges(
+        "verificar_exames_pendentes",
+        _rota_apos_verificar_exames,
+        {
+            "com_pendencias": "alertar_exames_pendentes",
+            "sem_pendencias": "sugerir_tratamento",
+        },
+    )
+    grafo.add_edge("alertar_exames_pendentes", "sugerir_tratamento")
     grafo.add_edge("sugerir_tratamento", "checar_seguranca")
     grafo.add_edge("checar_seguranca", "emitir_alertas")
     grafo.add_edge("emitir_alertas", "registrar_auditoria")

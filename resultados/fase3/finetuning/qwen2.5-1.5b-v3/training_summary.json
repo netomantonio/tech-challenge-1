@@ -1,0 +1,163 @@
+{
+  "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "modelo_instrucional": true,
+  "loss_apenas_na_resposta": true,
+  "lora_target_modules": [
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj",
+    "gate_proj",
+    "up_proj",
+    "down_proj"
+  ],
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "lora_dropout": 0.05,
+  "epochs": 4,
+  "batch_size": 2,
+  "gradient_accumulation_steps": 4,
+  "learning_rate": 5e-05,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+  "max_length": 512,
+  "seed": 42,
+  "fp16": true,
+  "gradient_checkpointing": false,
+  "inclui_dados_publicos": false,
+  "repeticao_exemplos_clinicos": 1,
+  "n_exemplos_treino": 40,
+  "n_exemplos_validacao": 8,
+  "tokens_supervisionados_resposta": 1867,
+  "fracao_tokens_supervisionados": 0.095,
+  "dataset_sha256": {
+    "treino": "7229116806a3c747b611ea3b110018b4787adf0b6ed58da4551bf1b49d633c4d",
+    "validacao": "00cb7606276e74f0a9e4ea1d78cf140214c7fc903d837cec3f543ca1aae9e69a"
+  },
+  "device": "cuda:0",
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "torch_version": "2.6.0+cu124",
+  "duracao_segundos": 269.48,
+  "loss_final_treino": 0.5246799468994141,
+  "loss_final_validacao": 0.3133680820465088,
+  "perplexidade_validacao": 1.368,
+  "perda_media_por_epoca": [
+    {
+      "epoch": 1,
+      "loss_medio": 0.79694
+    },
+    {
+      "epoch": 2,
+      "loss_medio": 0.5411199999999999
+    },
+    {
+      "epoch": 3,
+      "loss_medio": 0.41008000000000006
+    },
+    {
+      "epoch": 4,
+      "loss_medio": 0.35064
+    }
+  ],
+  "historico_perda_treino": [
+    {
+      "step": 1,
+      "loss": 0.7993
+    },
+    {
+      "step": 2,
+      "loss": 0.7575
+    },
+    {
+      "step": 3,
+      "loss": 0.8999
+    },
+    {
+      "step": 4,
+      "loss": 0.6859
+    },
+    {
+      "step": 5,
+      "loss": 0.8421
+    },
+    {
+      "step": 6,
+      "loss": 0.6721
+    },
+    {
+      "step": 7,
+      "loss": 0.4936
+    },
+    {
+      "step": 8,
+      "loss": 0.4975
+    },
+    {
+      "step": 9,
+      "loss": 0.5972
+    },
+    {
+      "step": 10,
+      "loss": 0.4452
+    },
+    {
+      "step": 11,
+      "loss": 0.3733
+    },
+    {
+      "step": 12,
+      "loss": 0.389
+    },
+    {
+      "step": 13,
+      "loss": 0.3196
+    },
+    {
+      "step": 14,
+      "loss": 0.5338
+    },
+    {
+      "step": 15,
+      "loss": 0.4347
+    },
+    {
+      "step": 16,
+      "loss": 0.436
+    },
+    {
+      "step": 17,
+      "loss": 0.3212
+    },
+    {
+      "step": 18,
+      "loss": 0.2822
+    },
+    {
+      "step": 19,
+      "loss": 0.399
+    },
+    {
+      "step": 20,
+      "loss": 0.3148
+    }
+  ],
+  "historico_perda_validacao": [
+    {
+      "epoch": 1.0,
+      "eval_loss": 0.5668240785598755
+    },
+    {
+      "epoch": 2.0,
+      "eval_loss": 0.4178882837295532
+    },
+    {
+      "epoch": 3.0,
+      "eval_loss": 0.3411683142185211
+    },
+    {
+      "epoch": 4.0,
+      "eval_loss": 0.3133680820465088
+    }
+  ],
+  "adapter_path": "resultados\\fase3\\finetuning\\qwen2.5-1.5b-v3\\lora_adapter"
+}

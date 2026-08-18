@@ -16,7 +16,8 @@ Exemplos:
     python -m fase3.cli_demo --paciente-id PAC-0001 \
         --pergunta "Posso iniciar a quimioterapia hoje?" --backend local \
         --base-model Qwen/Qwen2.5-1.5B-Instruct \
-        --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter
+        --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter \
+        --lora-scale 0.75
 """
 
 from __future__ import annotations
@@ -42,19 +43,19 @@ def main() -> None:
         default=None,
         help=(
             "Caminho do adapter LoRA usado com --backend local. Se omitido, "
-            "usa resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter."
+            "usa resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter."
         ),
     )
     parser.add_argument(
         "--lora-scale",
         type=float,
         default=None,
-        help="Intensidade do adapter local em (0, 1]; padrao calibrado: 0.1.",
+        help="Intensidade do adapter local em (0, 1]; padrao calibrado: 0.75.",
     )
     parser.add_argument(
         "--max-new-tokens",
         type=int,
-        default=200,
+        default=160,
         help="Limite de tokens gerados pelo backend local.",
     )
     args = parser.parse_args()
@@ -96,6 +97,8 @@ def main() -> None:
         print(f"  - [{fonte['id']}] {fonte['titulo']}")
 
     print(f"\nBloqueado por guardrail: {estado.get('bloqueado', False)}")
+    print(f"Modo de resposta: {sugestao.get('modo_resposta', '(nao informado)')}")
+    print(f"Rota de exames: {estado.get('rota_exames', '(nao aplicavel)')}")
 
     alertas = estado.get("alertas", [])
     print(f"\nAlertas para a equipe medica ({len(alertas)}):")

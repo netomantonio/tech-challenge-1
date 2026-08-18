@@ -526,118 +526,85 @@ autônomo.
 
 ## Fase 3 - Assistente Médico Virtual
 
-A Fase 3 é um módulo novo e isolado (`fase3/`), que **não altera** o
-pipeline de diagnóstico das Fases 1/2. O desafio: um assistente virtual
-médico treinado com dados próprios (fictícios) do hospital, capaz de
-responder dúvidas clínicas e sugerir consultas a protocolos internos, com
-fluxos de decisão automatizados e seguros coordenados por LangChain e
-LangGraph.
+A Fase 3 implementa um assistente clínico acadêmico com fine-tuning LoRA,
+LangChain, consulta a prontuário sintético, RAG de protocolos internos,
+guardrails e um fluxo decisório em LangGraph. O módulo fica isolado em
+`fase3/` e não altera as Fases 1 e 2.
 
-### Entregas Atendidas
+### Cobertura técnica
 
 | Requisito | Implementação |
 | --- | --- |
-| Fine-tuning de LLM com dados médicos internos | `fase3/finetuning/train_lora.py` (LoRA/PEFT), dataset em `fase3/data/` |
-| Preprocessing, anonimização e curadoria | `fase3/data/build_finetuning_dataset.py` |
-| Pipeline LangChain integrando a LLM customizada | `fase3/assistant_chain.py` (`prompt \| llm \| StrOutputParser`) |
-| Consulta a base de dados estruturada (prontuários) | `fase3/ehr_tools.py` (mock de EHR em SQLite) |
-| Contextualização com dados atualizados do paciente | `fase3/assistant_chain.py` via `ehr_tools.get_paciente` |
-| Fluxos do LangGraph | `fase3/clinical_flow_graph.py` |
-| Nunca prescrever diretamente, sem validação humana | `fase3/guardrails.py` |
-| Logging detalhado para auditoria | `fase3/logging_utils.py` (+ `resultados/fase3/auditoria.jsonl`) |
-| Explainability (fonte da informação usada) | Toda resposta cita os protocolos usados (`fase3/retrieval.py`) |
-| Avaliação do assistente | `fase3/evaluate_assistant.py` |
-| Projeto modularizado em Python | Pacote `fase3/` |
+| Dados internos, anonimização e curadoria | `fase3/data/build_finetuning_dataset.py` |
+| Fine-tuning LoRA/PEFT | `fase3/finetuning/train_lora.py` |
+| Prompt idêntico no treino e inferência | `fase3/prompting.py` |
+| LangChain e LLM customizada | `fase3/assistant_chain.py`, `fase3/llm_backend.py` |
+| Prontuário estruturado | `fase3/ehr_tools.py` (SQLite sintético) |
+| RAG e explainability | `fase3/retrieval.py`, fontes em toda resposta final |
+| Fluxo LangGraph com bifurcação de exames | `fase3/clinical_flow_graph.py` |
+| Segurança e validação humana | `fase3/guardrails.py` |
+| Auditoria | `fase3/logging_utils.py` |
+| Avaliação bruta, final e adversarial | `fase3/evaluate_assistant.py`, `fase3/calibrate_adapter.py` |
 
-### Dataset
+### Dados e treinamento
 
-| Fonte | Conteúdo | Observação |
-| --- | --- | --- |
-| `fase3/data/protocolos_hospital.json` | Protocolos internos, FAQs e modelos de documento | Fictícios, criados para este projeto |
-| `fase3/data/pacientes_sinteticos.json` | Prontuários fictícios (exames pendentes/realizados, alertas) | Identificação apenas por código (`PAC-000x`) |
-| `fase3/data/sample_medquad.jsonl` | 12 QAs do MedQuAD (CancerGov, foco *Breast Cancer*) + 8 do PubMedQA | Dados reais, com atribuição de fonte por linha |
+O dataset clínico possui **48 exemplos revisados**, distribuídos em oito
+famílias. O split determinístico usa **40 exemplos de treino e 8 de
+validação**, um caso de validação por família. MedQuAD/PubMedQA permanecem
+apenas como referência histórica e não entram no adapter promovido.
 
-`python -m fase3.data.build_finetuning_dataset` combina as três fontes,
-aplica anonimização por regex (CPF, telefone, e-mail, nome) e curadoria
-(dedup + filtro de tamanho). O dataset atual possui **57 exemplos
-curados**, divididos deterministicamente em `finetuning_train.jsonl` (48)
-e `finetuning_val.jsonl` (9). Desses, 18 são exemplos clínicos alinhados
-ao assistente, incluindo paráfrases para evitar memorização literal.
+A avaliação é independente do fine-tuning: **16 casos clínicos regulares e
+8 adversariais**, sem perguntas repetidas nos splits. Todos os registros
+são sintéticos ou anonimizados.
 
-### Fine-tuning LoRA/PEFT
+O modelo promovido é `Qwen/Qwen2.5-1.5B-Instruct` com LoRA `r=16`,
+`alpha=32`, dropout `0.05`, seis épocas, LR `2e-5`, sequência 512, batch 2,
+acumulação 4, FP16 e seed 42. O adapter está em
+`resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter` e usa escala
+calibrada `0.75`.
 
-Foram executados quatro experimentos reais. A troca de modelo ocorreu
-porque loss decrescente não se traduziu automaticamente em qualidade
-clínica:
+### Resultado final
 
-| Modelo | Treino/val. efetivos | Loss val. | Perplexidade | Decisão |
-| --- | ---: | ---: | ---: | --- |
-| `distilgpt2` | 33 / 6 | 4,7692 | 117,826 | Apenas smoke; texto clínico inadequado |
-| Qwen2.5-0.5B v1 | 30 / 5 | 2,6581 | 14,269 | Melhor, mas ainda evasivo e inconsistente |
-| Qwen2.5-0.5B v2 | 75 / 7 | 2,2172 | 9,182 | Alterou `BI-RADS 4` e `7/10` |
-| **Qwen2.5-1.5B** | **60 / 7** | **2,1101** | **8,249** | **Selecionado com LoRA calibrado em 0,1 + grounding** |
+| Métrica | Resultado |
+| --- | ---: |
+| Aceitação bruta nos 16 casos regulares | **81,2%** |
+| Fallback nos casos regulares | **18,8%** |
+| Qualidade final | **100%** |
+| Segurança final | **100%** |
+| Casos adversariais seguros | **100%** |
+| Melhora de aceitação sobre o modelo-base | **18,8 p.p.** |
 
-O treino supervisiona somente tokens da resposta e registra curva de
-loss, perplexidade, hashes dos splits, hiperparâmetros e parâmetros
-treináveis. A análise completa, incluindo resultados negativos e o motivo
-de cada mudança, está em [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md).
+Os resultados brutos, finais, fontes e motivos de rejeição ficam em
+`resultados/fase3/avaliacao_assistente.json` e `.csv`. A comparação de
+escalas e baseline fica em `resultados/fase3/calibracao_adapter.json`.
 
-As dependências (`torch`, `transformers`, `peft`, `datasets`) ficam em
-`requirements-fase3.txt`:
+### Execução
 
 ```bash
-python -m pip install -r requirements-fase3.txt
-python -m fase3.finetuning.train_lora \
-  --base-model Qwen/Qwen2.5-1.5B-Instruct \
-  --output-dir resultados/fase3/finetuning/qwen2.5-1.5b \
-  --epochs 3 --learning-rate 0.00005 --max-length 256 --clinical-repeat 3
-```
-
-O adapter selecionado pode ser carregado diretamente pelo backend local.
-O `lora_adapter/` contém somente o adapter; o modelo-base é carregado do
-cache local do Hugging Face ou baixado na primeira execução.
-
-```bash
-python -m fase3.cli_demo --paciente-id PAC-0001 \
-  --pergunta "Posso iniciar a quimioterapia hoje?" \
-  --backend local \
-  --base-model Qwen/Qwen2.5-1.5B-Instruct \
-  --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter
-```
-
-Na avaliação local final, o pipeline obteve score de qualidade e segurança
-1,00, mas a taxa de fallback foi 100% e a taxa de saída da LLM aceita sem
-fallback foi 0%. Portanto, o sistema final é seguro, mas a geração bruta
-ainda requer mais dados, modelo maior e validação clínica externa; o
-relatório não atribui o score do fallback ao LoRA.
-
-### Assistente, guardrails e fluxo de decisão
-
-```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt -r requirements-fase3.txt
 python -m fase3.data.build_finetuning_dataset
 
-# demo de ponta a ponta (fluxo LangGraph completo):
 python -m fase3.cli_demo --paciente-id PAC-0001 \
-  --pergunta "Posso iniciar a quimioterapia hoje?" --backend fake
-# para usar a LLM customizada local, troque para --backend local; o padrão
-# usa Qwen2.5-1.5B + resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter
-# com uma chave real remota: use --backend groq e configure GROQ_API_KEY
+  --pergunta "Posso iniciar a quimioterapia hoje?" --backend local
 
-# avaliação determinística do assistente:
-python -m fase3.evaluate_assistant --backend local --lora-scale 0.1
+python -m fase3.evaluate_assistant --backend local \
+  --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter \
+  --lora-scale 0.75 --baseline-summary resultados/fase3/resumo_avaliacao_assistente_base.json \
+  --enforce-gates
+
+python -m unittest discover -s tests -v
 ```
 
-Toda resposta segura recebe um aviso obrigatório de validação médica
-humana; respostas com prescrição direta ou com informação pessoal
-identificável são bloqueadas pelo guardrail antes de chegar ao usuário
-(ver `fase3/guardrails.py`). Detalhes de arquitetura, diagramas do fluxo
-LangChain/LangGraph e decisões de projeto em
-[docs/arquitetura_fase3.md](docs/arquitetura_fase3.md), e a análise
-completa em [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md).
+Toda resposta final é fundamentada em fontes válidas, recebe aviso de
+validação médica e nunca autoriza prescrição autônoma. O projeto é
+acadêmico, usa dados fictícios e não deve ser empregado em assistência
+clínica real.
 
-Notebook executável: `notebooks/04_assistente_medico_fase3.ipynb`. Roteiro
-do vídeo de demonstração: `docs/script_video_demonstracao_fase3.txt`.
+Detalhes: [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md),
+[docs/arquitetura_fase3.md](docs/arquitetura_fase3.md) e
+`fase3/relatorio_aderencia_final.md`. O roteiro do vídeo está em
+`docs/script_video_demonstracao_fase3.txt`; a gravação permanece fora do
+escopo desta implementação.
 
 ## Autores
 

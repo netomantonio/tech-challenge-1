@@ -4,9 +4,8 @@ Uso recomendado (modelo instrucional e multilingue selecionado):
 
     python -m fase3.finetuning.train_lora \
         --base-model Qwen/Qwen2.5-1.5B-Instruct \
-        --epochs 3 --learning-rate 0.00005 --max-length 256 \
-        --clinical-repeat 3 \
-        --output-dir resultados/fase3/finetuning/qwen2.5-1.5b
+        --epochs 4 --learning-rate 0.00005 --max-length 512 \
+        --output-dir resultados/fase3/finetuning/qwen2.5-1.5b-v5
 
 O treinamento usa loss somente nos tokens da resposta. Os tokens do system
 prompt e da instrucao recebem label ``-100`` e nao entram no calculo da loss.
@@ -34,6 +33,12 @@ import os
 import time
 from pathlib import Path
 
+from fase3.prompting import (
+    SYSTEM_PROMPT_CLINICO,
+    USER_PROMPT_TEMPLATE,
+    formatar_prompt_usuario,
+)
+
 # Evita que o transformers tente importar um TensorFlow eventualmente
 # instalado no ambiente (nao usamos TF; so PyTorch). Precisa ser definido
 # antes do primeiro `import transformers`.
@@ -46,14 +51,7 @@ FASE3_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = FASE3_ROOT / "data"
 DEFAULT_OUTPUT_DIR = FASE3_ROOT.parent / "resultados" / "fase3" / "finetuning"
 DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
-DEFAULT_QUALITY_OUTPUT_DIR = DEFAULT_OUTPUT_DIR / "qwen2.5-1.5b"
-
-SYSTEM_PROMPT_TREINO = (
-    "Voce e um assistente virtual de apoio clinico interno. Responda em portugues, "
-    "somente com base nas informacoes fornecidas. Nao prescreva diretamente e "
-    "condicione qualquer conduta a validacao de um medico responsavel. Preserve "
-    "valores numericos e cite as fontes no formato [PROT-000]."
-)
+DEFAULT_QUALITY_OUTPUT_DIR = DEFAULT_OUTPUT_DIR / "qwen2.5-1.5b-v5"
 
 _MISSING_DEPS_MSG = (
     "As dependencias de fine-tuning nao estao instaladas. Rode:\n"
@@ -123,8 +121,15 @@ def _carregar_exemplos(path: Path) -> list[dict]:
 
 
 def _formatar_instrucao(exemplo: dict) -> str:
-    entrada = f"\nContexto: {exemplo['input']}" if exemplo.get("input") else ""
-    return f"{exemplo['instruction']}{entrada}"
+    return formatar_prompt_usuario(
+        pergunta=exemplo["instruction"],
+        contexto_paciente=exemplo.get("contexto_paciente")
+        or exemplo.get("input")
+        or "Nenhum paciente informado.",
+        protocolos=exemplo.get("protocolos")
+        or "Nenhum protocolo relevante encontrado.",
+        plano_factual=exemplo.get("plano_factual") or exemplo["output"],
+    )
 
 
 def _formatar_prefixo(exemplo: dict, tokenizer) -> str:
@@ -133,14 +138,14 @@ def _formatar_prefixo(exemplo: dict, tokenizer) -> str:
     if getattr(tokenizer, "chat_template", None):
         return tokenizer.apply_chat_template(
             [
-                {"role": "system", "content": SYSTEM_PROMPT_TREINO},
+                {"role": "system", "content": SYSTEM_PROMPT_CLINICO},
                 {"role": "user", "content": instrucao},
             ],
             tokenize=False,
             add_generation_prompt=True,
         )
     return (
-        f"Sistema: {SYSTEM_PROMPT_TREINO}\n\n"
+        f"Sistema: {SYSTEM_PROMPT_CLINICO}\n\n"
         f"Instrucao: {instrucao}\n"
         "Resposta:"
     )
@@ -224,8 +229,14 @@ def treinar(args: argparse.Namespace) -> dict:
         tokenizar, remove_columns=list(val_examples[0].keys())
     )
 
-    modelo = stack["AutoModelForCausalLM"].from_pretrained(args.base_model)
+    usar_fp16 = bool(torch.cuda.is_available() and not args.no_fp16)
+    model_kwargs = {"torch_dtype": torch.float16} if usar_fp16 else {}
+    modelo = stack["AutoModelForCausalLM"].from_pretrained(
+        args.base_model, **model_kwargs
+    )
     modelo.config.use_cache = False
+    if args.gradient_checkpointing:
+        modelo.gradient_checkpointing_enable()
 
     target_modules = args.lora_target_modules or _default_target_modules(args.base_model)
     lora_config = stack["LoraConfig"](
@@ -257,6 +268,7 @@ def treinar(args: argparse.Namespace) -> dict:
         disable_tqdm=True,
         seed=args.seed,
         data_seed=args.seed,
+        fp16=usar_fp16,
     )
 
     collator = stack["DataCollatorForSeq2Seq"](
@@ -331,6 +343,8 @@ def treinar(args: argparse.Namespace) -> dict:
         "warmup_ratio": args.warmup_ratio,
         "max_length": args.max_length,
         "seed": args.seed,
+        "fp16": usar_fp16,
+        "gradient_checkpointing": args.gradient_checkpointing,
         "inclui_dados_publicos": args.include_public_data,
         "repeticao_exemplos_clinicos": args.clinical_repeat,
         "n_exemplos_treino": len(train_examples),
@@ -343,7 +357,11 @@ def treinar(args: argparse.Namespace) -> dict:
             "treino": _sha256(train_path),
             "validacao": _sha256(val_path),
         },
+        "prompt_sha256": hashlib.sha256(
+            (SYSTEM_PROMPT_CLINICO + "\n" + USER_PROMPT_TEMPLATE).encode("utf-8")
+        ).hexdigest(),
         "device": str(next(modelo.parameters()).device),
+        "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
         "torch_version": stack["torch"].__version__,
         "duracao_segundos": round(duracao, 2),
         "loss_final_treino": resultado_treino.training_loss,
@@ -369,13 +387,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--base-model", default=DEFAULT_BASE_MODEL)
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_QUALITY_OUTPUT_DIR)
-    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--epochs", type=int, default=4)
     parser.add_argument("--batch-size", type=int, default=2)
-    parser.add_argument("--gradient-accumulation-steps", type=int, default=2)
-    parser.add_argument("--learning-rate", type=float, default=1e-4)
+    parser.add_argument("--gradient-accumulation-steps", type=int, default=4)
+    parser.add_argument("--learning-rate", type=float, default=5e-5)
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--warmup-ratio", type=float, default=0.1)
-    parser.add_argument("--max-length", type=int, default=384)
+    parser.add_argument("--max-length", type=int, default=512)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--include-public-data",
@@ -388,12 +406,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--clinical-repeat",
         type=int,
-        default=3,
+        default=1,
         help="Fator de oversampling dos exemplos alinhados ao assistente clinico.",
     )
-    parser.add_argument("--lora-r", type=int, default=8)
-    parser.add_argument("--lora-alpha", type=int, default=16)
+    parser.add_argument("--lora-r", type=int, default=16)
+    parser.add_argument("--lora-alpha", type=int, default=32)
     parser.add_argument("--lora-dropout", type=float, default=0.05)
+    parser.add_argument(
+        "--gradient-checkpointing",
+        action="store_true",
+        help="Reduz memoria de ativacoes; recomendado para o modelo de 3B.",
+    )
+    parser.add_argument(
+        "--no-fp16",
+        action="store_true",
+        help="Desativa FP16 mesmo quando uma GPU CUDA esta disponivel.",
+    )
     parser.add_argument(
         "--lora-target-modules",
         type=lambda s: [m.strip() for m in s.split(",") if m.strip()],

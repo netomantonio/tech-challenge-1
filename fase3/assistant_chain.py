@@ -25,9 +25,10 @@ from fase3.ehr_tools import get_paciente
 from fase3.guardrails import aplicar_guardrails
 from fase3.llm_backend import get_llm
 from fase3.logging_utils import registrar_interacao
+from fase3.prompting import USER_PROMPT_TEMPLATE, formatar_protocolos_prompt
 from fase3.retrieval import DEFAULT_TOP_K, BM25Retriever, buscar_protocolos, construir_retriever, formatar_fontes
 
-PROMPT_VERSION = "assistente_medico_v1"
+PROMPT_VERSION = "assistente_medico_v2"
 
 _WORD_RE = re.compile(r"[a-zA-ZÀ-ÿ0-9-]+")
 _PROTOCOL_RE = re.compile(r"\bPROT-\d{3}\b", re.IGNORECASE)
@@ -45,24 +46,7 @@ _STOPWORDS = {
     "fonte", "fontes", "consultada", "consultadas",
 }
 
-PROMPT = PromptTemplate.from_template(
-    "Contexto do paciente:\n{contexto_paciente}\n\n"
-    "Fontes internas recuperadas e autorizadas:\n{protocolos}\n\n"
-    "Plano factual autorizado (nao altere fatos, numeros ou fontes):\n"
-    "{plano_factual}\n\n"
-    "Pergunta do medico: {pergunta}\n\n"
-    "Use o plano factual como resposta. Faca somente ajustes gramaticais, sem "
-    "acrescentar, remover ou substituir fatos, numeros ou fontes. Retorne apenas "
-    "2 a 5 frases objetivas em portugues, seguindo obrigatoriamente "
-    "estas regras:\n"
-    "1. Use somente fatos presentes no contexto do paciente e nos protocolos acima.\n"
-    "2. Nao invente diagnosticos, medicamentos, exames, doses ou valores numericos.\n"
-    "3. Preserve exatamente os valores numericos recebidos no contexto.\n"
-    "4. Cite entre colchetes pelo menos um protocolo usado, por exemplo [PROT-006].\n"
-    "5. Condicione qualquer conduta a validacao da equipe medica.\n"
-    "6. Se o paciente nao foi encontrado ou faltar informacao, informe a limitacao "
-    "e nao sugira conduta."
-)
+PROMPT = PromptTemplate.from_template(USER_PROMPT_TEMPLATE)
 
 
 def construir_chain(llm: LLM) -> Runnable:
@@ -71,10 +55,13 @@ def construir_chain(llm: LLM) -> Runnable:
 
 
 def _formatar_protocolos(documentos) -> str:
-    if not documentos:
-        return "Nenhum protocolo relevante encontrado."
-    return "\n".join(
-        f"[{doc.metadata['id']}] {doc.metadata['titulo']}" for doc in documentos
+    return formatar_protocolos_prompt(
+        {
+            "id": doc.metadata["id"],
+            "titulo": doc.metadata["titulo"],
+            "conteudo": doc.page_content,
+        }
+        for doc in documentos
     )
 
 
@@ -123,10 +110,12 @@ def _avaliar_grounding(
 
     ids_recuperados = {doc.metadata["id"] for doc in documentos}
     ids_citados = {item.upper() for item in _PROTOCOL_RE.findall(resposta)}
-    if not ids_citados:
-        motivos.append("fonte_ausente")
-    elif not ids_citados <= ids_recuperados:
-        motivos.append("fonte_nao_recuperada")
+    fonte_obrigatoria = not (paciente_id and paciente is None)
+    if fonte_obrigatoria:
+        if not ids_citados:
+            motivos.append("fonte_ausente")
+        elif not ids_citados <= ids_recuperados:
+            motivos.append("fonte_nao_recuperada")
 
     contexto = " ".join(
         [
@@ -169,13 +158,28 @@ def _avaliar_grounding(
     ):
         motivos.append("paciente_nao_encontrado_ignorado")
 
-    if "quimioterapia" in pergunta_normalizada:
-        pendentes = (paciente or {}).get("exames_pendentes", [])
+    pendentes = (paciente or {}).get("exames_pendentes", [])
+    consulta_pre_tratamento = "quimioterapia" in pergunta_normalizada or (
+        bool(pendentes)
+        and any(
+            termo in pergunta_normalizada
+            for termo in ("ciclo", "tratamento", "liberar", "autorizacao")
+        )
+    )
+    if consulta_pre_tratamento:
         if pendentes and not (
             "pendente" in resposta_normalizada
             and any(
                 trecho in resposta_normalizada
-                for trecho in ("nao inicie", "nao iniciar", "nenhum ciclo", "antes de iniciar")
+                for trecho in (
+                    "nao inicie",
+                    "nao iniciar",
+                    "nenhum ciclo",
+                    "antes de iniciar",
+                    "nao cumpre",
+                    "deve aguardar",
+                    "adiar",
+                )
             )
         ):
             motivos.append("pendencias_pre_quimioterapia_ignoradas")
@@ -242,7 +246,15 @@ def _resposta_fallback_segura(
             "com a equipe responsavel."
         )
 
-    normalizada = _normalizar(pergunta)
+    contexto_decisorio = " ".join(
+        [
+            pergunta,
+            (paciente or {}).get("observacoes", ""),
+            *((paciente or {}).get("exames_pendentes", [])),
+            *((paciente or {}).get("alertas_ativos", [])),
+        ]
+    )
+    normalizada = _normalizar(contexto_decisorio)
     ids = {doc.metadata["id"] for doc in documentos}
     if "PROT-011" in ids and any(termo in normalizada for termo in ("febre", "taquicardia", "sepse")):
         alertas = "; ".join((paciente or {}).get("alertas_ativos", []))
@@ -270,7 +282,10 @@ def _resposta_fallback_segura(
         )
 
     if "PROT-004" in ids and "dor" in normalizada:
-        escala = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10", pergunta)
+        contexto_dor = " ".join(
+            [pergunta, *((paciente or {}).get("alertas_ativos", []))]
+        )
+        escala = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10", contexto_dor)
         intensidade = (
             f" com intensidade registrada de {escala.group(1)}/10" if escala else ""
         )
@@ -306,6 +321,7 @@ def responder_pergunta_clinica(
     llm: Optional[LLM] = None,
     retriever: Optional[BM25Retriever] = None,
     top_k: int = DEFAULT_TOP_K,
+    incluir_diagnostico: bool = False,
 ) -> dict:
     """Responde uma pergunta clinica com contexto de protocolos e do paciente.
 
@@ -316,9 +332,20 @@ def responder_pergunta_clinica(
     llm = llm or get_llm()
     retriever = retriever or construir_retriever(k=top_k)
 
-    documentos = buscar_protocolos(pergunta, retriever)
-    fontes = formatar_fontes(documentos)
     paciente = get_paciente(paciente_id) if paciente_id else None
+    consulta_retrieval = pergunta
+    if paciente:
+        consulta_retrieval = " ".join(
+            [
+                pergunta,
+                paciente.get("diagnostico", ""),
+                paciente.get("observacoes", ""),
+                *paciente.get("exames_pendentes", []),
+                *paciente.get("alertas_ativos", []),
+            ]
+        )
+    documentos = buscar_protocolos(consulta_retrieval, retriever)
+    fontes = formatar_fontes(documentos)
 
     chain = construir_chain(llm)
     resposta_bruta = chain.invoke(
@@ -341,6 +368,7 @@ def responder_pergunta_clinica(
     motivos_grounding: list[str] = []
     grounding_fallback = False
     grounding_citation_repair = False
+    modo_resposta = "bloqueada" if resultado.bloqueado else "llm"
     if not resultado.bloqueado:
         motivos_grounding = _avaliar_grounding(
             resposta_bruta,
@@ -372,9 +400,11 @@ def responder_pergunta_clinica(
             )
             if not motivos_apos_reparo:
                 grounding_citation_repair = True
+                modo_resposta = "citacao_reparada"
                 resultado = aplicar_guardrails(resposta_com_fontes)
         grounding_fallback = bool(motivos_grounding) and not grounding_citation_repair
         if grounding_fallback:
+            modo_resposta = "fallback"
             resposta_fallback = _resposta_fallback_segura(
                 pergunta,
                 paciente_id,
@@ -391,12 +421,13 @@ def responder_pergunta_clinica(
         fontes=fontes,
         grounding_fallback=grounding_fallback,
         grounding_citation_repair=grounding_citation_repair,
+        modo_resposta=modo_resposta,
         motivos_grounding=motivos_grounding,
         bloqueado=resultado.bloqueado,
         motivo_bloqueio=resultado.motivo,
     )
 
-    return {
+    retorno = {
         "resposta": resultado.resposta,
         "fontes": fontes,
         "bloqueado": resultado.bloqueado,
@@ -405,4 +436,8 @@ def responder_pergunta_clinica(
         "grounding_fallback": grounding_fallback,
         "grounding_citation_repair": grounding_citation_repair,
         "motivos_grounding": motivos_grounding,
+        "modo_resposta": modo_resposta,
     }
+    if incluir_diagnostico:
+        retorno["resposta_llm_bruta"] = resposta_bruta
+    return retorno

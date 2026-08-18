@@ -6,9 +6,9 @@
 #
 #   pip install -r requirements.txt -r requirements-fase3.txt
 #
-# CPU-only por padrao (sem GPU disponivel no ambiente do projeto); para
-# treinar um modelo maior (ex.: Qwen2.5-1.5B-Instruct) em tempo razoavel,
-# recomenda-se rodar em um ambiente com GPU (ex.: Google Colab).
+# O adapter promovido foi treinado em CUDA/FP16 numa RTX 3060 de 12 GB.
+# Para reproduzir em GPU, instale previamente uma build CUDA compativel do
+# PyTorch; a mesma lista tambem permite inferencia e testes em CPU.
 torch>=2.6,<3.0
 transformers>=4.44,<5.0
 peft>=0.12,<1.0

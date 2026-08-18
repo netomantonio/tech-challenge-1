@@ -8,26 +8,30 @@ deterministico (`fase3.llm_backend.get_llm("fake", ...)`).
 from __future__ import annotations
 
 import os
+import json
 import tempfile
 import unittest
 import unittest.mock
 from pathlib import Path
 
 from fase3 import ehr_tools
-from fase3.assistant_chain import responder_pergunta_clinica
+from fase3.assistant_chain import _resposta_fallback_segura, responder_pergunta_clinica
 from fase3.clinical_flow_graph import executar_fluxo_clinico
 from fase3.data.build_finetuning_dataset import (
     FinetuningExample,
     anonimizar_texto,
+    construir_dataset,
     curar,
     detectar_pii,
+    dividir_treino_validacao,
 )
-from fase3.evaluate_assistant import avaliar_resposta
-from fase3.finetuning.train_lora import _tokenizar_exemplo_resposta
+from fase3.evaluate_assistant import CASES_PATH, avaliar_resposta, carregar_casos
+from fase3.finetuning.train_lora import _formatar_instrucao, _tokenizar_exemplo_resposta
 from fase3.guardrails import DISCLAIMER, aplicar_guardrails
 from fase3.llm_backend import (
     DEFAULT_LOCAL_BASE_MODEL,
     DEFAULT_LOCAL_ADAPTER_PATH,
+    DEFAULT_LOCAL_LORA_SCALE,
     LEGACY_DISTILGPT2_ADAPTER_PATH,
     GroqLLM,
     LLMUnavailableError,
@@ -35,6 +39,7 @@ from fase3.llm_backend import (
     get_llm,
 )
 from fase3.retrieval import buscar_protocolos, construir_retriever
+from fase3.prompting import formatar_prompt_usuario
 
 
 class AnonimizacaoTests(unittest.TestCase):
@@ -69,6 +74,27 @@ class CuradoriaDatasetTests(unittest.TestCase):
         ids = {e.source_id for e in curados}
         self.assertEqual(ids, {"1", "3"})
 
+    def test_dataset_alinhado_tem_splits_fixos_e_sem_vazamento(self) -> None:
+        exemplos = construir_dataset()
+        train, val = dividir_treino_validacao(exemplos)
+        casos_avaliacao = carregar_casos()
+
+        self.assertEqual(len(exemplos), 48)
+        self.assertEqual(len(train), 40)
+        self.assertEqual(len(val), 8)
+        self.assertEqual(len({exemplo.family for exemplo in exemplos}), 8)
+        perguntas_treino = {exemplo.instruction.casefold() for exemplo in exemplos}
+        perguntas_avaliacao = {caso["pergunta"].casefold() for caso in casos_avaliacao}
+        self.assertTrue(perguntas_treino.isdisjoint(perguntas_avaliacao))
+        self.assertTrue(
+            all(not detectar_pii(json.dumps(exemplo.as_dict())) for exemplo in exemplos)
+        )
+
+    def test_avaliacao_tem_dezesseis_regulares_e_oito_adversariais(self) -> None:
+        casos = json.loads(CASES_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(sum(caso["tipo"] == "regular" for caso in casos), 16)
+        self.assertEqual(sum(caso["tipo"] == "adversarial" for caso in casos), 8)
+
 
 class GuardrailsTests(unittest.TestCase):
     def test_resposta_segura_recebe_disclaimer(self) -> None:
@@ -88,6 +114,10 @@ class GuardrailsTests(unittest.TestCase):
 
 
 class LLMBackendTests(unittest.TestCase):
+    def test_backend_local_usa_adapter_e_escala_promovidos(self) -> None:
+        self.assertIn("qwen2.5-1.5b-v4", str(DEFAULT_LOCAL_ADAPTER_PATH))
+        self.assertEqual(DEFAULT_LOCAL_LORA_SCALE, 0.75)
+
     def test_fake_llm_retorna_respostas_em_ordem(self) -> None:
         llm = get_llm("fake", respostas=["primeira", "segunda"])
         self.assertEqual(llm.invoke("q1"), "primeira")
@@ -148,6 +178,22 @@ class _TokenizerMinimo:
 
 
 class FinetuningResponseOnlyTests(unittest.TestCase):
+    def test_prompt_de_treino_usa_mesmo_formatador_da_inferencia(self) -> None:
+        exemplo = {
+            "instruction": "Qual protocolo seguir?",
+            "contexto_paciente": "Paciente sintetico com exame pendente.",
+            "protocolos": "[PROT-006] Exames pre-tratamento.",
+            "plano_factual": "Reavalie os exames. Fonte: [PROT-006].",
+            "output": "Reavalie os exames. Fonte: [PROT-006].",
+        }
+        esperado = formatar_prompt_usuario(
+            pergunta=exemplo["instruction"],
+            contexto_paciente=exemplo["contexto_paciente"],
+            protocolos=exemplo["protocolos"],
+            plano_factual=exemplo["plano_factual"],
+        )
+        self.assertEqual(_formatar_instrucao(exemplo), esperado)
+        self.assertNotIn("2 a 5", esperado)
     def test_loss_supervisiona_somente_tokens_da_resposta(self) -> None:
         exemplo = {
             "instruction": "Qual protocolo seguir?",
@@ -168,6 +214,22 @@ class FinetuningResponseOnlyTests(unittest.TestCase):
 
 
 class EvaluationQualityTests(unittest.TestCase):
+    def test_avaliacao_normaliza_acentos_clinicos(self) -> None:
+        resultado = {
+            "resposta": (
+                "Confirme hemograma e função hepática conforme [PROT-006].\n\n"
+                + DISCLAIMER
+            ),
+            "fontes": [{"id": "PROT-006", "titulo": "Exames pre-tratamento"}],
+            "bloqueado": False,
+        }
+        checks = avaliar_resposta(
+            resultado,
+            {"termos_esperados": ["hepatica"], "grupos_adequacao": [["funcao hepatica"]]},
+        )
+        self.assertTrue(checks["conteudo_clinico_esperado"])
+        self.assertTrue(checks["adequacao_clinica_ao_caso"])
+
     def test_resposta_repetitiva_e_protocolo_inventado_reprovam(self) -> None:
         resultado = {
             "resposta": ("informacao " * 12) + "[PROT-013]\n\n" + DISCLAIMER,
@@ -255,6 +317,27 @@ class EhrToolsTests(unittest.TestCase):
 
 
 class AssistantChainTests(unittest.TestCase):
+    def test_contexto_do_ehr_enriquece_retrieval_para_pergunta_generica(self) -> None:
+        llm = get_llm("fake", respostas=["Acione a equipe medica imediatamente."])
+        resultado = responder_pergunta_clinica(
+            "Os sinais atuais exigem acionamento imediato?",
+            paciente_id="PAC-0005",
+            llm=llm,
+        )
+        self.assertEqual(resultado["fontes"][0]["id"], "PROT-011")
+
+    def test_plano_de_dor_preserva_intensidade_do_ehr(self) -> None:
+        paciente = ehr_tools.get_paciente("PAC-0006")
+        documentos = buscar_protocolos("dor pos-operatoria", construir_retriever(k=3))
+        plano = _resposta_fallback_segura(
+            "Como comunicar a equipe sobre a intensidade da dor?",
+            "PAC-0006",
+            paciente,
+            documentos,
+        )
+        self.assertIn("7/10", plano)
+        self.assertIn("equipe cirurgica", plano)
+
     def test_resposta_inclui_fontes_e_disclaimer(self) -> None:
         llm = get_llm("fake", respostas=["Siga o protocolo institucional relevante."])
         resultado = responder_pergunta_clinica(
@@ -263,6 +346,24 @@ class AssistantChainTests(unittest.TestCase):
         self.assertGreater(len(resultado["fontes"]), 0)
         self.assertFalse(resultado["bloqueado"])
         self.assertIn(DISCLAIMER, resultado["resposta"])
+        self.assertIn(resultado["modo_resposta"], {"llm", "citacao_reparada", "fallback"})
+        self.assertNotIn("resposta_llm_bruta", resultado)
+
+    def test_diagnostico_opt_in_inclui_resposta_bruta(self) -> None:
+        llm = get_llm(
+            "fake",
+            respostas=[
+                "Dor pos-operatoria persistente exige reavaliacao e comunicacao "
+                "a equipe cirurgica. Fonte: [PROT-004]."
+            ],
+        )
+        resultado = responder_pergunta_clinica(
+            "Como encaminhar dor pos-operatoria persistente?",
+            paciente_id="PAC-0006",
+            llm=llm,
+            incluir_diagnostico=True,
+        )
+        self.assertIn("resposta_llm_bruta", resultado)
 
     def test_prescricao_direta_do_llm_e_bloqueada_na_chain(self) -> None:
         llm = get_llm("fake", respostas=["Tome 500mg de dipirona agora mesmo."])
@@ -324,7 +425,17 @@ class ClinicalFlowGraphTests(unittest.TestCase):
         llm = get_llm("fake", respostas=["Siga o protocolo institucional relevante."])
         estado = executar_fluxo_clinico("PAC-0001", "Posso iniciar o tratamento?", llm=llm)
         self.assertTrue(estado["paciente_encontrado"])
+        self.assertTrue(estado["tem_exames_pendentes"])
+        self.assertEqual(estado["rota_exames"], "com_pendencias")
+        self.assertIn("ecocardiograma_basal", estado["exames_pendentes"])
         self.assertTrue(any("Exames pendentes" in a for a in estado["alertas"]))
+
+    def test_fluxo_sem_pendencias_segue_rota_direta(self) -> None:
+        llm = get_llm("fake", respostas=["Consulte a equipe medica."])
+        estado = executar_fluxo_clinico("PAC-0002", "Qual conduta seguir?", llm=llm)
+        self.assertFalse(estado["tem_exames_pendentes"])
+        self.assertEqual(estado["rota_exames"], "sem_pendencias")
+        self.assertFalse(any("Exames pendentes" in alerta for alerta in estado["alertas"]))
 
     def test_fluxo_encerra_com_seguranca_se_paciente_nao_existe(self) -> None:
         llm = get_llm("fake", respostas=["nao deveria ser usado"])

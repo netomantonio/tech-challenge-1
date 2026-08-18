@@ -8,7 +8,7 @@ Tres modos, escolhidos por ``backend=`` ou pela variavel de ambiente
   LLM compativel com LangChain.
 - ``"local"``: carrega o modelo base instrucional + adapter LoRA treinado em
   ``fase3/finetuning/train_lora.py`` via ``transformers``/``peft``. A classe
-  local aplica o chat template do tokenizer, limita repeticao e devolve
+  local aplica o chat template do tokenizer, usa decodificacao deterministica e devolve
   somente os tokens novos. Requer ``requirements-fase3.txt`` instalado.
 - ``"fake"``: LLM determinístico usado em testes automatizados, sem rede e
   sem dependencias pesadas.
@@ -25,14 +25,17 @@ from typing import Any, Optional
 import httpx
 from langchain_core.language_models.llms import LLM
 
+from fase3.prompting import SYSTEM_PROMPT_CLINICO
+
 DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant"
 DEFAULT_LOCAL_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+DEFAULT_LOCAL_LORA_SCALE = 0.75
 DEFAULT_LOCAL_ADAPTER_PATH = (
     Path(__file__).resolve().parent.parent
     / "resultados"
     / "fase3"
     / "finetuning"
-    / "qwen2.5-1.5b"
+    / "qwen2.5-1.5b-v4"
     / "lora_adapter"
 )
 LEGACY_DISTILGPT2_ADAPTER_PATH = (
@@ -44,19 +47,6 @@ LEGACY_DISTILGPT2_ADAPTER_PATH = (
     / "lora_adapter"
 )
 GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
-
-SYSTEM_PROMPT_CLINICO = (
-    "Voce e um assistente virtual de apoio clinico interno do hospital. "
-    "Responda apenas com base nos protocolos e informacoes de contexto "
-    "fornecidos. Nunca prescreva medicamentos, doses ou tratamentos "
-    "diretamente: toda sugestao terapeutica deve ser explicitamente "
-    "condicionada a validacao de um medico responsavel. Se a informacao "
-    "necessaria nao estiver no contexto fornecido, diga isso claramente "
-    "em vez de inventar uma resposta. Preserve os valores numericos do "
-    "contexto exatamente como recebidos e cite os protocolos no formato "
-    "[PROT-000]."
-)
-
 
 class LLMUnavailableError(RuntimeError):
     """Erro ao chamar o provedor de LLM (chave ausente, rede indisponivel, etc.)."""
@@ -154,9 +144,9 @@ class LocalAdapterLLM(LLM):
     tokenizer: Any
     max_new_tokens: int = 160
     max_input_tokens: int = 2048
-    repetition_penalty: float = 1.12
-    no_repeat_ngram_size: int = 4
-    lora_scale: float = 1.0
+    repetition_penalty: float = 1.0
+    no_repeat_ngram_size: int = 0
+    lora_scale: float = DEFAULT_LOCAL_LORA_SCALE
 
     @property
     def _llm_type(self) -> str:  # noqa: D401
@@ -240,6 +230,7 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
     os.environ["TRANSFORMERS_NO_TF"] = "1"
     os.environ.setdefault("USE_TORCH", "1")
     try:
+        import torch
         from peft import PeftModel
         from transformers import AutoModelForCausalLM, AutoTokenizer
     except ImportError as exc:  # pragma: no cover - exercitado so sem requirements-fase3.txt
@@ -249,8 +240,9 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
         ) from exc
 
     base_model = base_model or os.getenv("FASE3_LOCAL_BASE_MODEL", DEFAULT_LOCAL_BASE_MODEL)
-    adapter_path = _resolver_local_adapter_path(base_model, adapter_path)
-    if not adapter_path:
+    use_adapter = bool(kwargs.get("use_adapter", True))
+    adapter_path = _resolver_local_adapter_path(base_model, adapter_path) if use_adapter else None
+    if use_adapter and not adapter_path:
         raise LLMUnavailableError(
             "Adapter LoRA local nao encontrado. Treine o modelo com "
             "`python -m fase3.finetuning.train_lora` ou informe `adapter_path`."
@@ -259,22 +251,30 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
     tokenizer = AutoTokenizer.from_pretrained(base_model)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
-    modelo = AutoModelForCausalLM.from_pretrained(base_model)
-    modelo = PeftModel.from_pretrained(modelo, adapter_path)
-    escala_padrao = 0.1 if base_model == DEFAULT_LOCAL_BASE_MODEL else 1.0
+    usar_cuda = torch.cuda.is_available()
+    model_kwargs = {"torch_dtype": torch.float16} if usar_cuda else {}
+    modelo = AutoModelForCausalLM.from_pretrained(base_model, **model_kwargs)
+    if use_adapter:
+        modelo = PeftModel.from_pretrained(modelo, adapter_path)
+    escala_padrao = DEFAULT_LOCAL_LORA_SCALE
     escala_informada = kwargs.get("lora_scale")
     lora_scale = float(
         escala_informada
         if escala_informada is not None
         else os.getenv("FASE3_LOCAL_LORA_SCALE", str(escala_padrao))
     )
-    if not 0.0 < lora_scale <= 1.0:
+    if use_adapter and not 0.0 < lora_scale <= 1.0:
         raise ValueError("lora_scale deve estar no intervalo (0, 1].")
-    for modulo in modelo.modules():
-        scaling = getattr(modulo, "scaling", None)
-        if isinstance(scaling, dict):
-            for adapter, valor in scaling.items():
-                scaling[adapter] = valor * lora_scale
+    if not use_adapter:
+        lora_scale = 0.0
+    else:
+        for modulo in modelo.modules():
+            scaling = getattr(modulo, "scaling", None)
+            if isinstance(scaling, dict):
+                for adapter, valor in scaling.items():
+                    scaling[adapter] = valor * lora_scale
+    if usar_cuda:
+        modelo = modelo.to("cuda")
     modelo.eval()
 
     return LocalAdapterLLM(
@@ -282,8 +282,10 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
         tokenizer=tokenizer,
         max_new_tokens=kwargs.get("max_new_tokens", 160),
         max_input_tokens=kwargs.get("max_input_tokens", 2048),
-        repetition_penalty=kwargs.get("repetition_penalty", 1.12),
-        no_repeat_ngram_size=kwargs.get("no_repeat_ngram_size", 4),
+        # O modelo redige o plano factual recebido no prompt; penalizar repeticao
+        # degrada a preservacao de fatos e identificadores autorizados.
+        repetition_penalty=kwargs.get("repetition_penalty", 1.0),
+        no_repeat_ngram_size=kwargs.get("no_repeat_ngram_size", 0),
         lora_scale=lora_scale,
     )
 
