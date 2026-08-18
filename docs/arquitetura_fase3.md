@@ -91,13 +91,15 @@ unico `{instruction, input, output, source_type, source_id}`:
 | Prontuarios sinteticos | Perguntas sobre exames pendentes por paciente | Identificacao apenas por codigo (`PAC-000x`), nunca nome |
 | MedQuAD (CancerGov, foco Breast Cancer) | 12 pares de pergunta/resposta | Dominio publico (orgao do governo dos EUA), via `abachaa/MedQuAD` |
 | PubMedQA | 8 pares de pergunta/resposta (long answer) | Resumos de abstracts do PubMed, via `pubmedqa/pubmedqa` |
+| Exemplos clínicos alinhados | 18 pares com paráfrases | Preservação de números, fontes, validação médica e seis intenções clínicas |
 
 Cada texto passa por `anonimizar_texto()` (regex para CPF, telefone,
 e-mail e rotulos de nome) antes de entrar no dataset — defensivo mesmo
 sobre fontes ja sinteticas, simulando o que rodaria sobre dados reais do
 hospital. A curadoria (`curar()`) remove duplicatas exatas e exemplos fora
-da faixa de 20 a 1500 caracteres de resposta. O resultado (39 exemplos) e
-dividido de forma deterministica em treino (33) e validacao (6).
+da faixa de 20 a 1500 caracteres de resposta. O resultado atual (**57
+exemplos**) e dividido de forma deterministica em treino (**48**) e
+validacao (**9**).
 
 ### 3.2 Treinamento
 
@@ -106,21 +108,19 @@ dividido de forma deterministica em treino (33) e validacao (6).
 `requirements-fase3.txt`, fora do `requirements.txt` principal, para nao
 afetar a CI das Fases 1/2.
 
-Um smoke test real foi executado com `distilgpt2` (82M parametros
-pretreinados — nao um fixture aleatorio) para provar que o pipeline
-efetivamente aprende:
+O treino usa response-only loss: system prompt, pergunta, contexto e
+padding recebem label `-100`. Quatro experimentos reais foram preservados:
 
-| Epoca | Loss medio (treino) | Loss (validacao) |
-| ---: | ---: | ---: |
-| 1 | 4.7990 | 4.8405 |
-| 2 | 4.5711 | 4.7904 |
-| 3 | 4.4342 | 4.7692 |
+| Modelo | Treino/val. efetivos | Loss val. | Perplexidade | Resultado de geração |
+| --- | ---: | ---: | ---: | --- |
+| `distilgpt2` | 33 / 6 | 4,7692 | 117,826 | Repetitivo e sem capacidade instrucional em português |
+| Qwen2.5-0.5B v1 | 30 / 5 | 2,6581 | 14,269 | Melhor formato, mas fontes/valores inconsistentes |
+| Qwen2.5-0.5B v2 | 75 / 7 | 2,2172 | 9,182 | Alterou `BI-RADS 4` para 5 e `7/10` para `7/9` |
+| **Qwen2.5-1.5B** | **60 / 7** | **2,1101** | **8,249** | Selecionado com escala LoRA 0,1 e grounding obrigatório |
 
-Artefatos em `resultados/fase3/finetuning/smoke/` (`lora_adapter/` +
-`training_summary.json`). Para um fine-tuning "de producao", basta trocar
-o modelo base (ex.: `Qwen/Qwen2.5-0.5B-Instruct`) e os modulos de LoRA —
-recomendado rodar em GPU (ex.: Google Colab), ja que o ambiente do projeto
-e CPU-only.
+Os adapters e resumos ficam em `resultados/fase3/finetuning/`. A redução
+de loss não é tratada como evidência suficiente: cada versão também foi
+testada em geração clínica. O histórico completo está no relatório técnico.
 
 ## 4. Assistente clinico (LangChain) e explainability
 
@@ -130,10 +130,14 @@ e CPU-only.
    sem embeddings, 100% offline);
 2. Busca o contexto estruturado do paciente no mock de EHR SQLite
    (`fase3/ehr_tools.py`), semeado a partir de `pacientes_sinteticos.json`;
-3. Monta uma chain LCEL (`prompt | llm | StrOutputParser`) com o LLM
-   plugavel (`fase3/llm_backend.py`);
-4. Aplica os guardrails de seguranca (`fase3/guardrails.py`);
-5. Registra o evento de auditoria com as fontes usadas (explainability).
+3. Produz um plano factual autorizado com os dados recuperados;
+4. Monta uma chain LCEL (`prompt | llm | StrOutputParser`) com o Qwen +
+   adapter LoRA (`fase3/llm_backend.py`);
+5. Aplica guardrails de seguranca (`fase3/guardrails.py`);
+6. Valida fonte, números, aderência, repetição e adequação clínica;
+7. Repara somente citações ou usa fallback fundamentado quando a geração
+   semântica é inadequada;
+8. Registra auditoria com fontes, motivos, reparo e fallback.
 
 ```mermaid
 sequenceDiagram
@@ -142,6 +146,7 @@ sequenceDiagram
     participant RETR as retrieval.py (BM25)
     participant EHR as ehr_tools.py (SQLite)
     participant LLM as llm_backend.py
+    participant GROUND as grounding clinico
     participant GUARD as guardrails.py
     participant LOG as logging_utils.py
 
@@ -150,11 +155,13 @@ sequenceDiagram
     RETR-->>-CHAIN: documentos + fontes
     CHAIN->>+EHR: get_paciente(paciente_id)
     EHR-->>-CHAIN: exames pendentes, alertas ativos
-    CHAIN->>+LLM: chain.invoke(prompt com contexto)
+    CHAIN->>+LLM: chain.invoke(plano factual + contexto compacto)
     LLM-->>-CHAIN: resposta bruta
     CHAIN->>+GUARD: aplicar_guardrails(resposta)
     GUARD-->>-CHAIN: resposta segura + bloqueado + motivo
-    CHAIN->>LOG: registrar_interacao(fontes, bloqueado)
+    CHAIN->>+GROUND: validar fontes, numeros e adequacao
+    GROUND-->>-CHAIN: aceitar, reparar citacao ou fallback
+    CHAIN->>LOG: registrar_interacao(fontes, motivos, fallback)
     CHAIN-->>-Medico: resposta, fontes, bloqueado
 ```
 
@@ -195,6 +202,8 @@ contexto.
 | Validacao humana obrigatoria | Disclaimer fixo em toda resposta nao bloqueada |
 | Ausencia de PII na resposta | `detectar_pii()` (CPF, telefone, e-mail, rotulo de nome) |
 | Explainability | Toda resposta carrega a lista de protocolos usados (`id` + `titulo`) |
+| Grounding clínico | Reprova fonte/valor inventado, evasão, repetição e inadequação por cenário |
+| Fallback seguro | Resposta determinística baseada somente no EHR e protocolo recuperado |
 | Logging de auditoria | `logging_utils.registrar_interacao()` — stdout JSON + `resultados/fase3/auditoria.jsonl` |
 | Avaliacao objetiva | `evaluate_assistant.py`, rubrica deterministica (sem LLM-juiz), mesma filosofia do `src/evaluate_llm.py` da Fase 2 |
 
@@ -208,21 +217,24 @@ python -m fase3.data.build_finetuning_dataset
 
 # fine-tuning (opcional, dependencias pesadas):
 python -m pip install -r requirements-fase3.txt
-python -m fase3.finetuning.train_lora --output-dir resultados/fase3/finetuning/smoke
+python -m fase3.finetuning.train_lora \
+  --base-model Qwen/Qwen2.5-1.5B-Instruct \
+  --output-dir resultados/fase3/finetuning/qwen2.5-1.5b \
+  --epochs 3 --learning-rate 0.00005 --max-length 256 --clinical-repeat 3
 
 # demo usando a LLM customizada local (adapter LoRA treinado):
 python -m fase3.cli_demo --paciente-id PAC-0001 \
   --pergunta "Posso iniciar a quimioterapia hoje?" \
   --backend local \
-  --base-model distilgpt2 \
-  --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
+  --base-model Qwen/Qwen2.5-1.5B-Instruct \
+  --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter
 
 # demo de ponta a ponta:
 python -m fase3.cli_demo --paciente-id PAC-0001 --pergunta "Posso iniciar a quimioterapia hoje?"
 # sem GROQ_API_KEY, use --backend fake
 
 # avaliacao do assistente:
-python -m fase3.evaluate_assistant --backend groq   # ou fake
+python -m fase3.evaluate_assistant --backend local --lora-scale 0.1
 
 # testes automatizados:
 python -m unittest discover -s tests -v
@@ -234,9 +246,9 @@ Ou abra e execute `notebooks/04_assistente_medico_fase3.ipynb`.
 
 - Todos os protocolos, prontuarios e pacientes sao ficticios, criados para
   este projeto academico; nao refletem um hospital real.
-- O smoke test de fine-tuning usa um modelo pequeno (`distilgpt2`) para
-  manter o tempo de execucao razoavel sem GPU; um fine-tuning de producao
-  exigiria um modelo maior e mais dados reais (anonimizados) do hospital.
+- O modelo selecionado é Qwen2.5-1.5B, mas a avaliação final teve 0% de
+  aceitação direta da LLM e 100% de fallback. O pipeline é seguro; a
+  geração bruta ainda exige mais dados clínicos e um modelo maior.
 - O retrieval usa BM25 (lexico) em vez de embeddings semanticos, escolha
   deliberada para manter o pipeline 100% offline e reproduzivel; um ganho
   de qualidade viria de um retriever semantico em producao.

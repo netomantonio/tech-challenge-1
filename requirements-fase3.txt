@@ -7,7 +7,7 @@
 #   pip install -r requirements.txt -r requirements-fase3.txt
 #
 # CPU-only por padrao (sem GPU disponivel no ambiente do projeto); para
-# treinar um modelo maior (ex.: Qwen2.5-0.5B-Instruct) em tempo razoavel,
+# treinar um modelo maior (ex.: Qwen2.5-1.5B-Instruct) em tempo razoavel,
 # recomenda-se rodar em um ambiente com GPU (ex.: Google Colab).
 torch>=2.6,<3.0
 transformers>=4.44,<5.0

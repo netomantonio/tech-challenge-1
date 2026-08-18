@@ -1,0 +1,252 @@
+{
+  "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "modelo_instrucional": true,
+  "loss_apenas_na_resposta": true,
+  "lora_target_modules": [
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj",
+    "gate_proj",
+    "up_proj",
+    "down_proj"
+  ],
+  "lora_r": 8,
+  "lora_alpha": 16,
+  "lora_dropout": 0.05,
+  "epochs": 3,
+  "batch_size": 2,
+  "gradient_accumulation_steps": 2,
+  "learning_rate": 5e-05,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+  "max_length": 256,
+  "seed": 42,
+  "inclui_dados_publicos": false,
+  "repeticao_exemplos_clinicos": 3,
+  "n_exemplos_treino": 60,
+  "n_exemplos_validacao": 7,
+  "tokens_supervisionados_resposta": 3815,
+  "fracao_tokens_supervisionados": 0.3287,
+  "dataset_sha256": {
+    "treino": "11f1407683bb145055a0e9edbf77d6455c95d7622c001609dc036ddcd2693084",
+    "validacao": "5e7ce5948e307dd9bd8f3e241faea77bb0e453a27943cef4aa91173024f0ad96"
+  },
+  "device": "cpu",
+  "torch_version": "2.6.0+cpu",
+  "duracao_segundos": 593.06,
+  "loss_final_treino": 2.004753674401177,
+  "loss_final_validacao": 2.110090494155884,
+  "perplexidade_validacao": 8.249,
+  "perda_media_por_epoca": [
+    {
+      "epoch": 1,
+      "loss_medio": 2.37518
+    },
+    {
+      "epoch": 2,
+      "loss_medio": 1.90482
+    },
+    {
+      "epoch": 3,
+      "loss_medio": 1.7342599999999997
+    }
+  ],
+  "historico_perda_treino": [
+    {
+      "step": 1,
+      "loss": 2.4275
+    },
+    {
+      "step": 2,
+      "loss": 2.4101
+    },
+    {
+      "step": 3,
+      "loss": 2.4436
+    },
+    {
+      "step": 4,
+      "loss": 2.3122
+    },
+    {
+      "step": 5,
+      "loss": 2.5732
+    },
+    {
+      "step": 6,
+      "loss": 2.4673
+    },
+    {
+      "step": 7,
+      "loss": 2.4076
+    },
+    {
+      "step": 8,
+      "loss": 2.321
+    },
+    {
+      "step": 9,
+      "loss": 2.2657
+    },
+    {
+      "step": 10,
+      "loss": 2.5141
+    },
+    {
+      "step": 11,
+      "loss": 2.1941
+    },
+    {
+      "step": 12,
+      "loss": 2.622
+    },
+    {
+      "step": 13,
+      "loss": 2.2516
+    },
+    {
+      "step": 14,
+      "loss": 2.2235
+    },
+    {
+      "step": 15,
+      "loss": 2.1942
+    },
+    {
+      "step": 16,
+      "loss": 1.8497
+    },
+    {
+      "step": 17,
+      "loss": 1.9589
+    },
+    {
+      "step": 18,
+      "loss": 1.9538
+    },
+    {
+      "step": 19,
+      "loss": 1.6169
+    },
+    {
+      "step": 20,
+      "loss": 2.1345
+    },
+    {
+      "step": 21,
+      "loss": 1.8348
+    },
+    {
+      "step": 22,
+      "loss": 2.148
+    },
+    {
+      "step": 23,
+      "loss": 2.0612
+    },
+    {
+      "step": 24,
+      "loss": 1.9134
+    },
+    {
+      "step": 25,
+      "loss": 1.697
+    },
+    {
+      "step": 26,
+      "loss": 1.6406
+    },
+    {
+      "step": 27,
+      "loss": 2.0658
+    },
+    {
+      "step": 28,
+      "loss": 2.3574
+    },
+    {
+      "step": 29,
+      "loss": 1.6485
+    },
+    {
+      "step": 30,
+      "loss": 1.6918
+    },
+    {
+      "step": 31,
+      "loss": 1.5684
+    },
+    {
+      "step": 32,
+      "loss": 1.8503
+    },
+    {
+      "step": 33,
+      "loss": 1.8417
+    },
+    {
+      "step": 34,
+      "loss": 1.3533
+    },
+    {
+      "step": 35,
+      "loss": 2.0197
+    },
+    {
+      "step": 36,
+      "loss": 2.0131
+    },
+    {
+      "step": 37,
+      "loss": 1.5055
+    },
+    {
+      "step": 38,
+      "loss": 1.7149
+    },
+    {
+      "step": 39,
+      "loss": 1.6149
+    },
+    {
+      "step": 40,
+      "loss": 1.5744
+    },
+    {
+      "step": 41,
+      "loss": 1.5951
+    },
+    {
+      "step": 42,
+      "loss": 1.8987
+    },
+    {
+      "step": 43,
+      "loss": 1.9565
+    },
+    {
+      "step": 44,
+      "loss": 2.1683
+    },
+    {
+      "step": 45,
+      "loss": 1.3391
+    }
+  ],
+  "historico_perda_validacao": [
+    {
+      "epoch": 1.0,
+      "eval_loss": 2.3172173500061035
+    },
+    {
+      "epoch": 2.0,
+      "eval_loss": 2.155890703201294
+    },
+    {
+      "epoch": 3.0,
+      "eval_loss": 2.110090494155884
+    }
+  ],
+  "adapter_path": "resultados\\fase3\\finetuning\\qwen2.5-1.5b\\lora_adapter"
+}

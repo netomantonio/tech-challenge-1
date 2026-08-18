@@ -1,232 +1,253 @@
-# Relatorio tecnico - Tech Challenge 3
+# Relatório técnico — Tech Challenge Fase 3
 
-## Assistente Virtual Medico: fine-tuning, LangChain e LangGraph
+## Assistente Virtual Médico: fine-tuning, LangChain e LangGraph
 
-## 1. Objetivo
+## 1. Objetivo e escopo
 
-A Fase 3 propoe um assistente virtual medico treinado com dados proprios
-(ficticios) do hospital, capaz de auxiliar em duvidas clinicas de medicos e
-sugerir consultas a protocolos internos, com fluxos de decisao
-automatizados e seguros. O modulo (`fase3/`) e isolado das Fases 1/2 e nao
-altera nada do pipeline de diagnostico de cancer de mama ja entregue.
+A Fase 3 implementa um assistente virtual médico treinado com dados
+fictícios do hospital, capaz de consultar prontuários estruturados,
+recuperar protocolos internos e apoiar dúvidas clínicas. O módulo fica em
+`fase3/` e não altera o pipeline de diagnóstico das Fases 1 e 2.
 
-## 2. Explicacao do processo de fine-tuning
+Este relatório documenta também os experimentos que corrigiram o ponto de
+revisão: **o pipeline LoRA era real, mas a qualidade da LLM customizada era
+inadequada**. Os resultados desfavoráveis foram mantidos nesta análise para
+não confundir queda de loss com qualidade clínica.
 
-### 2.1 Dados
+## 2. Dataset, anonimização e curadoria
 
-`fase3/data/build_finetuning_dataset.py` combina tres fontes em um formato
-unico de instrucao/resposta:
+### 2.1 Fontes
 
-| Fonte | Exemplos brutos | Descricao |
+`fase3/data/build_finetuning_dataset.py` converte todas as fontes para o
+formato `{instruction, input, output, source_type, source_id}`.
+
+| Fonte | Quantidade bruta | Uso |
 | --- | ---: | --- |
-| Protocolos internos (`protocolos_hospital.json`) | 12 documentos (9 protocolos, 2 FAQs, 2 modelos de documento) | Ficticios, escritos para este projeto, cobrindo oncologia, cirurgia, enfermagem e seguranca do paciente |
-| Prontuarios sinteticos (`pacientes_sinteticos.json`) | 6 pacientes ficticios | Usados apenas para gerar exemplos de pergunta sobre exames pendentes; identificacao por codigo (`PAC-000x`), nunca por nome |
-| MedQuAD (`sample_medquad.jsonl`) | 12 pares de QA | Dominio publico, National Cancer Institute (CancerGov), foco *Breast Cancer*/*Male Breast Cancer*, via `abachaa/MedQuAD` |
-| PubMedQA (`sample_medquad.jsonl`) | 8 pares de QA | Resumos de abstracts do PubMed sobre cancer de mama, via `pubmedqa/pubmedqa` |
+| Protocolos internos | 12 documentos | Oncologia, cirurgia, enfermagem, segurança, FAQs e modelos fictícios |
+| Prontuários sintéticos | 6 pacientes | Contexto estruturado, exames pendentes e alertas clínicos |
+| Exemplos do assistente | 18 pares clínicos | Formato de resposta, preservação numérica, fonte e validação médica |
+| MedQuAD | 12 pares | Dados públicos sobre câncer de mama, com atribuição por registro |
+| PubMedQA | 8 pares | Resumos públicos de abstracts, com atribuição por registro |
 
-Cada fonte foi obtida diretamente dos repositorios publicos originais (nao
-inventada), com o campo `source`/`source_url` preservado por registro para
-rastreabilidade.
+Os 18 pares clínicos incluem paráfrases para seis intenções: exames
+pré-quimioterapia, BI-RADS 4/biópsia, febre/taquicardia/sepse, dor
+pós-operatória, checklist de exames e paciente inexistente. As perguntas da
+avaliação final não são cópias literais dessas instruções.
 
-### 2.2 Preprocessing, anonimizacao e curadoria
+### 2.2 Proteção de dados e curadoria
 
-- **Preprocessing**: normalizacao de espacos em branco, quebra dos blocos
-  de FAQ (`P: ... R: ...`) em pares pergunta/resposta individuais
-  (`_split_faq`).
-- **Anonimizacao**: `anonimizar_texto()` aplica expressoes regulares para
-  redigir CPF, telefone, e-mail e rotulos de nome (`Nome:`/`Paciente:`)
-  antes de qualquer texto entrar no dataset — aplicado defensivamente mesmo
-  sobre fontes ja sinteticas, simulando o que rodaria sobre dados reais do
-  hospital.
-- **Curadoria**: `curar()` remove duplicatas exatas (hash da instrucao +
-  resposta) e descarta exemplos com resposta fora da faixa de 20 a 1500
-  caracteres.
+- Normalização de espaços e decomposição de FAQs em pares pergunta/resposta.
+- Anonimização defensiva de CPF, telefone, e-mail e rótulos de nome.
+- Uso exclusivo de códigos fictícios `PAC-000x`, sem nomes reais.
+- Remoção de duplicatas por hash da instrução + resposta.
+- Exclusão de respostas fora da faixa de 20 a 1.500 caracteres.
+- Split determinístico para reprodutibilidade.
 
-Resultado: **39 exemplos curados**, divididos deterministicamente (sem
-aleatoriedade, para reprodutibilidade) em **33 de treino** e **6 de
-validacao**.
+O dataset final tem **57 exemplos curados: 48 de treino e 9 de validação**.
+Por padrão, o treino clínico não mistura MedQuAD/PubMedQA, porque os testes
+mostraram degradação de domínio e de idioma. Depois desse filtro, cada
+experimento registra no `training_summary.json` a quantidade efetivamente
+usada, o oversampling clínico e os hashes SHA-256 dos splits.
 
-### 2.3 Treinamento LoRA/PEFT
+## 3. Pipeline de treinamento LoRA/PEFT
 
-`fase3/finetuning/train_lora.py` usa `transformers` + `peft` (LoRA) +
-`datasets`, 100% CPU (o ambiente do projeto nao tem GPU disponivel — ver
-`Dockerfile`, imagem `python:3.11-slim`). As dependencias pesadas ficam em
-`requirements-fase3.txt`, separadas do `requirements.txt` principal para
-nao afetar a CI das Fases 1/2.
+`fase3/finetuning/train_lora.py` usa PyTorch, Transformers, Datasets e PEFT.
+O treino foi executado em CPU e possui as seguintes garantias:
 
-Foi executado um **smoke test real**, nao simulado, com o modelo
-`distilgpt2` (82M parametros, pesos pre-treinados reais — nao um fixture
-aleatorio como `sshleifer/tiny-gpt2`, que foi descartado por ter
-`hidden_size=2` e capacidade insuficiente para demonstrar aprendizado).
-Hiperparametros: LoRA `r=8`, `alpha=16`, `dropout=0.05`, modulo alvo
-`c_attn` (atencao do GPT-2), 3 epocas, `batch_size=4`,
-`learning_rate=5e-4`.
+- LoRA real, com adapter `adapter_model.safetensors` carregável pelo PEFT.
+- Loss calculada **somente nos tokens da resposta**; system prompt,
+  pergunta, contexto e padding recebem label `-100`.
+- Chat template do tokenizer para modelos instrucionais.
+- Seed de treino e de dados igual a 42.
+- Avaliação ao fim de cada época.
+- Registro de loss, perplexidade, duração, versão do PyTorch, dispositivo,
+  módulos LoRA, hiperparâmetros e hashes do dataset.
+- Para Qwen, LoRA em `q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`,
+  `up_proj` e `down_proj`, com `r=8`, `alpha=16` e `dropout=0,05`.
 
-O mesmo adapter treinado e consumido pelo assistente quando o backend
-`local` e selecionado. Na entrega academica, o caminho versionado e:
+## 4. Histórico completo dos modelos e motivo das mudanças
+
+### 4.1 Comparação quantitativa
+
+| Experimento | Modelo-base | Dataset efetivo treino/val. | Épocas | LR | Parâmetros LoRA | Loss treino final | Loss val. final | Perplexidade val. | Duração |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Smoke inicial | `distilgpt2` | 33 / 6 | 3 | 5e-4 | não registrado no resumo antigo | 4,6014 | 4,7692 | 117,826 | 43,76 s |
+| Qwen 0,5B v1 | `Qwen2.5-0.5B-Instruct` | 30 / 5 | 4 | 5e-5 | 4.399.104 (0,8826%) | 2,5861 | 2,6581 | 14,269 | 377,80 s |
+| Qwen 0,5B v2 | `Qwen2.5-0.5B-Instruct` | 75 / 7 | 5 | 1e-4 | 4.399.104 (0,8826%) | 1,2592 | 2,2172 | 9,182 | 457,67 s |
+| **Modelo selecionado** | **`Qwen2.5-1.5B-Instruct`** | **60 / 7** | **3** | **5e-5** | **9.232.384 (0,5945%)** | **2,0048** | **2,1101** | **8,249** | **593,06 s** |
+
+Notas importantes:
+
+- “Loss treino final” é a média informada pelo Trainer para toda a execução.
+  As médias por época ficam nos resumos de cada experimento.
+- A comparação entre modelos deve considerar também a geração. Loss menor
+  não garante preservação de números, idioma ou conduta clínica.
+- O Qwen 0,5B v2 usou oversampling 4; o Qwen 1,5B usou oversampling 3.
+- Os adapters Qwen 0,5B v2 e 1,5B possuem, respectivamente, cerca de 17,6 MB
+  e 37,0 MB.
+
+### 4.2 Experimento 1 — DistilGPT-2
+
+O `distilgpt2` foi usado inicialmente como smoke test de baixo custo. A
+loss de validação caiu de 4,8405 para 4,7692, provando que o código treinava
+um adapter real. Porém o modelo não é instrucional nem foi desenvolvido
+para português. As respostas eram repetitivas, sem estrutura clínica e
+chegaram a inventar IDs como `PROT-013`.
+
+**Decisão:** manter apenas como evidência histórica de smoke test. Não usar
+como backend padrão nem como evidência de qualidade clínica.
+
+### 4.3 Experimento 2 — Qwen2.5-0.5B-Instruct v1
+
+A primeira substituição adotou um modelo instrucional multilíngue e mudou o
+treino para response-only loss. A perplexidade de validação caiu de
+aproximadamente 117,8 para 14,269. Mesmo assim, a geração ainda apresentava
+recusas evasivas, termos corrompidos, fontes omitidas e valores inventados.
+
+Exemplos observados: resposta sem conduta para exames pendentes, “BI-RATS”
+em vez de BI-RADS e classificação de dor incompatível com `7/10`.
+
+**Decisão:** ampliar o dataset clínico, incluir paráfrases e aumentar a
+capacidade de ajuste do LoRA.
+
+### 4.4 Experimento 3 — Qwen2.5-0.5B-Instruct v2
+
+O dataset passou de 45 para 57 exemplos curados; o treino efetivo usou 75
+exemplos após oversampling clínico. A loss média de treino por época caiu
+de 2,5634 para 0,4909 e a perplexidade de validação chegou a 9,182. Houve
+leve piora da validação depois da terceira época, sinal de início de
+sobreajuste.
+
+O teste de geração mostrou por que loss isolada não bastava: o modelo
+alterou `BI-RADS 4` para `BI-RADS 5`, `7/10` para `7/9` e misturou português
+com outros idiomas.
+
+**Decisão:** não promover o v2 e testar um modelo-base com maior capacidade.
+
+### 4.5 Experimento 4 — Qwen2.5-1.5B-Instruct
+
+O modelo de 1,5B apresentou a melhor validação. As losses foram:
+
+| Época | Loss média de treino | Loss de validação |
+| ---: | ---: | ---: |
+| 1 | 2,3752 | 2,3172 |
+| 2 | 1,9048 | 2,1559 |
+| 3 | 1,7343 | 2,1101 |
+
+Não houve inversão da curva de validação nas três épocas. Entretanto, o
+adapter em intensidade total ainda sobrepunha conhecimento do modelo-base.
+Em testes manuais, chegou a afirmar que uma paciente com exames pendentes
+estava apta a iniciar tratamento e alterou fontes.
+
+Foi então calibrada a contribuição do adapter para `lora_scale=0,1`. Essa
+escala preserva mais da capacidade linguística do modelo-base e mantém o
+adapter ativo. O valor é configurável por `--lora-scale` ou pela variável
+`FASE3_LOCAL_LORA_SCALE` e é registrado na avaliação.
+
+**Decisão:** selecionar Qwen2.5-1.5B-Instruct + adapter LoRA + escala 0,1,
+mas exigir grounding determinístico antes de exibir qualquer resposta.
+
+## 5. Assistente, RAG e barreira de grounding
+
+`fase3.assistant_chain.responder_pergunta_clinica()` executa:
+
+1. Retrieval BM25 com normalização de acentos, sinônimos clínicos e
+   reranking por intenção.
+2. Consulta ao mock de EHR em SQLite.
+3. Construção de um plano factual autorizado a partir do prontuário e do
+   protocolo recuperado.
+4. Redação pelo Qwen + LoRA via chain LCEL
+   (`prompt | llm | StrOutputParser`).
+5. Guardrail contra PII e prescrição direta.
+6. Validação de grounding: fonte ausente/inválida, número inventado,
+   caracteres inesperados, baixa aderência, repetição, resposta evasiva e
+   critérios clínicos específicos do caso.
+7. Reparo apenas de citação quando o conteúdo está correto; fallback
+   determinístico fundamentado quando há desvio semântico ou numérico.
+8. Disclaimer de validação médica e log de auditoria.
+
+O fallback não é apresentado como melhoria da LLM. Ele é uma barreira de
+segurança do produto, e sua taxa é reportada separadamente.
+
+## 6. Avaliação final
+
+### 6.1 Rubrica
+
+`fase3/evaluate_assistant.py` avalia seis perguntas parafraseadas e exige:
+
+- fontes citadas, existentes e limitadas aos documentos recuperados;
+- ausência de protocolo ou número inventado;
+- conteúdo clínico esperado e adequação específica ao caso;
+- ausência de resposta evasiva e repetição excessiva;
+- ausência de PII e de prescrição direta;
+- disclaimer e resposta não vazia.
+
+Os cenários cobrem exames pendentes antes da quimioterapia, BI-RADS 4,
+sepse, dor pós-operatória `7/10`, paciente inexistente e checklist geral.
+
+### 6.2 Resultado do backend local real
+
+Com `Qwen/Qwen2.5-1.5B-Instruct`, adapter
+`resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter`, escala 0,1 e
+geração determinística:
+
+| Métrica | Resultado |
+| --- | ---: |
+| Casos | 6 |
+| Score objetivo final do pipeline | 1,000 |
+| Score de segurança final | 1,000 |
+| Score de qualidade final | 1,000 |
+| Taxa de fallback de grounding | 1,000 |
+| Taxa de reparo apenas de citação | 0,000 |
+| Taxa de saída da LLM aceita sem fallback | 0,000 |
+
+Interpretação correta: **o pipeline final entregou respostas fundamentadas,
+mas a LLM bruta ainda não atingiu qualidade clínica suficiente nesse
+conjunto**. Os seis casos foram protegidos pelo fallback. Assim, a correção
+elimina o risco de mostrar uma resposta inadequada e torna a limitação
+mensurável, mas não autoriza uso clínico autônomo.
+
+Artefatos:
+
+- `resultados/fase3/avaliacao_assistente.json`
+- `resultados/fase3/avaliacao_assistente.csv`
+- `resultados/fase3/resumo_avaliacao_assistente.json`
+- `resultados/fase3/finetuning/*/training_summary.json`
+
+## 7. Execução reprodutível
 
 ```bash
-python -m fase3.cli_demo --paciente-id PAC-0001 \
-  --pergunta "Posso iniciar a quimioterapia hoje?" \
+python -m pip install -r requirements-fase3.txt
+python -m fase3.data.build_finetuning_dataset
+
+python -m fase3.finetuning.train_lora \
+  --base-model Qwen/Qwen2.5-1.5B-Instruct \
+  --output-dir resultados/fase3/finetuning/qwen2.5-1.5b \
+  --epochs 3 --learning-rate 0.00005 --max-length 256 \
+  --clinical-repeat 3
+
+python -m fase3.evaluate_assistant \
   --backend local \
-  --base-model distilgpt2 \
-  --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
+  --base-model Qwen/Qwen2.5-1.5B-Instruct \
+  --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter \
+  --lora-scale 0.1 --max-new-tokens 100
+
+python -m unittest discover -s tests -v
 ```
 
-Para um fine-tuning "de producao" com um modelo maior (ex.:
-`Qwen/Qwen2.5-0.5B-Instruct` ou `TinyLlama/TinyLlama-1.1B-Chat-v1.0`),
-basta trocar `--base-model` e `--lora-target-modules`
-(`q_proj,v_proj,k_proj,o_proj` para arquiteturas Llama-like); recomenda-se
-rodar em ambiente com GPU (ex.: Google Colab), dado o tamanho do
-checkpoint e o tempo de treino.
+## 8. Limitações e próximos passos
 
-## 3. Descricao do assistente medico criado
-
-O assistente (`fase3.assistant_chain.responder_pergunta_clinica`) e um
-pipeline LangChain que:
-
-1. **Recupera protocolos relevantes** via BM25 (`fase3/retrieval.py`,
-   `rank_bm25` atraves de `langchain_community`) sobre
-   `protocolos_hospital.json` — escolha deliberada por um retriever lexico
-   em vez de embeddings, para manter o pipeline 100% offline, determinístico
-   e sem downloads adicionais de modelo;
-2. **Consulta o prontuario estruturado** do paciente (`fase3/ehr_tools.py`,
-   SQLite semeado a partir de `pacientes_sinteticos.json`) — exames
-   pendentes, exames realizados e alertas clinicos ativos;
-3. **Monta uma chain LCEL** (`prompt | llm | StrOutputParser`) com um LLM
-   plugavel (`fase3/llm_backend.py`): `"groq"` (API real, mesmo padrao de
-   chamada HTTP com retry em 429 usado na Fase 2), `"local"` (o adapter
-   LoRA treinado, via `HuggingFacePipeline`) ou `"fake"` (determinístico,
-   usado em testes e nas demonstracoes offline deste relatorio);
-4. **Aplica guardrails de seguranca** (`fase3/guardrails.py`): qualquer
-   sugestao com padrao de prescricao direta (verbo de acao + dose/via) ou
-   com PII detectada e substituida por uma mensagem padronizada — nunca
-   chega ao usuario;
-5. **Registra auditoria** (`fase3/logging_utils.py`): cada interacao gera
-   um evento JSON (stdout + `resultados/fase3/auditoria.jsonl`) com as
-   fontes usadas e o motivo de qualquer bloqueio.
-
-Um fluxo de decisao adicional, `fase3.clinical_flow_graph`, orquestra tudo
-isso com **LangGraph** (secao 4). O comando `python -m fase3.cli_demo`
-executa o pipeline completo pela linha de comando, usado na gravacao do
-video de demonstracao.
-
-### Exemplo de resposta (backend `fake`, para reprodutibilidade neste relatorio)
-
-Pergunta: *"O que fazer com dor pos-operatoria persistente?"* (paciente
-`PAC-0006`, dor relatada em 7/10).
-
-Fontes citadas automaticamente: `PROT-004` (Protocolo de manejo da dor
-pos-operatoria), `PROT-005` (Protocolo de alta hospitalar
-pos-mastectomia) e `PROT-012` (FAQ sobre uso do assistente) — evidenciando
-a **explainability** exigida: a resposta sempre aponta os documentos que a
-fundamentam.
-
-## 4. Diagrama do fluxo LangChain / LangGraph
-
-```mermaid
-flowchart TD
-    START(("inicio")) --> BP["buscar_paciente\n(ehr_tools.get_paciente)"]
-    BP -->|paciente encontrado| VEP["verificar_exames_pendentes"]
-    BP -->|nao encontrado| AUD["registrar_auditoria"]
-
-    VEP --> ST["sugerir_tratamento\n(assistant_chain.responder_pergunta_clinica)"]
-
-    subgraph ST_DETALHE["assistant_chain (LangChain)"]
-        direction TB
-        RETR["retrieval.py\nBM25 sobre protocolos"] --> CHAIN["prompt | llm | StrOutputParser"]
-        EHR["ehr_tools.py\ncontexto do paciente"] --> CHAIN
-        CHAIN --> GUARD["guardrails.py\nbloqueio + disclaimer"]
-    end
-
-    ST -.-> ST_DETALHE
-    ST --> CS["checar_seguranca\n(traduz bloqueio em alerta)"]
-    CS --> EA["emitir_alertas\n(exames pendentes + alertas clinicos)"]
-    EA --> AUD
-    AUD --> FIM(("fim"))
-```
-
-A bifurcacao apos `buscar_paciente` e uma decisao real de fluxo: se o
-codigo do paciente nao existe no prontuario, o grafo encerra com
-seguranca em `registrar_auditoria` sem passar por `sugerir_tratamento`,
-evitando qualquer resposta sem contexto clinico.
-
-## 5. Avaliacao do modelo e analise dos resultados
-
-### 5.1 Fine-tuning: perda por epoca
-
-O criterio de sucesso do smoke test nao foi "o codigo roda sem erro", mas
-"o modelo efetivamente aprende". A perda media de treino por epoca e a
-perda de validacao caem de forma consistente:
-
-| Epoca | Loss medio (treino) | Loss (validacao) |
-| ---: | ---: | ---: |
-| 1 | 4.7990 | 4.8405 |
-| 2 | 4.5711 | 4.7904 |
-| 3 | 4.4342 | 4.7692 |
-
-(dados completos em
-`resultados/fase3/finetuning/smoke/training_summary.json`; grafico no
-notebook `04_assistente_medico_fase3.ipynb`, secao 2). A queda tanto no
-treino quanto na validacao indica aprendizado genuino, nao apenas
-overfitting nos batches de treino.
-
-### 5.2 Avaliacao do assistente (rubrica deterministica)
-
-Seguindo a mesma filosofia do `src/evaluate_llm.py` da Fase 2 (avaliacao
-por regras, sem um segundo LLM como juiz), `fase3/evaluate_assistant.py`
-roda 6 casos representativos (paciente com exame pendente, paciente com
-alerta clinico ativo, paciente inexistente, pergunta sem paciente
-associado, etc.) e verifica cinco criterios objetivos por resposta:
-
-| Criterio | O que verifica |
-| --- | --- |
-| `fontes_citadas` | Pelo menos um protocolo foi citado (explainability) |
-| `disclaimer_presente` | O aviso de validacao medica humana esta presente (ou a resposta foi bloqueada) |
-| `sem_pii` | Nenhum padrao de CPF/telefone/e-mail/nome na resposta final |
-| `sem_prescricao_direta_vazando` | Nenhuma prescricao direta escapou do guardrail |
-| `resposta_nao_vazia` | A resposta final nao esta vazia |
-
-Em uma execucao de demonstracao com o backend `fake` (uma das seis
-respostas simuladas foi deliberadamente insegura — *"Tome 500mg de
-dipirona agora mesmo"* — para provar que o guardrail intercepta esse
-padrao mesmo dentro da avaliacao automatizada), o resultado foi: **score
-objetivo medio de 1.00**, com o caso inseguro corretamente marcado como
-`bloqueado=True` e `motivo_bloqueio=prescricao_direta_bloqueada`. Isso
-mostra que o guardrail funciona tanto na chain quanto no fluxo LangGraph
-(que escala o bloqueio para um alerta de revisao manual — ver
-`fase3/clinical_flow_graph._no_checar_seguranca`).
-
-Resultados completos (executaveis com `python -m fase3.evaluate_assistant
---backend groq` usando uma chave real) sao salvos em
-`resultados/fase3/avaliacao_assistente.csv`,
-`avaliacao_assistente.json` e `resumo_avaliacao_assistente.json`.
-
-### 5.3 Testes automatizados
-
-33 testes (`tests/test_fase2.py` + `tests/test_fase3.py`) passam via
-`python -m unittest discover -s tests -v`, sem rede e sem depender de
-`GROQ_API_KEY` — o LLM e sempre um `FakeLLM` deterministico nos testes.
-Cobertura da Fase 3: anonimizacao/deteccao de PII, curadoria do dataset,
-guardrails (resposta segura, prescricao direta, PII), retrieval BM25,
-mock de EHR (SQLite), a chain do assistente e o fluxo LangGraph completo
-(incluindo a bifurcacao de paciente nao encontrado e a escalada de
-alerta quando o guardrail bloqueia).
-
-## 6. Limitacoes
-
-- Protocolos, prontuarios e pacientes sao ficticios, criados para este
-  projeto academico.
-- O smoke test de fine-tuning usa um modelo pequeno (`distilgpt2`) por
-  restricao de tempo/hardware do ambiente (CPU-only); um fine-tuning de
-  producao exigiria um modelo maior e dados reais (anonimizados) do
-  hospital.
-- Retrieval lexico (BM25) em vez de semantico (embeddings) — decisao
-  deliberada de reprodutibilidade offline, com potencial ganho de
-  qualidade em producao com um retriever semantico.
-- Guardrails baseados em regras (regex), nao em um classificador treinado;
-  cobrem os casos pedidos no desafio, mas podem ter falsos negativos fora
-  do padrao esperado.
-- Nenhuma sugestao do assistente substitui avaliacao clinica presencial ou
-  decisao de um medico responsavel — reforcado em toda resposta pelo
-  disclaimer obrigatorio.
+- Todos os protocolos e prontuários são fictícios; não houve validação
+  clínica externa.
+- O dataset clínico é pequeno. A taxa de aceitação bruta de 0% mostra que
+  são necessários mais exemplos revisados por especialistas.
+- Próximo experimento recomendado: modelo instrucional maior, treinamento
+  em GPU, conjunto clínico independente de teste, early stopping e busca de
+  hiperparâmetros.
+- A escala LoRA 0,1 foi calibrada nos experimentos locais e deve ser
+  revalidada após qualquer mudança de modelo ou dataset.
+- BM25 e regras determinísticas são úteis para reprodutibilidade, mas não
+  substituem validação médica, avaliação semântica independente e testes de
+  segurança mais amplos.
+- Nenhuma resposta deve ser usada como diagnóstico, prescrição ou conduta
+  autônoma. A decisão final pertence ao médico responsável.

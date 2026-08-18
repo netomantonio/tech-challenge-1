@@ -139,7 +139,9 @@ resultados/fase2/
   interpretacoes_llm.json           # gerado com GROQ_API_KEY
   resumo_avaliacao_llm.json         # gerado com GROQ_API_KEY
 resultados/fase3/
-  finetuning/smoke/      # adapter LoRA + training_summary.json do smoke test
+  finetuning/smoke/      # histórico do smoke test DistilGPT-2
+  finetuning/qwen2.5-1.5b/ # adapter selecionado + training_summary.json
+  finetuning/comparacao_modelos.json
   avaliacao_assistente.csv
   avaliacao_assistente.json
   resumo_avaliacao_assistente.json
@@ -557,50 +559,57 @@ LangGraph.
 
 `python -m fase3.data.build_finetuning_dataset` combina as três fontes,
 aplica anonimização por regex (CPF, telefone, e-mail, nome) e curadoria
-(dedup + filtro de tamanho), gerando `finetuning_train.jsonl` (33
-exemplos) e `finetuning_val.jsonl` (6 exemplos).
+(dedup + filtro de tamanho). O dataset atual possui **57 exemplos
+curados**, divididos deterministicamente em `finetuning_train.jsonl` (48)
+e `finetuning_val.jsonl` (9). Desses, 18 são exemplos clínicos alinhados
+ao assistente, incluindo paráfrases para evitar memorização literal.
 
 ### Fine-tuning LoRA/PEFT
 
-Rodamos um smoke test real de ponta a ponta com `distilgpt2` (modelo
-pequeno, mas com pesos pré-treinados de verdade), comprovando que o
-pipeline aprende — a perda cai a cada época, tanto no treino quanto na
-validação:
+Foram executados quatro experimentos reais. A troca de modelo ocorreu
+porque loss decrescente não se traduziu automaticamente em qualidade
+clínica:
 
-| Época | Loss médio (treino) | Loss (validação) |
-| ---: | ---: | ---: |
-| 1 | 4.7990 | 4.8405 |
-| 2 | 4.5711 | 4.7904 |
-| 3 | 4.4342 | 4.7692 |
+| Modelo | Treino/val. efetivos | Loss val. | Perplexidade | Decisão |
+| --- | ---: | ---: | ---: | --- |
+| `distilgpt2` | 33 / 6 | 4,7692 | 117,826 | Apenas smoke; texto clínico inadequado |
+| Qwen2.5-0.5B v1 | 30 / 5 | 2,6581 | 14,269 | Melhor, mas ainda evasivo e inconsistente |
+| Qwen2.5-0.5B v2 | 75 / 7 | 2,2172 | 9,182 | Alterou `BI-RADS 4` e `7/10` |
+| **Qwen2.5-1.5B** | **60 / 7** | **2,1101** | **8,249** | **Selecionado com LoRA calibrado em 0,1 + grounding** |
 
-Artefatos versionados em `resultados/fase3/finetuning/smoke/`. As
-dependências pesadas (`torch`, `transformers`, `peft`, `datasets`) ficam
-em `requirements-fase3.txt`, separadas do `requirements.txt` principal
-para não afetar a CI das Fases 1/2:
+O treino supervisiona somente tokens da resposta e registra curva de
+loss, perplexidade, hashes dos splits, hiperparâmetros e parâmetros
+treináveis. A análise completa, incluindo resultados negativos e o motivo
+de cada mudança, está em [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md).
+
+As dependências (`torch`, `transformers`, `peft`, `datasets`) ficam em
+`requirements-fase3.txt`:
 
 ```bash
 python -m pip install -r requirements-fase3.txt
-python -m fase3.finetuning.train_lora --output-dir resultados/fase3/finetuning/smoke
+python -m fase3.finetuning.train_lora \
+  --base-model Qwen/Qwen2.5-1.5B-Instruct \
+  --output-dir resultados/fase3/finetuning/qwen2.5-1.5b \
+  --epochs 3 --learning-rate 0.00005 --max-length 256 --clinical-repeat 3
 ```
 
-O adapter LoRA treinado tambem pode ser carregado diretamente pelo
-assistente, usando o backend local:
-
-O `lora_adapter/` versionado contem apenas o adapter; o modelo base
-(`distilgpt2`) e carregado do cache local do Hugging Face ou baixado
-automaticamente na primeira execucao do backend `local`.
+O adapter selecionado pode ser carregado diretamente pelo backend local.
+O `lora_adapter/` contém somente o adapter; o modelo-base é carregado do
+cache local do Hugging Face ou baixado na primeira execução.
 
 ```bash
 python -m fase3.cli_demo --paciente-id PAC-0001 \
   --pergunta "Posso iniciar a quimioterapia hoje?" \
   --backend local \
-  --base-model distilgpt2 \
-  --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
+  --base-model Qwen/Qwen2.5-1.5B-Instruct \
+  --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter
 ```
 
-Para um fine-tuning "de produção", troque `--base-model` por algo como
-`Qwen/Qwen2.5-0.5B-Instruct` (recomendado rodar com GPU, ex.: Google
-Colab).
+Na avaliação local final, o pipeline obteve score de qualidade e segurança
+1,00, mas a taxa de fallback foi 100% e a taxa de saída da LLM aceita sem
+fallback foi 0%. Portanto, o sistema final é seguro, mas a geração bruta
+ainda requer mais dados, modelo maior e validação clínica externa; o
+relatório não atribui o score do fallback ao LoRA.
 
 ### Assistente, guardrails e fluxo de decisão
 
@@ -611,12 +620,12 @@ python -m fase3.data.build_finetuning_dataset
 # demo de ponta a ponta (fluxo LangGraph completo):
 python -m fase3.cli_demo --paciente-id PAC-0001 \
   --pergunta "Posso iniciar a quimioterapia hoje?" --backend fake
-# para usar a LLM customizada local, troque para --backend local e informe
-# --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
+# para usar a LLM customizada local, troque para --backend local; o padrão
+# usa Qwen2.5-1.5B + resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter
 # com uma chave real remota: use --backend groq e configure GROQ_API_KEY
 
 # avaliação determinística do assistente:
-python -m fase3.evaluate_assistant --backend fake   # ou local/groq
+python -m fase3.evaluate_assistant --backend local --lora-scale 0.1
 ```
 
 Toda resposta segura recebe um aviso obrigatório de validação médica

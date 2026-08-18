@@ -30,6 +30,12 @@ _SINONIMOS_CLINICOS = {
     "quimioterapia": ("tratamento oncologico", "exames pre-tratamento"),
     "dor pos-operatoria": ("manejo da dor cirurgia pos-operatorio"),
 }
+_PROTOCOLOS_PRIORITARIOS = (
+    (("febre", "taquicardia", "sepse", "sirs"), "PROT-011"),
+    (("dor pos-operatoria", "dor pos operatoria"), "PROT-004"),
+    (("quimioterapia", "exames obrigatorios", "exames pendentes"), "PROT-006"),
+    (("bi-rads", "birads", "biopsia"), "PROT-001"),
+)
 
 
 def _sem_acentos(texto: str) -> str:
@@ -52,6 +58,22 @@ def expandir_pergunta_clinica(pergunta: str) -> str:
         if _sem_acentos(termo) in normalizada:
             extras.extend(sinonimos)
     return f"{pergunta} {' '.join(extras)}".strip()
+
+
+def _reranquear_protocolos(documentos: list[Document], pergunta: str) -> list[Document]:
+    normalizada = _sem_acentos(pergunta)
+    prioridades = [
+        protocolo_id
+        for termos, protocolo_id in _PROTOCOLOS_PRIORITARIOS
+        if any(_sem_acentos(termo) in normalizada for termo in termos)
+    ]
+    if not prioridades:
+        return documentos
+    ordem = {protocolo_id: indice for indice, protocolo_id in enumerate(prioridades)}
+    return sorted(
+        documentos,
+        key=lambda doc: ordem.get(doc.metadata["id"], len(ordem)),
+    )
 
 
 def carregar_documentos(path: Path = DEFAULT_PROTOCOLOS_PATH) -> list[Document]:
@@ -83,7 +105,8 @@ def construir_retriever(
 
 def buscar_protocolos(pergunta: str, retriever: Optional[BM25Retriever] = None) -> list[Document]:
     retriever = retriever or construir_retriever()
-    return retriever.invoke(expandir_pergunta_clinica(pergunta))
+    documentos = retriever.invoke(expandir_pergunta_clinica(pergunta))
+    return _reranquear_protocolos(documentos, pergunta)
 
 
 def formatar_fontes(documentos: list[Document]) -> list[dict]:

@@ -182,7 +182,7 @@ class EvaluationQualityTests(unittest.TestCase):
         self.assertFalse(checks["sem_protocolo_alucinado"])
         self.assertFalse(checks["conteudo_clinico_esperado"])
 
-    def test_resposta_fundamentada_passsa_criterios_de_qualidade(self) -> None:
+    def test_resposta_fundamentada_passa_criterios_de_qualidade(self) -> None:
         resultado = {
             "resposta": (
                 "Antes da quimioterapia, verifique hemograma, funcao renal e "
@@ -197,6 +197,25 @@ class EvaluationQualityTests(unittest.TestCase):
         self.assertTrue(checks["conteudo_clinico_esperado"])
         self.assertTrue(checks["baixa_repeticao"])
 
+    def test_valor_numerico_inventado_reprova(self) -> None:
+        resultado = {
+            "resposta": (
+                "A paciente apresenta febre de 39.7 C e deve ser avaliada conforme "
+                "[PROT-011].\n\n" + DISCLAIMER
+            ),
+            "fontes": [{"id": "PROT-011", "titulo": "Protocolo de sepse"}],
+            "bloqueado": False,
+        }
+        checks = avaliar_resposta(
+            resultado,
+            {
+                "pergunta": "Paciente com febre e taquicardia",
+                "contexto_numerico": "Temperatura 38.6 C e frequencia 110 bpm",
+                "termos_esperados": ["febre"],
+            },
+        )
+        self.assertFalse(checks["sem_valor_numerico_inventado"])
+
 
 class RetrievalTests(unittest.TestCase):
     def test_busca_retorna_protocolo_relevante(self) -> None:
@@ -204,6 +223,11 @@ class RetrievalTests(unittest.TestCase):
         documentos = buscar_protocolos("dor persistente apos a cirurgia", retriever)
         ids = {doc.metadata["id"] for doc in documentos}
         self.assertIn("PROT-004", ids)
+
+    def test_sinonimos_clinicos_priorizam_protocolo_de_sepse(self) -> None:
+        retriever = construir_retriever(k=3)
+        documentos = buscar_protocolos("Paciente com febre e taquicardia", retriever)
+        self.assertEqual(documentos[0].metadata["id"], "PROT-011")
 
 
 class EhrToolsTests(unittest.TestCase):
@@ -245,6 +269,54 @@ class AssistantChainTests(unittest.TestCase):
         resultado = responder_pergunta_clinica("Qual conduta seguir?", llm=llm)
         self.assertTrue(resultado["bloqueado"])
         self.assertEqual(resultado["motivo_bloqueio"], "prescricao_direta_bloqueada")
+
+    def test_resposta_nao_fundamentada_usa_fallback_seguro(self) -> None:
+        llm = get_llm(
+            "fake",
+            respostas=["A temperatura e 39.7 C e use uma conduta inventada."],
+        )
+        resultado = responder_pergunta_clinica(
+            "A paciente esta com febre e taquicardia, qual conduta seguir?",
+            paciente_id="PAC-0005",
+            llm=llm,
+        )
+        self.assertTrue(resultado["grounding_fallback"])
+        self.assertNotIn("39.7", resultado["resposta"])
+        self.assertIn("[PROT-011]", resultado["resposta"])
+
+    def test_citacao_ausente_e_reparada_sem_substituir_conteudo(self) -> None:
+        llm = get_llm(
+            "fake",
+            respostas=[
+                "O achado BI-RADS 4 requer confirmacao histopatologica por biopsia "
+                "e revisao da equipe assistente antes de definir tratamento."
+            ],
+        )
+        resultado = responder_pergunta_clinica(
+            "Como encaminhar o BI-RADS 4 com biopsia pendente?",
+            paciente_id="PAC-0003",
+            llm=llm,
+        )
+        self.assertTrue(resultado["grounding_citation_repair"])
+        self.assertFalse(resultado["grounding_fallback"])
+        self.assertIn("[PROT-001]", resultado["resposta"])
+
+    def test_classificacao_birads_alterada_aciona_fallback(self) -> None:
+        llm = get_llm(
+            "fake",
+            respostas=[
+                "O achado BI-RADS 5 requer confirmacao histopatologica por biopsia "
+                "e revisao imediata pela equipe assistente. Fonte: [PROT-001]."
+            ],
+        )
+        resultado = responder_pergunta_clinica(
+            "Como encaminhar o BI-RADS 4 com biopsia pendente?",
+            paciente_id="PAC-0003",
+            llm=llm,
+        )
+        self.assertTrue(resultado["grounding_fallback"])
+        self.assertIn("classificacao_birads_alterada", resultado["motivos_grounding"])
+        self.assertIn("BI-RADS 4", resultado["resposta"])
 
 
 class ClinicalFlowGraphTests(unittest.TestCase):

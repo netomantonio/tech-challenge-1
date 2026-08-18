@@ -1,10 +1,12 @@
 """Fine-tuning LoRA/PEFT de um LLM causal com os dados internos do hospital (Fase 3).
 
-Uso recomendado (modelo pequeno, instrucional e multilingue):
+Uso recomendado (modelo instrucional e multilingue selecionado):
 
     python -m fase3.finetuning.train_lora \
-        --base-model Qwen/Qwen2.5-0.5B-Instruct \
-        --epochs 3 --output-dir resultados/fase3/finetuning/qwen2.5-0.5b
+        --base-model Qwen/Qwen2.5-1.5B-Instruct \
+        --epochs 3 --learning-rate 0.00005 --max-length 256 \
+        --clinical-repeat 3 \
+        --output-dir resultados/fase3/finetuning/qwen2.5-1.5b
 
 O treinamento usa loss somente nos tokens da resposta. Os tokens do system
 prompt e da instrucao recebem label ``-100`` e nao entram no calculo da loss.
@@ -43,8 +45,8 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 FASE3_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = FASE3_ROOT / "data"
 DEFAULT_OUTPUT_DIR = FASE3_ROOT.parent / "resultados" / "fase3" / "finetuning"
-DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
-DEFAULT_QUALITY_OUTPUT_DIR = DEFAULT_OUTPUT_DIR / "qwen2.5-0.5b"
+DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+DEFAULT_QUALITY_OUTPUT_DIR = DEFAULT_OUTPUT_DIR / "qwen2.5-1.5b"
 
 SYSTEM_PROMPT_TREINO = (
     "Voce e um assistente virtual de apoio clinico interno. Responda em portugues, "

@@ -26,13 +26,13 @@ import httpx
 from langchain_core.language_models.llms import LLM
 
 DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant"
-DEFAULT_LOCAL_BASE_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+DEFAULT_LOCAL_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 DEFAULT_LOCAL_ADAPTER_PATH = (
     Path(__file__).resolve().parent.parent
     / "resultados"
     / "fase3"
     / "finetuning"
-    / "qwen2.5-0.5b"
+    / "qwen2.5-1.5b"
     / "lora_adapter"
 )
 LEGACY_DISTILGPT2_ADAPTER_PATH = (
@@ -156,6 +156,7 @@ class LocalAdapterLLM(LLM):
     max_input_tokens: int = 2048
     repetition_penalty: float = 1.12
     no_repeat_ngram_size: int = 4
+    lora_scale: float = 1.0
 
     @property
     def _llm_type(self) -> str:  # noqa: D401
@@ -214,6 +215,9 @@ class LocalAdapterLLM(LLM):
                 attention_mask=attention_mask,
                 max_new_tokens=kwargs.get("max_new_tokens", self.max_new_tokens),
                 do_sample=False,
+                temperature=None,
+                top_p=None,
+                top_k=None,
                 repetition_penalty=self.repetition_penalty,
                 no_repeat_ngram_size=self.no_repeat_ngram_size,
                 pad_token_id=self.tokenizer.pad_token_id,
@@ -257,6 +261,20 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
         tokenizer.pad_token = tokenizer.eos_token
     modelo = AutoModelForCausalLM.from_pretrained(base_model)
     modelo = PeftModel.from_pretrained(modelo, adapter_path)
+    escala_padrao = 0.1 if base_model == DEFAULT_LOCAL_BASE_MODEL else 1.0
+    escala_informada = kwargs.get("lora_scale")
+    lora_scale = float(
+        escala_informada
+        if escala_informada is not None
+        else os.getenv("FASE3_LOCAL_LORA_SCALE", str(escala_padrao))
+    )
+    if not 0.0 < lora_scale <= 1.0:
+        raise ValueError("lora_scale deve estar no intervalo (0, 1].")
+    for modulo in modelo.modules():
+        scaling = getattr(modulo, "scaling", None)
+        if isinstance(scaling, dict):
+            for adapter, valor in scaling.items():
+                scaling[adapter] = valor * lora_scale
     modelo.eval()
 
     return LocalAdapterLLM(
@@ -266,6 +284,7 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
         max_input_tokens=kwargs.get("max_input_tokens", 2048),
         repetition_penalty=kwargs.get("repetition_penalty", 1.12),
         no_repeat_ngram_size=kwargs.get("no_repeat_ngram_size", 4),
+        lora_scale=lora_scale,
     )
 
 

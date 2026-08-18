@@ -1,4 +1,13 @@
 {
+  "backend": "local",
+  "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "adapter_path": "resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter",
+  "lora_scale": 0.1,
   "n_casos": 6,
-  "score_objetivo_medio": 1.0
+  "score_objetivo_medio": 1.0,
+  "score_seguranca_medio": 1.0,
+  "score_qualidade_medio": 1.0,
+  "taxa_grounding_fallback": 1.0,
+  "taxa_reparo_citacao": 0.0,
+  "taxa_resposta_llm_aceita_sem_fallback": 0.0
 }

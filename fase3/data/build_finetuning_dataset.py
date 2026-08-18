@@ -245,6 +245,156 @@ def carregar_exemplos_assistente(path: Path) -> list[FinetuningExample]:
             source_id="QA-CLIN-006",
         ),
     ]
+    # Parafrases clinicamente equivalentes evitam que o LoRA memorize uma unica
+    # redacao da pergunta e melhoram a generalizacao para o uso conversacional.
+    exemplos.extend(
+        [
+            FinetuningExample(
+                instruction="Ha pendencias no prontuario. O primeiro ciclo neoadjuvante pode ser liberado?",
+                input=(
+                    f"Codigo {p1['paciente_id']}; exames pendentes: "
+                    f"{', '.join(p1['exames_pendentes'])}."
+                ),
+                output=(
+                    "O ciclo nao deve ser iniciado enquanto houver exames obrigatorios "
+                    "pendentes. Confirme ecocardiograma basal e sorologias HBV, HCV e "
+                    "HIV com a equipe medica. Fonte: [PROT-006]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-007",
+            ),
+            FinetuningExample(
+                instruction="Posso liberar a quimioterapia com exames pre-tratamento incompletos?",
+                input=(
+                    f"Codigo {p1['paciente_id']}; pendencias: "
+                    f"{', '.join(p1['exames_pendentes'])}."
+                ),
+                output=(
+                    "Nao libere a quimioterapia com exames pre-tratamento pendentes. "
+                    "Regularize as pendencias e solicite validacao do medico responsavel "
+                    "antes do ciclo. Fonte: [PROT-006]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-008",
+            ),
+            FinetuningExample(
+                instruction="Como conduzir um BI-RADS 4 ainda sem confirmacao histologica?",
+                input=f"Codigo {p3['paciente_id']}; biopsia pendente.",
+                output=(
+                    "BI-RADS 4 requer confirmacao histopatologica por biopsia. A equipe "
+                    "assistente deve revisar o resultado antes de definir o tratamento. "
+                    "Fonte: [PROT-001]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-009",
+            ),
+            FinetuningExample(
+                instruction="Qual e o proximo passo para lesao BI-RADS 4 com biopsia pendente?",
+                input=f"Codigo {p3['paciente_id']}; diagnostico em investigacao.",
+                output=(
+                    "Providencie a biopsia para confirmacao histopatologica do achado "
+                    "BI-RADS 4. Nao defina tratamento antes da revisao pela equipe "
+                    "assistente. Fonte: [PROT-001]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-010",
+            ),
+            FinetuningExample(
+                instruction="Febre e frequencia cardiaca elevada exigem qual fluxo?",
+                input=(
+                    f"Codigo {p5['paciente_id']}; alertas ativos: "
+                    f"{', '.join(p5['alertas_ativos'])}."
+                ),
+                output=(
+                    "Os achados atendem a criterios de SIRS. Acione imediatamente o "
+                    "fluxo de sepse e comunique a equipe medica, preservando os valores "
+                    "registrados no prontuario. Fonte: [PROT-011]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-011",
+            ),
+            FinetuningExample(
+                instruction="A paciente oncologica apresenta febre e taquicardia. Posso aguardar?",
+                input=(
+                    f"Codigo {p5['paciente_id']}; alertas: "
+                    f"{', '.join(p5['alertas_ativos'])}."
+                ),
+                output=(
+                    "Nao aguarde validacao assincrona: acione imediatamente o protocolo "
+                    "de sepse diante dos criterios de SIRS e avise a equipe medica. "
+                    "Fonte: [PROT-011]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-012",
+            ),
+            FinetuningExample(
+                instruction="Como encaminhar dor persistente de intensidade 7/10 apos a cirurgia?",
+                input=f"Codigo {p6['paciente_id']}; dor pos-operatoria 7/10.",
+                output=(
+                    "Dor pos-operatoria persistente em 7/10 exige reavaliacao clinica "
+                    "e comunicacao a equipe cirurgica. Nao indique medicamento ou dose "
+                    "automaticamente. Fonte: [PROT-004]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-013",
+            ),
+            FinetuningExample(
+                instruction="A escala de dor permanece em 7 de 10 no pos-operatorio. Qual orientacao?",
+                input=f"Codigo {p6['paciente_id']}; observacao: {p6['observacoes']}.",
+                output=(
+                    "Registre a dor 7/10, reavalie clinicamente e comunique a equipe "
+                    "cirurgica. A aplicacao do protocolo deve ser validada pelo medico "
+                    "responsavel. Fonte: [PROT-004]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-014",
+            ),
+            FinetuningExample(
+                instruction="Qual checklist deve ser conferido antes da quimioterapia?",
+                input="Nenhum paciente informado; consulta geral ao protocolo interno.",
+                output=(
+                    "Confirme hemograma completo, funcao hepatica e renal, sorologias "
+                    "HBV, HCV e HIV e avaliacao cardiaca quando aplicavel. Valide os "
+                    "exames antes do ciclo. Fonte: [PROT-006]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-015",
+            ),
+            FinetuningExample(
+                instruction="Quais avaliacoes laboratoriais e cardiacas antecedem o tratamento sistemico?",
+                input="Pergunta geral, sem paciente selecionado.",
+                output=(
+                    "Antes do tratamento sistemico, verifique hemograma, funcao hepatica "
+                    "e renal, sorologias e avaliacao cardiaca quando indicada. Confirme "
+                    "a validade com a equipe medica. Fonte: [PROT-006]."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-016",
+            ),
+            FinetuningExample(
+                instruction="O codigo informado nao existe no prontuario. Posso orientar uma conduta?",
+                input="Codigo PAC-9999 nao encontrado.",
+                output=(
+                    "O codigo do paciente nao foi encontrado. Nao sugira conduta sem "
+                    "contexto clinico confirmado; verifique o identificador com a equipe "
+                    "responsavel."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-017",
+            ),
+            FinetuningExample(
+                instruction="Nao localizei o paciente pelo identificador. Como prosseguir?",
+                input="Prontuario inexistente para o codigo consultado.",
+                output=(
+                    "O paciente nao foi encontrado no prontuario. Verifique o "
+                    "identificador e nao proponha conduta sem contexto clinico "
+                    "confirmado."
+                ),
+                source_type="assistente_clinico_sintetico",
+                source_id="QA-CLIN-018",
+            ),
+        ]
+    )
     return [
         FinetuningExample(
             instruction=anonimizar_texto(exemplo.instruction),

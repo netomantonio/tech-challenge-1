@@ -15,8 +15,8 @@ Exemplos:
 
     python -m fase3.cli_demo --paciente-id PAC-0001 \
         --pergunta "Posso iniciar a quimioterapia hoje?" --backend local \
-        --base-model distilgpt2 \
-        --adapter-path resultados/fase3/finetuning/smoke/lora_adapter
+        --base-model Qwen/Qwen2.5-1.5B-Instruct \
+        --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter
 """
 
 from __future__ import annotations
@@ -35,15 +35,21 @@ def main() -> None:
     parser.add_argument(
         "--base-model",
         default=None,
-        help="Modelo base usado com --backend local (padrao academico: distilgpt2).",
+        help="Modelo base usado com --backend local (padrao: Qwen2.5-1.5B-Instruct).",
     )
     parser.add_argument(
         "--adapter-path",
         default=None,
         help=(
             "Caminho do adapter LoRA usado com --backend local. Se omitido, "
-            "tenta resultados/fase3/finetuning/smoke/lora_adapter."
+            "usa resultados/fase3/finetuning/qwen2.5-1.5b/lora_adapter."
         ),
+    )
+    parser.add_argument(
+        "--lora-scale",
+        type=float,
+        default=None,
+        help="Intensidade do adapter local em (0, 1]; padrao calibrado: 0.1.",
     )
     parser.add_argument(
         "--max-new-tokens",
@@ -67,6 +73,7 @@ def main() -> None:
             base_model=args.base_model,
             adapter_path=args.adapter_path,
             max_new_tokens=args.max_new_tokens,
+            lora_scale=args.lora_scale,
         )
 
     estado = executar_fluxo_clinico(args.paciente_id, args.pergunta, llm=llm)
