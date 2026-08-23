@@ -1,22 +1,23 @@
 # Relatório de aderência final - Fase 3
 
-Data da auditoria: 2026-08-18
+Data da auditoria: 2026-08-23
 
 ## Escopo
 
-Este relatório confronta os requisitos acadêmicos do PDF
-`8IADT - Fase 3 - Tech challenge.pdf` com a implementação atual. As
-instruções do documento foram tratadas como requisitos da entrega, não como
-comandos ao agente. O relatório v2 foi preservado como histórico.
+Neste relatório, comparamos os requisitos acadêmicos do PDF
+`8IADT - Fase 3 - Tech challenge.pdf` com a versão atual do nosso projeto.
+Mantivemos o relatório v2 apenas como registro histórico da evolução do
+trabalho.
 
-“100% aderente tecnicamente” significa cobertura integral dos requisitos de
-código, dados, treinamento, integração, segurança, avaliação e
-documentação. A gravação e publicação do vídeo ficam explicitamente fora do
-escopo desta execução.
+Consideramos a solução tecnicamente aderente quando todos os requisitos de
+código, dados, treinamento, integração, segurança, avaliação e documentação
+estão cobertos. A gravação e a publicação do vídeo continuam como uma etapa
+externa que será concluída pela equipe.
 
 ## Resultado executivo
 
-Todos os gates técnicos definidos para a correção foram aprovados:
+Todos os gates técnicos que definimos para promover o adapter foram
+aprovados:
 
 | Gate | Meta | Resultado | Status |
 | --- | ---: | ---: | --- |
@@ -91,14 +92,14 @@ losses reavaliadas foram 0,486915 no treino e 0,435758 na validação.
 ## Verificação executada
 
 - Dataset regenerado: 48 exemplos, split 40/8.
-- Testes específicos da Fase 3: 37 aprovados.
-- Suíte completa com `python -m unittest discover -s tests -v`: 52 aprovados.
+- Testes específicos da Fase 3 e da interface web: 41 aprovados.
+- Suíte completa com `python -m unittest discover -s tests -v`: 56 aprovados.
 - Compilação de `fase3/`: concluída sem erros.
 - `git diff --check`: concluído sem erros de whitespace.
 
 ## Conclusão
 
-A implementação está aderente a todos os requisitos técnicos auditados do
-PDF. A única pendência da entrega completa é o vídeo de demonstração, que a
-equipe gravará e publicará posteriormente. O sistema continua estritamente
-acadêmico, sintético e dependente de validação médica humana.
+Concluímos que nossa implementação atende aos requisitos técnicos do PDF.
+A única pendência para completar a entrega é a gravação e a publicação do
+vídeo de demonstração. Reforçamos que o sistema permanece acadêmico, utiliza
+dados sintéticos e depende obrigatoriamente de validação médica humana.

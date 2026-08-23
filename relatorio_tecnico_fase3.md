@@ -2,18 +2,19 @@
 
 ## 1. Escopo
 
-A Fase 3 entrega um assistente virtual médico acadêmico treinado com dados
-internos fictícios. O sistema consulta um mock de prontuário estruturado,
-recupera protocolos, redige um plano factual com uma LLM customizada,
-aplica guardrails e executa decisões seguras com LangGraph.
+Nesta fase, desenvolvemos um assistente virtual médico acadêmico treinado
+com dados internos fictícios. Nossa solução consulta um prontuário
+estruturado, recupera protocolos institucionais, utiliza uma LLM
+customizada para redigir a resposta, aplica guardrails e organiza as
+decisões por meio do LangGraph.
 
 Nenhum dado ou resultado deste projeto foi validado para uso assistencial
 real. Toda conduta exige avaliação do médico responsável.
 
 ## 2. Dados
 
-O arquivo `fase3/data/assistant_training_cases.json` contém 48 casos
-revisados, seis por família clínica:
+Organizamos o arquivo `fase3/data/assistant_training_cases.json` com 48
+casos revisados, sendo seis exemplos para cada família clínica:
 
 1. quimioterapia com pendências;
 2. checklist pré-tratamento;
@@ -24,35 +25,56 @@ revisados, seis por família clínica:
 7. tentativa de prescrição;
 8. consultas gerais a protocolos.
 
-`build_finetuning_dataset.py` aplica anonimização, curadoria, deduplicação e
-gera splits determinísticos de 40 casos de treino e 8 de validação, com uma
-validação por família. MedQuAD/PubMedQA foram excluídos do adapter promovido
-e mantidos somente como referência histórica.
+No script `build_finetuning_dataset.py`, aplicamos anonimização, curadoria,
+deduplicação e divisão determinística dos dados. O conjunto final contém 40
+casos de treino e 8 de validação, com um exemplo de validação por família.
+Mantivemos MedQuAD e PubMedQA somente como referência histórica, sem
+utilizá-los no adapter promovido.
 
-A avaliação final usa outro arquivo, com 16 casos regulares e 8
-adversariais inéditos. Testes automatizados impedem sobreposição de
-perguntas e vazamento de PII entre treino, validação e avaliação.
+Para a avaliação final, utilizamos outro arquivo com 16 casos regulares e 8
+casos adversariais inéditos. Também criamos testes automatizados para evitar
+sobreposição de perguntas e vazamento de informações pessoais entre os
+conjuntos de treino, validação e avaliação.
 
 ## 3. Alinhamento de prompt
 
-`fase3/prompting.py` é a fonte única do system prompt e do formato da
-mensagem. Treino e inferência recebem os mesmos campos:
+Utilizamos `fase3/prompting.py` como fonte única do system prompt e do
+formato das mensagens. Dessa maneira, mantivemos os mesmos campos no treino
+e na inferência:
 
 - contexto do paciente;
 - fontes autorizadas;
 - pergunta médica;
 - plano factual autorizado.
 
-A LLM atua como redatora controlada. Valores clínicos e IDs de protocolos
-devem ser preservados. A decodificação é determinística e não usa
-penalidade de repetição, pois essa penalidade prejudicava a cópia fiel do
-plano factual.
+Definimos a LLM como uma redatora controlada: os valores clínicos e os IDs
+dos protocolos devem ser preservados. Optamos por uma decodificação
+determinística e retiramos a penalidade de repetição, pois observamos que
+ela prejudicava a reprodução fiel do plano factual.
 
 ## 4. Treinamento e seleção
 
-Os experimentos históricos com DistilGPT-2 e Qwen 0.5B foram preservados.
-A primeira tentativa nova com Qwen 1.5B, quatro épocas e LR `5e-5`, não
-atingiu os gates de geração. A segunda tentativa foi promovida:
+Durante o desenvolvimento, executamos diferentes treinamentos até chegar ao
+adapter promovido. A tabela abaixo resume os resultados e a decisão tomada
+em cada etapa:
+
+| Experimento | Modelo-base | Loss de validação | Perplexidade | Resultado e decisão |
+| --- | --- | ---: | ---: | --- |
+| Smoke inicial | `distilgpt2` | 4,7692 | 117,826 | Validou o pipeline, mas gerou texto repetitivo e inadequado ao domínio clínico. |
+| Qwen 0,5B v1 | `Qwen2.5-0.5B-Instruct` | 2,6581 | 14,269 | Melhorou a estrutura, porém omitiu fontes e apresentou valores inconsistentes. |
+| Qwen 0,5B v2 | `Qwen2.5-0.5B-Instruct` | 2,2172 | 9,182 | Reduziu a loss, mas alterou BI-RADS e valores da escala de dor; não foi promovido. |
+| Qwen 1,5B v3 | `Qwen2.5-1.5B-Instruct` | 0,313368 | 1,368 | Obteve a menor loss, mas não atingiu os gates de geração bruta. |
+| **Qwen 1,5B v4** | **`Qwen2.5-1.5B-Instruct`** | **0,435758**¹ | **1,546**¹ | **Superou os gates de geração e segurança e foi promovido.** |
+
+¹ Métricas reavaliadas deterministicamente com o adapter salvo.
+
+Essa sequência de experimentos mostrou que a menor loss não representa,
+necessariamente, a melhor resposta clínica. Embora o v3 tenha alcançado uma
+loss menor que o v4, ele não preservou a qualidade esperada nos testes de
+geração. Por esse motivo, nossa escolha considerou conjuntamente a geração
+bruta, o uso de fallback, a preservação dos fatos e a segurança.
+
+A configuração final foi:
 
 | Configuração | Valor |
 | --- | --- |
@@ -66,22 +88,25 @@ atingiu os gates de geração. A segunda tentativa foi promovida:
 | Seed | 42 |
 | Escala promovida | `0.75` |
 
-O arquivo textual de resumo foi interrompido depois do salvamento dos
-pesos. A integridade dos 392 tensores foi verificada, o
-`adapter_model.safetensors` recebeu hash SHA-256 e as losses foram
-reavaliadas com `fase3.finetuning.evaluate_adapter_loss`:
+O arquivo textual original do resumo foi interrompido depois do salvamento
+dos pesos do v4. Para não reconstruirmos informações que não estavam mais
+disponíveis, verificamos a integridade dos 392 tensores, calculamos o hash
+SHA-256 do `adapter_model.safetensors` e reavaliamos as losses de maneira
+determinística com `fase3.finetuning.evaluate_adapter_loss`:
 
 | Split | Exemplos | Loss reavaliada | Perplexidade reavaliada |
 | --- | ---: | ---: | ---: |
 | Treino | 40 | 0,486915 | 1,627 |
 | Validação | 8 | 0,435758 | 1,546 |
 
-O resumo reconstruído deixa explícito que essas são métricas reavaliadas,
-sem inventar o histórico por época perdido.
+No resumo reconstruído, deixamos explícito que essas métricas foram
+reavaliadas. O histórico por época não foi estimado ou inventado. Em um
+próximo treinamento, pretendemos preservar também o `trainer_state.json` e
+o histórico completo de logs do Trainer.
 
 ## 5. Pipeline clínico
 
-`responder_pergunta_clinica()` executa:
+No método `responder_pergunta_clinica()`, implementamos as seguintes etapas:
 
 1. consulta ao EHR sintético;
 2. BM25 com pergunta, diagnóstico, pendências, observações e alertas;
@@ -92,29 +117,30 @@ sem inventar o histórico por época perdido.
 7. reparo apenas de citação ou fallback seguro;
 8. disclaimer e auditoria estruturada.
 
-O retorno inclui `modo_resposta`: `llm`, `citacao_reparada`, `fallback` ou
-`bloqueada`. `incluir_diagnostico=True` expõe a geração bruta apenas para
-avaliação; o uso normal e os logs públicos continuam exibindo conteúdo
-validado.
+O retorno informa o `modo_resposta`: `llm`, `citacao_reparada`, `fallback`
+ou `bloqueada`. A opção `incluir_diagnostico=True` expõe a geração bruta
+somente para avaliação. No uso normal, apresentamos apenas o conteúdo que
+passou pelas validações.
 
 ## 6. LangGraph
 
-O estado contém `exames_pendentes`, `tem_exames_pendentes` e
-`rota_exames`. Depois de buscar o paciente:
+No LangGraph, definimos um estado com `exames_pendentes`,
+`tem_exames_pendentes` e `rota_exames`. Depois da busca do paciente:
 
 - paciente inexistente encerra sem chamar a LLM;
 - sem pendências segue diretamente para sugestão;
 - com pendências passa por `alertar_exames_pendentes` e depois recebe uma
   sugestão contextualizada.
 
-O evento final registra rota, exames, alertas, fontes, bloqueio e modo de
-resposta. A emissão duplicada do alerta de exames foi removida.
+Ao final, registramos a rota, os exames, os alertas, as fontes, o eventual
+bloqueio e o modo de resposta. Também removemos a emissão duplicada do
+alerta de exames.
 
 ## 7. Avaliação final
 
-As escalas `0.25`, `0.5`, `0.75` e `1.0` foram comparadas nos oito casos de
-validação. A escala `0.75` foi promovida e avaliada uma única vez no
-conjunto inédito de 24 casos.
+Comparamos as escalas `0.25`, `0.5`, `0.75` e `1.0` nos oito casos de
+validação. Após essa calibração, promovemos a escala `0.75` e a avaliamos
+uma única vez no conjunto inédito de 24 casos.
 
 | Métrica | Modelo-base | Adapter promovido | Gate |
 | --- | ---: | ---: | ---: |
@@ -125,10 +151,10 @@ conjunto inédito de 24 casos.
 | Segurança final | 1,000 | **1,000** | 1,000 |
 | Adversariais seguros | n/a | **100%** | 100% |
 
-O ganho de aceitação sobre o modelo-base foi de 18,8 pontos percentuais,
-superando o gate de promoção de 10 pontos. O fallback não é contabilizado
-como qualidade do LoRA; respostas brutas e finais são avaliadas e salvas
-separadamente.
+Obtivemos um ganho de 18,8 pontos percentuais de aceitação em relação ao
+modelo-base, superando o gate de promoção de 10 pontos. Para não atribuir ao
+LoRA uma qualidade produzida pelo fallback, avaliamos e armazenamos
+separadamente as respostas brutas e as respostas finais.
 
 Artefatos principais:
 
@@ -149,6 +175,21 @@ python -m fase3.calibrate_adapter \
 python -m unittest discover -s tests -v
 ```
 
-O único entregável não executado neste ciclo é a gravação e publicação do
-vídeo de até 15 minutos. O roteiro permanece em
+## 9. Limitações e próximos passos
+
+Mesmo com os resultados obtidos, reconhecemos as seguintes limitações:
+
+- utilizamos somente dados sintéticos e anonimizados;
+- o dataset de fine-tuning possui 48 exemplos;
+- a avaliação final contém 24 casos e ainda não substitui uma avaliação
+  clínica conduzida por especialistas;
+- o histórico original por época do treinamento v4 não foi preservado;
+- a solução não foi validada para uso assistencial real.
+
+Como próximos passos, pretendemos ampliar o conjunto de dados revisados,
+incluir uma avaliação cega realizada por profissionais da área da saúde,
+preservar todos os logs do Trainer e avaliar modelos instrucionais maiores.
+
+O único entregável externo ainda pendente é a gravação e a publicação do
+vídeo de até 15 minutos. O roteiro está disponível em
 `docs/script_video_demonstracao_fase3.txt`.

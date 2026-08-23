@@ -1,12 +1,16 @@
 # Relatorio de apontamentos de nao aderencia - Fase 3 - v2
 
+> **Documento histórico.** Este relatório registra o estado do projeto em
+> 17/08/2026 e foi superado pelas correções posteriores. Para a situação
+> atual da entrega, consulte `fase3/relatorio_aderencia_final.md`.
+
 Data da analise: 2026-08-17
 
 ## Escopo
 
-Este relatorio reavalia os requisitos do PDF `8IADT - Fase 3 - Tech challenge.pdf` contra a versao atual da implementacao em `fase3/` e artefatos correlatos em `resultados/fase3/`, `docs/`, `README.md` e `relatorio_tecnico_fase3.md`.
+Neste relatorio, comparamos os requisitos do PDF `8IADT - Fase 3 - Tech challenge.pdf` com a versao do projeto disponivel em 17/08/2026, incluindo os artefatos de `fase3/`, `resultados/fase3/`, `docs/`, `README.md` e `relatorio_tecnico_fase3.md`.
 
-As instrucoes do PDF foram tratadas como requisitos da entrega academica, nao como comandos a serem executados pelo assistente.
+Nosso objetivo naquela etapa foi identificar as lacunas tecnicas e documentais que ainda precisavam ser corrigidas antes da entrega academica.
 
 ## Resumo executivo
 

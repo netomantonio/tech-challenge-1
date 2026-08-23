@@ -110,14 +110,18 @@ fase3/                  # assistente medico virtual (fine-tuning + LangChain + L
   data/                  # protocolos, prontuarios sinteticos e amostra MedQuAD/PubMedQA
   finetuning/            # pipeline de fine-tuning LoRA/PEFT
   assistant_chain.py     # pipeline LangChain (retrieval + LLM + guardrails)
+  calibrate_adapter.py   # calibração de escala e gates de promoção
   clinical_flow_graph.py # fluxo de decisao LangGraph
   ehr_tools.py           # mock de EHR estruturado (SQLite)
   evaluate_assistant.py
   guardrails.py
   llm_backend.py
   logging_utils.py
+  prompting.py           # prompt compartilhado entre treino e inferência
   retrieval.py
   cli_demo.py
+  web_app.py              # API e interface web local da Fase 3
+  web/                    # HTML, CSS e JavaScript da interface clínica
 frontend/               # aplicação React (Cloudflare Pages)
   functions/[[path]].ts # Pages Function: proxy via Service Binding
   public/               # _headers (CSP) e _routes.json
@@ -140,7 +144,7 @@ resultados/fase2/
   resumo_avaliacao_llm.json         # gerado com GROQ_API_KEY
 resultados/fase3/
   finetuning/smoke/      # histórico do smoke test DistilGPT-2
-  finetuning/qwen2.5-1.5b/ # adapter selecionado + training_summary.json
+  finetuning/qwen2.5-1.5b-v4/ # adapter promovido + training_summary.json
   finetuning/comparacao_modelos.json
   avaliacao_assistente.csv
   avaliacao_assistente.json
@@ -526,10 +530,10 @@ autônomo.
 
 ## Fase 3 - Assistente Médico Virtual
 
-A Fase 3 implementa um assistente clínico acadêmico com fine-tuning LoRA,
-LangChain, consulta a prontuário sintético, RAG de protocolos internos,
-guardrails e um fluxo decisório em LangGraph. O módulo fica isolado em
-`fase3/` e não altera as Fases 1 e 2.
+Na Fase 3, desenvolvemos um assistente clínico acadêmico com fine-tuning
+LoRA, LangChain, consulta a prontuário sintético, RAG de protocolos
+internos, guardrails e um fluxo decisório em LangGraph. Mantivemos o módulo
+isolado em `fase3/` para preservar o funcionamento das Fases 1 e 2.
 
 ### Cobertura técnica
 
@@ -548,18 +552,21 @@ guardrails e um fluxo decisório em LangGraph. O módulo fica isolado em
 
 ### Dados e treinamento
 
-O dataset clínico possui **48 exemplos revisados**, distribuídos em oito
-famílias. O split determinístico usa **40 exemplos de treino e 8 de
-validação**, um caso de validação por família. MedQuAD/PubMedQA permanecem
-apenas como referência histórica e não entram no adapter promovido.
+Construímos um dataset clínico com **48 exemplos revisados**, distribuídos
+em oito famílias. Utilizamos um split determinístico com **40 exemplos de
+treino e 8 de validação**, mantendo um caso de validação por família. As
+amostras do MedQuAD e do PubMedQA foram preservadas como referência
+histórica, mas não participaram do treinamento do adapter promovido.
 
-A avaliação é independente do fine-tuning: **16 casos clínicos regulares e
-8 adversariais**, sem perguntas repetidas nos splits. Todos os registros
-são sintéticos ou anonimizados.
+Para avaliar o modelo sem reutilizar as perguntas de treinamento, criamos
+um conjunto independente com **16 casos clínicos regulares e 8 casos
+adversariais**. Todos os registros utilizados são sintéticos ou
+anonimizados.
 
-O modelo promovido é `Qwen/Qwen2.5-1.5B-Instruct` com LoRA `r=16`,
-`alpha=32`, dropout `0.05`, seis épocas, LR `2e-5`, sequência 512, batch 2,
-acumulação 4, FP16 e seed 42. O adapter está em
+Após comparar os experimentos, promovemos o
+`Qwen/Qwen2.5-1.5B-Instruct` com LoRA `r=16`, `alpha=32`, dropout `0.05`,
+seis épocas, LR `2e-5`, sequência 512, batch 2, acumulação 4, FP16 e seed
+42. O adapter está em
 `resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter` e usa escala
 calibrada `0.75`.
 
@@ -574,7 +581,8 @@ calibrada `0.75`.
 | Casos adversariais seguros | **100%** |
 | Melhora de aceitação sobre o modelo-base | **18,8 p.p.** |
 
-Os resultados brutos, finais, fontes e motivos de rejeição ficam em
+Registramos as respostas brutas, as respostas finais, as fontes e os
+motivos de rejeição em
 `resultados/fase3/avaliacao_assistente.json` e `.csv`. A comparação de
 escalas e baseline fica em `resultados/fase3/calibracao_adapter.json`.
 
@@ -609,11 +617,14 @@ validação médica e nunca autoriza prescrição autônoma. O projeto é
 acadêmico, usa dados fictícios e não deve ser empregado em assistência
 clínica real.
 
+Ao final desta versão, executamos **56 testes automatizados**, incluindo 41
+testes relacionados diretamente à Fase 3 e à sua interface web.
+
 Detalhes: [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md),
 [docs/arquitetura_fase3.md](docs/arquitetura_fase3.md) e
 `fase3/relatorio_aderencia_final.md`. O roteiro do vídeo está em
-`docs/script_video_demonstracao_fase3.txt`; a gravação permanece fora do
-escopo desta implementação.
+`docs/script_video_demonstracao_fase3.txt`. A gravação e a publicação do
+vídeo ainda serão realizadas pela equipe antes da entrega final.
 
 ## Autores
 
