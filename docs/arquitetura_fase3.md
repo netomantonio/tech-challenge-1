@@ -8,24 +8,31 @@ fictícios ou anonimizados.
 
 ```mermaid
 flowchart TD
-    D[48 casos clínicos revisados] --> B[Curadoria e anonimização]
+    D[48 exemplos sintéticos: 8 famílias x 6 variações] --> B[Curadoria e anonimização]
     B --> T[40 treino]
     B --> V[8 validação]
     T --> L[LoRA Qwen2.5-1.5B]
     V --> C[Calibração 0.25 / 0.5 / 0.75 / 1.0]
     L --> C
-    C --> A[Adapter v4, escala 0.75]
+    C --> A[Adapter v4 promovido]
+    A --> BACKEND[llm_backend: Qwen + LoRA, escala 0.75]
 
     EHR[(EHR SQLite sintético)] --> R[Consulta enriquecida]
     P[(Protocolos internos)] --> R
     UI[Interface web local] --> API[FastAPI Fase 3]
     API --> FLOW[LangGraph clínico]
-    FLOW --> R
+    FLOW --> INPUT[Guardrail de entrada]
+    INPUT -->|PII detectada| BLOCK[Resposta padronizada de bloqueio]
+    INPUT -->|entrada segura| R
     R --> PLAN[Plano factual autorizado]
-    A --> CHAIN[LangChain: prompt / LLM / parser]
+    R --> CHAIN[LangChain: prompt / LLM / parser]
     PLAN --> CHAIN
-    CHAIN --> G[Guardrails e grounding]
-    G --> OUT[Resposta, fontes e modo]
+    BACKEND --> CHAIN
+    CHAIN --> SG[Guardrails de saída]
+    SG -->|resposta bloqueada| OUT[Resposta, fontes e modo]
+    SG -->|resposta segura| G[Grounding, reparo ou fallback]
+    G --> OUT
+    BLOCK --> OUT
     OUT --> LOG[(Auditoria JSONL)]
 ```
 
@@ -41,6 +48,7 @@ flowchart TD
 | `fase3/evaluate_assistant.py` | Avaliação bruta, final e adversarial |
 | `fase3/ehr_tools.py` | Mock de EHR SQLite |
 | `fase3/retrieval.py` | BM25, sinônimos e reranking clínico |
+| `fase3/llm_backend.py` | Carregamento do modelo-base, adapter LoRA e backends local/Groq/fake |
 | `fase3/assistant_chain.py` | LCEL, plano factual, grounding e modos de resposta |
 | `fase3/clinical_flow_graph.py` | Rotas decisórias e alertas |
 | `fase3/guardrails.py` | Bloqueio de PII e prescrição direta |
@@ -57,6 +65,12 @@ uso da GPU. A tela consome apenas os endpoints locais `/api/status`,
 `/api/pacientes` e `/api/consultas`; a lógica clínica continua centralizada no
 LangGraph e não é duplicada no frontend.
 
+A API também devolve `etapas_executadas`. Dessa forma, a interface apresenta
+o caminho realmente percorrido no grafo, em vez de reconstruir uma sequência
+fixa no navegador. Os alertas mostrados na tela permanecem no estado e na
+resposta da API; nesta versão acadêmica não existe integração com e-mail,
+mensageria ou outro serviço externo de notificações.
+
 ## Contrato da resposta
 
 `responder_pergunta_clinica(pergunta, paciente_id, incluir_diagnostico)`
@@ -69,6 +83,9 @@ retorna resposta final, fontes, estado de bloqueio, motivos de grounding e
 - `bloqueada`: guardrail interceptou conteúdo inseguro.
 
 `resposta_llm_bruta` só é incluída quando `incluir_diagnostico=True`.
+Quando a pergunta contém PII, o processamento é interrompido antes do
+retrieval e da LLM, e somente a versão redigida da pergunta é registrada na
+auditoria.
 
 ## Fluxo LangGraph
 
@@ -80,8 +97,8 @@ flowchart TD
     VEP -->|sem pendências| ST[sugerir_tratamento]
     VEP -->|com pendências| AEP[alertar_exames_pendentes]
     AEP --> ST
-    ST --> CS[checar_seguranca]
-    CS --> EA[emitir_alertas clínicos]
+    ST --> CS[checar_seguranca: interpretar bloqueio já calculado]
+    CS --> EA[emitir_alertas: consolidar alertas no estado]
     EA --> AUD
     AUD --> END((fim))
 ```
@@ -95,15 +112,27 @@ O nó `verificar_exames_pendentes` preenche:
 Paciente inexistente encerra antes da LLM. O alerta de exames é emitido
 uma única vez, na rota com pendências.
 
+O nó `sugerir_tratamento` chama `responder_pergunta_clinica`, onde são
+executados retrieval, geração, guardrails de entrada e saída, grounding,
+reparo de citação e fallback. Por isso, `checar_seguranca` não reaplica o
+guardrail: ele interpreta o resultado já calculado e, quando necessário,
+inclui um alerta para revisão humana. O nó `emitir_alertas` apenas consolida
+os alertas no estado; ele não envia notificações externas.
+
 ## Segurança e explainability
 
-1. O RAG usa a pergunta e o contexto atual do paciente.
-2. O plano factual referencia apenas fontes recuperadas.
-3. O grounding rejeita fonte inválida, número inventado, PII, prescrição,
-   repetição, evasão ou inadequação clínica.
-4. Toda resposta final contém fonte válida quando aplicável e disclaimer de
-   validação médica.
-5. O evento final registra exames, rota, alertas, fontes e modo de resposta.
+1. O guardrail de entrada bloqueia PII antes do retrieval e da LLM e redige a
+   pergunta antes de registrá-la na auditoria.
+2. O RAG usa a pergunta segura e o contexto atual do paciente.
+3. O plano factual referencia apenas fontes recuperadas.
+4. Os guardrails de saída bloqueiam PII e prescrição direta.
+5. O grounding rejeita fonte inválida, número inventado, repetição, evasão ou
+   inadequação clínica e pode acionar reparo de citação ou fallback.
+6. Respostas aprovadas recebem fonte válida quando aplicável e disclaimer de
+   validação médica. Respostas inseguras são substituídas por uma mensagem
+   padronizada de bloqueio.
+7. O evento final registra exames, rota, etapas executadas, alertas, fontes e
+   modo de resposta.
 
 ## Gates de promoção
 

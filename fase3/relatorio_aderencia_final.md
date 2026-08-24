@@ -41,7 +41,7 @@ aprovados:
 
 | Requisito | Status | Evidência principal |
 | --- | --- | --- |
-| Dados próprios do hospital | Atendido | 48 casos clínicos revisados, protocolos e prontuários sintéticos em `fase3/data/` |
+| Dados próprios do hospital | Atendido | 48 exemplos sintéticos em oito famílias, protocolos e prontuários sintéticos em `fase3/data/` |
 | Preprocessing, anonimização e curadoria | Atendido | `build_finetuning_dataset.py` e testes de PII/deduplicação |
 | Fine-tuning real | Atendido | `train_lora.py` e adapter PEFT íntegro em `qwen2.5-1.5b-v4/lora_adapter` |
 | Avaliação e análise dos resultados | Atendido | JSON/CSV bruto e final, baseline, calibração e comparação de modelos |
@@ -49,8 +49,8 @@ aprovados:
 | Consulta a dados estruturados | Atendido | EHR SQLite em `ehr_tools.py` |
 | Respostas contextualizadas | Atendido | Busca usa pergunta, diagnóstico, exames, observações e alertas do paciente |
 | Fluxo automatizado LangGraph | Atendido | Rotas reais de exames em `clinical_flow_graph.py` |
-| Nunca prescrever sem validação humana | Atendido | Guardrail, disclaimer e testes adversariais |
-| Logging para auditoria | Atendido | Eventos incluem exames, rota, alertas, fontes e modo de resposta |
+| Nunca prescrever sem validação humana | Atendido | Guardrails de entrada e saída, disclaimer e testes adversariais |
+| Logging para auditoria | Atendido | Entradas com PII são redigidas; eventos incluem etapas, exames, rota, alertas, fontes e modo de resposta |
 | Explainability | Atendido | Resposta final fundamentada e fontes com ID/título |
 | Modularização em Python | Atendido | Pacote `fase3/` separado por responsabilidades |
 | Relatório técnico e arquitetura | Atendido | `relatorio_tecnico_fase3.md` e `docs/arquitetura_fase3.md` |

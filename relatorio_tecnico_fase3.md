@@ -108,14 +108,20 @@ o histórico completo de logs do Trainer.
 
 No método `responder_pergunta_clinica()`, implementamos as seguintes etapas:
 
-1. consulta ao EHR sintético;
-2. BM25 com pergunta, diagnóstico, pendências, observações e alertas;
-3. geração de plano factual fundamentado;
-4. redação pela LLM via LCEL;
-5. guardrails contra PII e prescrição direta;
-6. validação de fontes, números, repetição e adequação clínica;
-7. reparo apenas de citação ou fallback seguro;
-8. disclaimer e auditoria estruturada.
+1. verificação e redação de PII na pergunta antes do processamento;
+2. consulta ao EHR sintético;
+3. BM25 com pergunta, diagnóstico, pendências, observações e alertas;
+4. geração de plano factual fundamentado;
+5. redação pela LLM via LCEL;
+6. guardrails de saída contra PII e prescrição direta;
+7. validação de fontes, números, repetição e adequação clínica;
+8. reparo apenas de citação ou fallback seguro;
+9. disclaimer nas respostas aprovadas e auditoria estruturada.
+
+Quando a entrada contém nome, CPF, telefone ou e-mail, a consulta é
+bloqueada antes do retrieval e da chamada à LLM. Para manter a rastreabilidade
+sem conservar o dado identificável, registramos na auditoria somente a versão
+redigida da pergunta.
 
 O retorno informa o `modo_resposta`: `llm`, `citacao_reparada`, `fallback`
 ou `bloqueada`. A opção `incluir_diagnostico=True` expõe a geração bruta
@@ -132,9 +138,12 @@ No LangGraph, definimos um estado com `exames_pendentes`,
 - com pendências passa por `alertar_exames_pendentes` e depois recebe uma
   sugestão contextualizada.
 
-Ao final, registramos a rota, os exames, os alertas, as fontes, o eventual
-bloqueio e o modo de resposta. Também removemos a emissão duplicada do
-alerta de exames.
+Ao final, registramos a rota, os exames, as etapas realmente executadas, os
+alertas, as fontes, o eventual bloqueio e o modo de resposta. O nó
+`checar_seguranca` interpreta o resultado dos guardrails aplicados dentro da
+chain, enquanto `emitir_alertas` consolida mensagens no estado sem enviar
+notificações externas. Também removemos a emissão duplicada do alerta de
+exames.
 
 ## 7. Avaliação final
 
