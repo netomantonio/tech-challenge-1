@@ -73,6 +73,16 @@ const questionsByPatient = {
   "PAC-0006": ["Como conduzir a dor 7/10 no pos-operatorio?", "Essa dor exige reavaliacao da equipe cirurgica?"],
 };
 
+const flowLabels = {
+  buscar_paciente: "Buscar paciente",
+  verificar_exames_pendentes: "Verificar exames pendentes",
+  alertar_exames_pendentes: "Registrar alerta de exames pendentes",
+  sugerir_tratamento: "Recuperar protocolos e gerar resposta",
+  checar_seguranca: "Avaliar resultado dos guardrails",
+  emitir_alertas: "Consolidar alertas no estado",
+  registrar_auditoria: "Registrar auditoria",
+};
+
 function textElement(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -196,9 +206,8 @@ function renderEvidence(result) {
   elements.emptyEvidence.hidden = true;
   elements.evidence.hidden = false;
   elements.flow.replaceChildren();
-  const route = result.rota_exames === "com_pendencias" ? "Alertar exames pendentes" : "Seguir sem pendencias";
-  ["Buscar paciente", "Verificar exames", route, "Recuperar protocolos", "Checar seguranca", "Registrar auditoria"].forEach((step) => {
-    elements.flow.append(textElement("li", "", step));
+  (result.etapas_executadas || []).forEach((step) => {
+    elements.flow.append(textElement("li", "", flowLabels[step] || step.replaceAll("_", " ")));
   });
 
   elements.sources.replaceChildren();

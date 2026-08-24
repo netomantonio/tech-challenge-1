@@ -547,14 +547,14 @@ isolado em `fase3/` para preservar o funcionamento das Fases 1 e 2.
 | Prontuário estruturado | `fase3/ehr_tools.py` (SQLite sintético) |
 | RAG e explainability | `fase3/retrieval.py`, fontes em toda resposta final |
 | Fluxo LangGraph com bifurcação de exames | `fase3/clinical_flow_graph.py` |
-| Segurança e validação humana | `fase3/guardrails.py` |
+| Segurança e validação humana | `fase3/guardrails.py` (entrada e saída) |
 | Auditoria | `fase3/logging_utils.py` |
 | Avaliação bruta, final e adversarial | `fase3/evaluate_assistant.py`, `fase3/calibrate_adapter.py` |
 
 ### Dados e treinamento
 
-Construímos um dataset clínico com **48 exemplos revisados**, distribuídos
-em oito famílias. Utilizamos um split determinístico com **40 exemplos de
+Construímos um dataset clínico com **48 exemplos sintéticos**, organizados
+em oito famílias com seis variações cada. Utilizamos um split determinístico com **40 exemplos de
 treino e 8 de validação**, mantendo um caso de validação por família. As
 amostras do MedQuAD e do PubMedQA foram preservadas como referência
 histórica, mas não participaram do treinamento do adapter promovido.
@@ -623,12 +623,14 @@ Para reexecutar a avaliação formal:
 
 A documentação dos endpoints fica em `http://127.0.0.1:8010/docs`.
 
-Toda resposta final é fundamentada em fontes válidas, recebe aviso de
-validação médica e nunca autoriza prescrição autônoma. O projeto é
+As perguntas com PII são bloqueadas antes do retrieval e da LLM e aparecem
+redigidas na auditoria. As respostas aprovadas são fundamentadas em fontes
+válidas e recebem aviso de validação médica; respostas inseguras são
+substituídas por mensagens de bloqueio. O projeto é
 acadêmico, usa dados fictícios e não deve ser empregado em assistência
 clínica real.
 
-Ao final desta versão, executamos **59 testes automatizados**, incluindo 44
+Ao final desta versão, executamos **61 testes automatizados**, incluindo 46
 testes relacionados diretamente à Fase 3 e à sua interface web.
 
 Detalhes: [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md),

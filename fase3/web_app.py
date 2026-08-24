@@ -132,6 +132,7 @@ def _serializar_estado(estado: dict[str, Any]) -> dict[str, Any]:
         "tem_exames_pendentes": estado.get("tem_exames_pendentes", False),
         "rota_exames": estado.get("rota_exames"),
         "alertas": estado.get("alertas", []),
+        "etapas_executadas": estado.get("etapas_executadas", []),
     }
 
 

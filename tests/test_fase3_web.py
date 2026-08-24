@@ -89,6 +89,15 @@ class Fase3WebTests(unittest.TestCase):
             "tem_exames_pendentes": True,
             "rota_exames": "com_pendencias",
             "alertas": ["Exame pendente"],
+            "etapas_executadas": [
+                "buscar_paciente",
+                "verificar_exames_pendentes",
+                "alertar_exames_pendentes",
+                "sugerir_tratamento",
+                "checar_seguranca",
+                "emitir_alertas",
+                "registrar_auditoria",
+            ],
         }
         with patch.object(self.runtime, "consultar", return_value=estado):
             response = self.client.post(
@@ -105,6 +114,7 @@ class Fase3WebTests(unittest.TestCase):
         self.assertEqual(body["rota_exames"], "com_pendencias")
         self.assertEqual(body["fontes"][0]["id"], "PROT-006")
         self.assertEqual(body["alertas"], ["Exame pendente"])
+        self.assertEqual(body["etapas_executadas"][-1], "registrar_auditoria")
 
     def test_rejeita_entrada_invalida(self) -> None:
         response = self.client.post(

@@ -42,6 +42,11 @@ class EstadoFluxoClinico(TypedDict, total=False):
     sugestao: Optional[dict]
     bloqueado: bool
     alertas: list[str]
+    etapas_executadas: list[str]
+
+
+def _etapas_com(state: EstadoFluxoClinico, etapa: str) -> list[str]:
+    return [*state.get("etapas_executadas", []), etapa]
 
 
 def _no_buscar_paciente(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
@@ -50,6 +55,7 @@ def _no_buscar_paciente(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
         **state,
         "paciente": paciente,
         "paciente_encontrado": paciente is not None,
+        "etapas_executadas": _etapas_com(state, "buscar_paciente"),
     }
 
 
@@ -65,6 +71,7 @@ def _no_verificar_exames_pendentes(state: EstadoFluxoClinico) -> EstadoFluxoClin
         "exames_pendentes": exames_pendentes,
         "tem_exames_pendentes": tem_pendencias,
         "rota_exames": "com_pendencias" if tem_pendencias else "sem_pendencias",
+        "etapas_executadas": _etapas_com(state, "verificar_exames_pendentes"),
     }
 
 
@@ -78,7 +85,11 @@ def _no_alertar_exames_pendentes(state: EstadoFluxoClinico) -> EstadoFluxoClinic
         f"Exames pendentes para {state['paciente_id']}: "
         f"{', '.join(state['exames_pendentes'])}."
     )
-    return {**state, "alertas": alertas}
+    return {
+        **state,
+        "alertas": alertas,
+        "etapas_executadas": _etapas_com(state, "alertar_exames_pendentes"),
+    }
 
 
 def _construir_no_sugerir_tratamento(llm: Optional[LLM], retriever: Optional[BM25Retriever]):
@@ -89,7 +100,12 @@ def _construir_no_sugerir_tratamento(llm: Optional[LLM], retriever: Optional[BM2
             llm=llm,
             retriever=retriever,
         )
-        return {**state, "sugestao": sugestao, "bloqueado": sugestao["bloqueado"]}
+        return {
+            **state,
+            "sugestao": sugestao,
+            "bloqueado": sugestao["bloqueado"],
+            "etapas_executadas": _etapas_com(state, "sugerir_tratamento"),
+        }
 
     return _no
 
@@ -104,7 +120,11 @@ def _no_checar_seguranca(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
             f"Sugestao bloqueada por guardrail ({state['sugestao']['motivo_bloqueio']}) "
             "- requer revisao manual de um medico."
         )
-    return {**state, "alertas": alertas}
+    return {
+        **state,
+        "alertas": alertas,
+        "etapas_executadas": _etapas_com(state, "checar_seguranca"),
+    }
 
 
 def _no_emitir_alertas(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
@@ -112,23 +132,32 @@ def _no_emitir_alertas(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
     paciente = state.get("paciente") or {}
     for alerta_ativo in paciente.get("alertas_ativos", []):
         alertas.append(f"Alerta clinico ativo: {alerta_ativo}")
-    return {**state, "alertas": alertas}
+    return {
+        **state,
+        "alertas": alertas,
+        "etapas_executadas": _etapas_com(state, "emitir_alertas"),
+    }
 
 
 def _no_registrar_auditoria(state: EstadoFluxoClinico) -> EstadoFluxoClinico:
+    estado_final = {
+        **state,
+        "etapas_executadas": _etapas_com(state, "registrar_auditoria"),
+    }
     registrar_interacao(
         "fluxo_clinico_concluido",
-        paciente_id=state["paciente_id"],
-        paciente_encontrado=state.get("paciente_encontrado", False),
-        exames_pendentes=state.get("exames_pendentes", []),
-        tem_exames_pendentes=state.get("tem_exames_pendentes", False),
-        rota_exames=state.get("rota_exames"),
-        alertas=state.get("alertas", []),
-        bloqueado=state.get("bloqueado", False),
-        fontes=(state.get("sugestao") or {}).get("fontes", []),
-        modo_resposta=(state.get("sugestao") or {}).get("modo_resposta"),
+        paciente_id=estado_final["paciente_id"],
+        paciente_encontrado=estado_final.get("paciente_encontrado", False),
+        exames_pendentes=estado_final.get("exames_pendentes", []),
+        tem_exames_pendentes=estado_final.get("tem_exames_pendentes", False),
+        rota_exames=estado_final.get("rota_exames"),
+        alertas=estado_final.get("alertas", []),
+        bloqueado=estado_final.get("bloqueado", False),
+        fontes=(estado_final.get("sugestao") or {}).get("fontes", []),
+        modo_resposta=(estado_final.get("sugestao") or {}).get("modo_resposta"),
+        etapas_executadas=estado_final["etapas_executadas"],
     )
-    return state
+    return estado_final
 
 
 def construir_grafo(llm: Optional[LLM] = None, retriever: Optional[BM25Retriever] = None):
@@ -180,5 +209,6 @@ def executar_fluxo_clinico(
         "paciente_id": paciente_id,
         "pergunta": pergunta,
         "alertas": [],
+        "etapas_executadas": [],
     }
     return app.invoke(estado_inicial)
