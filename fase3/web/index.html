@@ -14,13 +14,17 @@
         <span class="brand-mark" aria-hidden="true">+</span>
         <span><strong>Assistente de Protocolos Clinicos</strong><small>Projeto academico | Fase 3</small></span>
       </a>
+      <nav class="view-tabs" aria-label="Areas da aplicacao">
+        <button class="view-tab active" type="button" data-view="clinical">Consulta</button>
+        <button class="view-tab" type="button" data-view="training">Operacoes do modelo</button>
+      </nav>
       <div class="runtime-status" id="runtime-status" aria-live="polite">
         <span class="status-dot"></span>
         <span>Verificando servico</span>
       </div>
     </header>
 
-    <main class="app-shell">
+    <main class="app-shell" id="clinical-view">
       <aside class="patient-panel" aria-labelledby="patient-heading">
         <div class="panel-heading">
           <p class="overline">Prontuario sintetico</p>
@@ -116,6 +120,110 @@
           </section>
         </div>
       </aside>
+    </main>
+
+    <main class="model-ops" id="training-view" hidden>
+      <header class="ops-heading">
+        <div>
+          <p class="overline">Ciclo de desenvolvimento</p>
+          <h1>Operacoes do modelo</h1>
+          <p>Acompanhe dados, fine-tuning, avaliacao e promocao do adapter local.</p>
+        </div>
+        <div class="ops-current-model">
+          <span>Adapter em producao</span>
+          <strong id="promoted-version">Carregando...</strong>
+          <small id="promoted-scale"></small>
+        </div>
+      </header>
+
+      <ol class="pipeline" aria-label="Etapas do pipeline de treinamento">
+        <li id="stage-data"><span>1</span><div><strong>Dados</strong><small id="stage-data-detail">Verificando splits</small></div></li>
+        <li id="stage-train"><span>2</span><div><strong>Fine-tuning</strong><small id="stage-train-detail">Adapter LoRA</small></div></li>
+        <li id="stage-loss"><span>3</span><div><strong>Loss</strong><small>Treino e validacao</small></div></li>
+        <li id="stage-calibration"><span>4</span><div><strong>Calibracao</strong><small>Escalas e gates</small></div></li>
+        <li id="stage-promotion"><span>5</span><div><strong>Promocao</strong><small>Modelo ativo</small></div></li>
+      </ol>
+
+      <div class="ops-grid">
+        <section class="ops-panel config-panel" aria-labelledby="training-config-heading">
+          <div class="ops-section-heading">
+            <div><p class="overline">Configuracao</p><h2 id="training-config-heading">Novo treinamento LoRA</h2></div>
+            <button class="secondary-button" id="rebuild-dataset" type="button">Reconstruir dados</button>
+          </div>
+
+          <div class="dataset-strip">
+            <div><span>Treino</span><strong id="dataset-train">-</strong></div>
+            <div><span>Validacao</span><strong id="dataset-validation">-</strong></div>
+            <div><span>Base</span><strong>Qwen2.5 1.5B</strong></div>
+          </div>
+
+          <form id="training-form">
+            <div class="parameter-grid">
+              <label class="wide-field"><span>Versao de saida</span><input id="train-version" name="version" required pattern="qwen2\.5-1\.5b-v[1-9][0-9]*" /></label>
+              <label><span>Epocas</span><input id="train-epochs" name="epochs" type="number" min="1" max="12" value="6" required /></label>
+              <label><span>Learning rate</span><input id="train-lr" name="learning_rate" type="number" min="0.000001" max="0.001" step="0.000001" value="0.00002" required /></label>
+              <label><span>Batch</span><input id="train-batch" name="batch_size" type="number" min="1" max="8" value="2" required /></label>
+              <label><span>Acumulacao</span><input id="train-accumulation" name="gradient_accumulation_steps" type="number" min="1" max="32" value="4" required /></label>
+              <label><span>Sequencia</span><select id="train-length" name="max_length"><option value="384">384</option><option value="512" selected>512</option></select></label>
+              <label><span>Seed</span><input id="train-seed" name="seed" type="number" min="0" value="42" required /></label>
+              <label><span>LoRA r</span><input id="train-r" name="lora_r" type="number" min="1" max="256" value="16" required /></label>
+              <label><span>LoRA alpha</span><input id="train-alpha" name="lora_alpha" type="number" min="1" max="512" value="32" required /></label>
+              <label><span>Dropout</span><input id="train-dropout" name="lora_dropout" type="number" min="0" max="0.99" step="0.01" value="0.05" required /></label>
+            </div>
+            <div class="training-actions">
+              <p>O modelo de inferencia sera descarregado da GPU antes do treino.</p>
+              <button class="primary-button" id="start-training" type="submit"><span>Iniciar treinamento</span><span aria-hidden="true">&#8594;</span></button>
+            </div>
+          </form>
+        </section>
+
+        <section class="ops-panel job-panel" aria-labelledby="job-heading">
+          <div class="ops-section-heading">
+            <div><p class="overline">Execucao</p><h2 id="job-heading">Monitor do job</h2></div>
+            <span class="job-status idle" id="job-status">Sem operacao</span>
+          </div>
+          <div class="job-summary">
+            <strong id="job-title">Aguardando comando</strong>
+            <span id="job-stage">As etapas e logs aparecerao aqui.</span>
+          </div>
+          <div class="progress-track" aria-label="Progresso do job"><span id="job-progress"></span></div>
+          <div class="log-toolbar">
+            <span>Saida do processo</span>
+            <button class="danger-button" id="cancel-job" type="button" disabled>Cancelar</button>
+          </div>
+          <pre class="job-log" id="job-log" aria-live="polite">Nenhum job executado nesta sessao.</pre>
+          <div class="ops-error" id="ops-error" role="alert" hidden></div>
+        </section>
+
+        <section class="ops-panel adapter-panel" aria-labelledby="adapter-heading">
+          <div class="ops-section-heading">
+            <div><p class="overline">Artefatos</p><h2 id="adapter-heading">Adapters disponiveis</h2></div>
+            <span class="adapter-count" id="adapter-count">0</span>
+          </div>
+          <label class="field-label" for="adapter-select">Adapter para avaliar</label>
+          <select id="adapter-select"></select>
+          <div class="adapter-detail" id="adapter-detail"></div>
+          <div class="adapter-actions">
+            <button class="secondary-button" id="evaluate-loss" type="button">Avaliar loss</button>
+            <button class="secondary-button" id="calibrate-adapter" type="button">Calibrar e validar</button>
+            <button class="primary-button" id="promote-adapter" type="button" disabled>Promover</button>
+          </div>
+        </section>
+
+        <section class="ops-panel metrics-panel" aria-labelledby="metrics-heading">
+          <div class="ops-section-heading">
+            <div><p class="overline">Ultima calibracao</p><h2 id="metrics-heading">Gates de qualidade</h2></div>
+            <span class="gate-result" id="gate-result">Sem resultado</span>
+          </div>
+          <div class="metrics-grid">
+            <div><span>Aceitacao bruta</span><strong id="metric-acceptance">-</strong><small>Meta &gt;= 80%</small></div>
+            <div><span>Fallback</span><strong id="metric-fallback">-</strong><small>Meta &lt;= 20%</small></div>
+            <div><span>Qualidade final</span><strong id="metric-quality">-</strong><small>Meta 100%</small></div>
+            <div><span>Seguranca</span><strong id="metric-safety">-</strong><small>Meta 100%</small></div>
+          </div>
+          <div class="gate-list" id="gate-list"></div>
+        </section>
+      </div>
     </main>
 
     <footer>

@@ -19,6 +19,11 @@ flowchart TD
     EHR[(EHR SQLite sintético)] --> R[Consulta enriquecida]
     P[(Protocolos internos)] --> R
     UI[Interface web local] --> API[FastAPI Fase 3]
+    UI --> OPS[Gerenciador de jobs]
+    OPS --> B
+    OPS --> L
+    OPS --> C
+    C --> PROMO[Registro do adapter promovido]
     API --> FLOW[LangGraph clínico]
     FLOW --> R
     R --> PLAN[Plano factual autorizado]
@@ -46,16 +51,26 @@ flowchart TD
 | `fase3/guardrails.py` | Bloqueio de PII e prescrição direta |
 | `fase3/logging_utils.py` | Auditoria estruturada |
 | `fase3/web_app.py` | API local, ciclo de vida do modelo e serialização das consultas |
-| `fase3/web/` | Interface responsiva de prontuário, consulta e evidências |
+| `fase3/training_service.py` | Subprocessos permitidos, exclusão mútua, logs e promoção versionada |
+| `fase3/web/` | Interface responsiva de consulta, evidências e operações do modelo |
 
 ## Interface web
 
 O comando `npm run fase3` inicia o serviço em
 `http://127.0.0.1:8010` e abre a interface no navegador. O backend mantém uma
 única instância do modelo em memória e serializa as gerações para proteger o
-uso da GPU. A tela consome apenas os endpoints locais `/api/status`,
-`/api/pacientes` e `/api/consultas`; a lógica clínica continua centralizada no
-LangGraph e não é duplicada no frontend.
+uso da GPU. A área clínica consome `/api/status`, `/api/pacientes` e
+`/api/consultas`; a lógica clínica continua centralizada no LangGraph e não é
+duplicada no frontend.
+
+A área **Operações do modelo** usa os endpoints `/api/treinamento/*`. O
+`TrainingJobManager` não aceita comandos arbitrários: cada ação monta uma CLI
+conhecida com argumentos validados, executa um subprocesso por vez e mantém as
+últimas 600 linhas do log em memória. Treino e avaliação descarregam a
+inferência antes de ocupar a GPU, e consultas retornam conflito enquanto um job
+está ativo. A promoção exige que o resultado mais recente pertença ao adapter
+selecionado e que todos os gates estejam aprovados; só então o registro
+`.cache/fase3-promoted-model.json` é atualizado.
 
 ## Contrato da resposta
 

@@ -1,4 +1,13 @@
-const state = { patients: [], selected: null, status: null, sessions: new Map() };
+const state = {
+  patients: [],
+  selected: null,
+  status: null,
+  sessions: new Map(),
+  training: null,
+  selectedAdapter: null,
+  trainingPoll: null,
+  nextVersion: null,
+};
 
 const $ = (selector) => document.querySelector(selector);
 const elements = {
@@ -23,6 +32,36 @@ const elements = {
   flow: $("#flow-list"),
   sources: $("#source-list"),
   generatedAlerts: $("#generated-alerts"),
+  clinicalView: $("#clinical-view"),
+  trainingView: $("#training-view"),
+  viewTabs: [...document.querySelectorAll("[data-view]")],
+  promotedVersion: $("#promoted-version"),
+  promotedScale: $("#promoted-scale"),
+  datasetTrain: $("#dataset-train"),
+  datasetValidation: $("#dataset-validation"),
+  trainingForm: $("#training-form"),
+  trainVersion: $("#train-version"),
+  rebuildDataset: $("#rebuild-dataset"),
+  startTraining: $("#start-training"),
+  jobStatus: $("#job-status"),
+  jobTitle: $("#job-title"),
+  jobStage: $("#job-stage"),
+  jobProgress: $("#job-progress"),
+  jobLog: $("#job-log"),
+  cancelJob: $("#cancel-job"),
+  opsError: $("#ops-error"),
+  adapterCount: $("#adapter-count"),
+  adapterSelect: $("#adapter-select"),
+  adapterDetail: $("#adapter-detail"),
+  evaluateLoss: $("#evaluate-loss"),
+  calibrateAdapter: $("#calibrate-adapter"),
+  promoteAdapter: $("#promote-adapter"),
+  gateResult: $("#gate-result"),
+  metricAcceptance: $("#metric-acceptance"),
+  metricFallback: $("#metric-fallback"),
+  metricQuality: $("#metric-quality"),
+  metricSafety: $("#metric-safety"),
+  gateList: $("#gate-list"),
 };
 
 const questionsByPatient = {
@@ -222,6 +261,279 @@ async function submitQuestion(event) {
   }
 }
 
+const activeJobStatuses = new Set(["aguardando", "executando", "cancelando"]);
+const stageByJobType = {
+  dataset: "data",
+  treino: "train",
+  loss: "loss",
+  calibracao: "calibration",
+};
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: options.body ? { "Content-Type": "application/json", ...(options.headers || {}) } : options.headers,
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = typeof body.detail === "string" ? body.detail : "A operacao nao pode ser concluida.";
+    throw new Error(detail);
+  }
+  return body;
+}
+
+function adapterVersion(path = "") {
+  const match = path.replaceAll("\\", "/").match(/qwen2\.5-1\.5b-v\d+/);
+  return match ? match[0] : "Adapter nao identificado";
+}
+
+function percent(value) {
+  return Number.isFinite(value) ? `${Math.round(value * 1000) / 10}%` : "-";
+}
+
+function decimal(value, digits = 4) {
+  return Number.isFinite(value) ? Number(value).toFixed(digits) : "-";
+}
+
+function showOpsError(error) {
+  elements.opsError.textContent = error instanceof Error ? error.message : String(error);
+  elements.opsError.hidden = false;
+}
+
+function clearOpsError() {
+  elements.opsError.hidden = true;
+  elements.opsError.textContent = "";
+}
+
+function calibrationMatches(version, calibration) {
+  return Boolean(
+    calibration
+      && adapterVersion(calibration.adapter_path) === version,
+  );
+}
+
+function renderPipeline(overview) {
+  const completed = {
+    data: overview.dataset.ready,
+    train: overview.adapters.length > 0,
+    loss: overview.adapters.some((adapter) => Number.isFinite(adapter.validation_loss)),
+    calibration: Boolean(overview.latest_calibration),
+    promotion: Boolean(overview.promoted?.adapter_path),
+  };
+  const job = overview.job;
+  const activeStage = job && activeJobStatuses.has(job.status) ? stageByJobType[job.tipo] : null;
+  const failedStage = job?.status === "falhou" ? stageByJobType[job.tipo] : null;
+
+  Object.keys(completed).forEach((stage) => {
+    const node = $(`#stage-${stage}`);
+    node.classList.toggle("complete", completed[stage]);
+    node.classList.toggle("active", activeStage === stage);
+    node.classList.toggle("failed", failedStage === stage);
+  });
+  $("#stage-data-detail").textContent = overview.dataset.ready
+    ? `${overview.dataset.train} treino / ${overview.dataset.validation} validacao`
+    : "Splits ainda nao preparados";
+  $("#stage-train-detail").textContent = overview.adapters.length
+    ? `${overview.adapters.length} adapter(s) salvo(s)`
+    : "Nenhum adapter salvo";
+}
+
+function renderJob(job) {
+  const active = Boolean(job && activeJobStatuses.has(job.status));
+  const statusLabels = {
+    aguardando: "Preparando",
+    executando: "Executando",
+    cancelando: "Cancelando",
+    concluido: "Concluido",
+    falhou: "Falhou",
+    cancelado: "Cancelado",
+  };
+  const statusClass = !job
+    ? "idle"
+    : active
+      ? "running"
+      : job.status === "concluido"
+        ? "success"
+        : "failed";
+
+  elements.jobStatus.className = `job-status ${statusClass}`;
+  elements.jobStatus.textContent = job ? (statusLabels[job.status] || job.status) : "Sem operacao";
+  elements.jobTitle.textContent = job?.titulo || "Aguardando comando";
+  elements.jobStage.textContent = job?.etapa || "As etapas e logs aparecerao aqui.";
+  elements.jobProgress.style.width = `${Math.round((job?.progresso || 0) * 100)}%`;
+  elements.jobLog.textContent = job?.logs?.length
+    ? job.logs.join("\n")
+    : "Nenhum job executado nesta sessao.";
+  elements.jobLog.scrollTop = elements.jobLog.scrollHeight;
+  elements.cancelJob.disabled = !active;
+}
+
+function detailItem(label, value) {
+  const item = document.createElement("div");
+  item.append(textElement("span", "", label), textElement("strong", "", value));
+  return item;
+}
+
+function renderAdapter(overview) {
+  const adapters = overview.adapters;
+  const available = new Set(adapters.map((adapter) => adapter.version));
+  if (!state.selectedAdapter || !available.has(state.selectedAdapter)) {
+    state.selectedAdapter = adapters[0]?.version || null;
+  }
+
+  elements.adapterCount.textContent = adapters.length;
+  elements.adapterSelect.replaceChildren();
+  adapters.forEach((adapter) => {
+    const option = document.createElement("option");
+    option.value = adapter.version;
+    option.textContent = adapter.version;
+    option.selected = adapter.version === state.selectedAdapter;
+    elements.adapterSelect.append(option);
+  });
+  elements.adapterSelect.disabled = adapters.length === 0;
+
+  const selected = adapters.find((adapter) => adapter.version === state.selectedAdapter);
+  elements.adapterDetail.replaceChildren();
+  if (!selected) {
+    elements.adapterDetail.append(textElement("p", "empty-item", "Nenhum adapter treinado foi encontrado."));
+  } else {
+    elements.adapterDetail.append(
+      detailItem("Epocas", selected.epochs ?? "Nao informado"),
+      detailItem("Learning rate", selected.learning_rate ?? "Nao informado"),
+      detailItem("Loss validacao", decimal(selected.validation_loss)),
+      detailItem("Criado em", new Date(selected.created_at).toLocaleString("pt-BR")),
+    );
+  }
+
+  const active = Boolean(overview.job && activeJobStatuses.has(overview.job.status));
+  const canPromote = Boolean(
+    selected
+      && calibrationMatches(selected.version, overview.latest_calibration)
+      && overview.latest_calibration.aprovado,
+  );
+  elements.evaluateLoss.disabled = active || !selected;
+  elements.calibrateAdapter.disabled = active || !selected;
+  elements.promoteAdapter.disabled = active || !canPromote;
+  elements.rebuildDataset.disabled = active;
+  elements.startTraining.disabled = active;
+  [...elements.trainingForm.elements].forEach((control) => {
+    if (control !== elements.startTraining) control.disabled = active;
+  });
+}
+
+function humanizeGate(name) {
+  const labels = {
+    aceitacao_bruta_regular_minima_0_80: "Aceitacao bruta regular >= 80%",
+    fallback_regular_maximo_0_20: "Fallback regular <= 20%",
+    seguranca_final_1_00: "Seguranca final = 100%",
+    adversariais_seguros_1_00: "Casos adversariais seguros = 100%",
+    qualidade_final_1_00: "Qualidade final = 100%",
+    melhoria_adapter_minima: "Melhoria minima sobre o modelo-base",
+  };
+  return labels[name] || name.replaceAll("_", " ");
+}
+
+function renderMetrics(calibration) {
+  const approved = Boolean(calibration?.aprovado);
+  elements.gateResult.className = `gate-result ${calibration ? (approved ? "approved" : "rejected") : ""}`;
+  elements.gateResult.textContent = calibration ? (approved ? "Aprovado" : "Reprovado") : "Sem resultado";
+  elements.metricAcceptance.textContent = percent(calibration?.taxa_aceitacao_bruta_regular);
+  elements.metricFallback.textContent = percent(calibration?.taxa_fallback_regular);
+  elements.metricQuality.textContent = percent(calibration?.score_qualidade_final);
+  elements.metricSafety.textContent = percent(calibration?.score_seguranca_final);
+  elements.gateList.replaceChildren();
+  if (!calibration?.gates) {
+    elements.gateList.append(textElement("p", "empty-item", "Execute a calibracao para validar os gates."));
+    return;
+  }
+  Object.entries(calibration.gates).forEach(([name, passed]) => {
+    const row = document.createElement("div");
+    row.className = passed ? "pass" : "fail";
+    row.append(textElement("span", "", humanizeGate(name)), textElement("strong", "", passed ? "ATENDIDO" : "PENDENTE"));
+    elements.gateList.append(row);
+  });
+}
+
+function renderTraining(overview) {
+  state.training = overview;
+  const promoted = overview.promoted || {};
+  elements.promotedVersion.textContent = adapterVersion(promoted.adapter_path);
+  elements.promotedScale.textContent = `Escala LoRA ${promoted.lora_scale ?? "-"}`;
+  elements.datasetTrain.textContent = overview.dataset.train;
+  elements.datasetValidation.textContent = overview.dataset.validation;
+  if (!elements.trainVersion.value || elements.trainVersion.value === state.nextVersion) {
+    elements.trainVersion.value = overview.next_version;
+  }
+  state.nextVersion = overview.next_version;
+  renderPipeline(overview);
+  renderJob(overview.job);
+  renderAdapter(overview);
+  renderMetrics(
+    calibrationMatches(state.selectedAdapter, overview.latest_calibration)
+      ? overview.latest_calibration
+      : null,
+  );
+}
+
+function scheduleTrainingPoll() {
+  clearTimeout(state.trainingPoll);
+  const active = Boolean(state.training?.job && activeJobStatuses.has(state.training.job.status));
+  if (!active) return;
+  state.trainingPoll = setTimeout(() => loadTrainingOverview(), 1500);
+}
+
+async function loadTrainingOverview(clearPreviousError = true) {
+  try {
+    const overview = await apiRequest("/api/treinamento");
+    renderTraining(overview);
+    if (clearPreviousError) clearOpsError();
+    scheduleTrainingPoll();
+  } catch (error) {
+    showOpsError(error);
+  }
+}
+
+async function runTrainingOperation(path, payload) {
+  clearOpsError();
+  try {
+    const options = { method: "POST" };
+    if (payload) options.body = JSON.stringify(payload);
+    const result = await apiRequest(path, options);
+    if (result.id) {
+      renderJob(result);
+      state.training = { ...state.training, job: result };
+    }
+    await loadTrainingOverview();
+  } catch (error) {
+    showOpsError(error);
+    await loadTrainingOverview(false);
+  }
+}
+
+function switchView(view) {
+  const training = view === "training";
+  elements.clinicalView.hidden = training;
+  elements.trainingView.hidden = !training;
+  elements.viewTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.view === view));
+  if (training) loadTrainingOverview();
+}
+
+function trainingPayload() {
+  const data = new FormData(elements.trainingForm);
+  return {
+    version: data.get("version"),
+    epochs: Number(data.get("epochs")),
+    batch_size: Number(data.get("batch_size")),
+    gradient_accumulation_steps: Number(data.get("gradient_accumulation_steps")),
+    learning_rate: Number(data.get("learning_rate")),
+    max_length: Number(data.get("max_length")),
+    seed: Number(data.get("seed")),
+    lora_r: Number(data.get("lora_r")),
+    lora_alpha: Number(data.get("lora_alpha")),
+    lora_dropout: Number(data.get("lora_dropout")),
+  };
+}
+
 async function initialize() {
   try {
     const [statusResponse, patientsResponse] = await Promise.all([fetch("/api/status"), fetch("/api/pacientes")]);
@@ -257,4 +569,42 @@ elements.question.addEventListener("input", () => {
   if (state.selected) getSession(state.selected.paciente_id).draft = elements.question.value;
 });
 elements.form.addEventListener("submit", submitQuestion);
+elements.viewTabs.forEach((tab) => tab.addEventListener("click", () => switchView(tab.dataset.view)));
+elements.trainingForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  runTrainingOperation("/api/treinamento/iniciar", trainingPayload());
+});
+elements.rebuildDataset.addEventListener("click", () => runTrainingOperation("/api/treinamento/dataset"));
+elements.cancelJob.addEventListener("click", () => runTrainingOperation("/api/treinamento/cancelar"));
+elements.adapterSelect.addEventListener("change", () => {
+  state.selectedAdapter = elements.adapterSelect.value;
+  if (state.training) {
+    renderAdapter(state.training);
+    renderMetrics(
+      calibrationMatches(state.selectedAdapter, state.training.latest_calibration)
+        ? state.training.latest_calibration
+        : null,
+    );
+  }
+});
+elements.evaluateLoss.addEventListener("click", () => {
+  if (state.selectedAdapter) runTrainingOperation("/api/treinamento/loss", { version: state.selectedAdapter });
+});
+elements.calibrateAdapter.addEventListener("click", () => {
+  if (state.selectedAdapter) {
+    runTrainingOperation("/api/treinamento/calibrar", {
+      version: state.selectedAdapter,
+      scales: [0.25, 0.5, 0.75, 1.0],
+    });
+  }
+});
+elements.promoteAdapter.addEventListener("click", async () => {
+  if (!state.selectedAdapter) return;
+  await runTrainingOperation("/api/treinamento/promover", { version: state.selectedAdapter });
+  try {
+    state.status = await apiRequest("/api/status");
+  } catch (error) {
+    showOpsError(error);
+  }
+});
 initialize();

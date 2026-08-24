@@ -117,11 +117,12 @@ fase3/                  # assistente medico virtual (fine-tuning + LangChain + L
   guardrails.py
   llm_backend.py
   logging_utils.py
+  training_service.py     # orquestra jobs locais de treino e avaliacao
   prompting.py           # prompt compartilhado entre treino e inferência
   retrieval.py
   cli_demo.py
   web_app.py              # API e interface web local da Fase 3
-  web/                    # HTML, CSS e JavaScript da interface clínica
+  web/                    # interface clínica e operações do modelo
 frontend/               # aplicação React (Cloudflare Pages)
   functions/[[path]].ts # Pages Function: proxy via Service Binding
   public/               # _headers (CSP) e _routes.json

@@ -5,6 +5,7 @@
   "scripts": {
     "fase3": "powershell -NoProfile -ExecutionPolicy Bypass -File fase3/start.ps1",
     "fase3:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File fase3/setup.ps1",
+    "fase3:test-ui": "node tests/test_fase3_web_ui.mjs",
     "check:worker": "cd cloudflare/api && uv run pywrangler deploy --dry-run --outdir ../../dist/worker",
     "deploy:worker": "bash deploy/cloudflare/deploy-worker.sh",
     "test:worker": "bash deploy/cloudflare/test-worker.sh"

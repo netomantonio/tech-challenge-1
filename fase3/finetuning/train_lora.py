@@ -230,7 +230,7 @@ def treinar(args: argparse.Namespace) -> dict:
     )
 
     usar_fp16 = bool(torch.cuda.is_available() and not args.no_fp16)
-    model_kwargs = {"torch_dtype": torch.float16} if usar_fp16 else {}
+    model_kwargs = {"dtype": torch.float16} if usar_fp16 else {}
     modelo = stack["AutoModelForCausalLM"].from_pretrained(
         args.base_model, **model_kwargs
     )

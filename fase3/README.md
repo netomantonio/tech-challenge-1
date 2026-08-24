@@ -25,6 +25,30 @@ modelo base, inicia o modelo local em modo offline e abre
 O modelo e carregado na primeira consulta e permanece na memoria. A primeira
 resposta pode demorar mais; as seguintes reutilizam a mesma instancia.
 
+## Operacoes do modelo pela interface
+
+Na barra superior, abra **Operacoes do modelo** para executar e acompanhar o
+pipeline sem montar comandos no terminal. A tela permite:
+
+1. conferir ou reconstruir os splits de treino e validacao;
+2. configurar e iniciar uma nova versao do adapter LoRA;
+3. acompanhar etapa, progresso e logs atualizados durante a execucao;
+4. cancelar o processo ativo;
+5. reavaliar a loss de um adapter salvo;
+6. calibrar as escalas `0.25`, `0.5`, `0.75` e `1.0` e visualizar os gates;
+7. promover o adapter aprovado para as proximas consultas.
+
+Somente uma operacao pode usar a GPU por vez. Antes de treino ou avaliacao, o
+modelo de consulta e descarregado da memoria; enquanto o job estiver ativo,
+novas consultas ficam temporariamente bloqueadas. Um treino concluido nunca e
+promovido automaticamente: o botao **Promover** so e liberado depois de uma
+calibracao aprovada para aquele mesmo adapter.
+
+Os jobs continuam executando no processo do servico se a aba for atualizada.
+Fechar ou interromper `npm run fase3`, por outro lado, encerra o servico e seus
+jobs. As operacoes administrativas aceitam apenas acesso local e backend
+`local`.
+
 ## Execucao sem npm
 
 Os scripts tambem podem ser chamados diretamente:
@@ -78,6 +102,7 @@ adapter, escala LoRA e se o modelo ja foi carregado.
 ```powershell
 .\.venv-fase3\Scripts\python.exe -m unittest tests.test_fase3 -v
 .\.venv-fase3\Scripts\python.exe -m unittest tests.test_fase3_web -v
+npm run fase3:test-ui
 ```
 
 ## Configuracao local
@@ -86,8 +111,9 @@ adapter, escala LoRA e se o modelo ja foi carregado.
 | --- | --- |
 | Backend | `local` |
 | Modelo | `Qwen/Qwen2.5-1.5B-Instruct` |
-| Adapter | `resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter` |
-| Escala LoRA | `0.75` |
+| Adapter inicial | `resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter` |
+| Registro promovido | `.cache/fase3-promoted-model.json` |
+| Escala LoRA inicial | `0.75` |
 | Porta web | `8010` |
 | Auditoria | `resultados/fase3/auditoria.jsonl` |
 
@@ -129,6 +155,7 @@ nao pode trocar silenciosamente para Groq.
 | `clinical_flow_graph.py` | Decisoes e alertas do LangGraph |
 | `ehr_tools.py` | Prontuario SQLite sintetico |
 | `web_app.py` | API e ciclo de vida do modelo |
+| `training_service.py` | Jobs controlados de dados, treino, avaliacao e promocao |
 | `web/` | Interface no navegador |
 | `evaluate_assistant.py` | Avaliacao e gates de qualidade |
 | `finetuning/` | Treinamento e avaliacao do adapter |

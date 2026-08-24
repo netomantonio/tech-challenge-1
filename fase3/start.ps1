@@ -7,13 +7,34 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $DefaultPython = Join-Path $ProjectRoot ".venv-fase3\Scripts\python.exe"
 $PythonPath = if ($env:FASE3_PYTHON) { $env:FASE3_PYTHON } else { $DefaultPython }
-$Adapter = Join-Path $ProjectRoot "resultados\fase3\finetuning\qwen2.5-1.5b-v4\lora_adapter\adapter_model.safetensors"
+$FinetuningRoot = Join-Path $ProjectRoot "resultados\fase3\finetuning"
+$PromotedConfig = Join-Path $ProjectRoot ".cache\fase3-promoted-model.json"
+$AdapterDirectory = Join-Path $FinetuningRoot "qwen2.5-1.5b-v4\lora_adapter"
 $CachePointer = Join-Path $ProjectRoot ".cache\fase3-hf-home.txt"
 $ModelRelativePath = "hub\models--Qwen--Qwen2.5-1.5B-Instruct\snapshots"
 
 if (-not (Test-Path -LiteralPath $PythonPath)) {
     throw "Ambiente da Fase 3 nao encontrado. Execute 'npm run fase3:setup' primeiro."
 }
+if (Test-Path -LiteralPath $PromotedConfig) {
+    try {
+        $Config = Get-Content -LiteralPath $PromotedConfig -Raw | ConvertFrom-Json
+        $ConfiguredAdapter = [string]$Config.adapter_path
+        if ([IO.Path]::IsPathRooted($ConfiguredAdapter)) {
+            $AdapterDirectory = [IO.Path]::GetFullPath($ConfiguredAdapter)
+        } else {
+            $AdapterDirectory = [IO.Path]::GetFullPath((Join-Path $ProjectRoot $ConfiguredAdapter))
+        }
+    } catch {
+        throw "Registro do adapter promovido e invalido: $PromotedConfig"
+    }
+}
+$AllowedRoot = [IO.Path]::GetFullPath($FinetuningRoot).TrimEnd('\') + '\'
+$ResolvedAdapter = [IO.Path]::GetFullPath($AdapterDirectory).TrimEnd('\') + '\'
+if (-not $ResolvedAdapter.StartsWith($AllowedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Adapter promovido fora do diretorio permitido: $AdapterDirectory"
+}
+$Adapter = Join-Path $AdapterDirectory "adapter_model.safetensors"
 if (-not (Test-Path -LiteralPath $Adapter)) {
     throw "Adapter LoRA promovido nao encontrado em: $Adapter"
 }
@@ -52,6 +73,7 @@ if ($NoBrowser) { $LaunchArgs += "--no-open-browser" }
 
 Write-Host "Iniciando Fase 3 com modelo local em http://127.0.0.1:$Port"
 Write-Host "Cache Hugging Face: $HfHome (offline durante a execucao)"
+Write-Host "Adapter promovido: $AdapterDirectory"
 Write-Host "Pressione Ctrl+C para encerrar."
 & $PythonPath @LaunchArgs
 exit $LASTEXITCODE

@@ -17,6 +17,7 @@ de ambiente ``FASE3_LLM_BACKEND``:
 from __future__ import annotations
 
 import os
+import json
 import re
 import time
 from pathlib import Path
@@ -33,6 +34,7 @@ DEFAULT_LOCAL_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 DEFAULT_LOCAL_LORA_SCALE = 0.75
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LOCAL_CACHE_POINTER = PROJECT_ROOT / ".cache" / "fase3-hf-home.txt"
+PROMOTED_MODEL_CONFIG_PATH = PROJECT_ROOT / ".cache" / "fase3-promoted-model.json"
 DEFAULT_LOCAL_ADAPTER_PATH = (
     PROJECT_ROOT
     / "resultados"
@@ -60,12 +62,40 @@ def _parse_retry_delay(mensagem: str, default: float = 2.0) -> float:
     return float(match.group(1)) if match else default
 
 
+def get_promoted_local_config() -> dict[str, Any]:
+    """Retorna adapter/escala promovidos, com v4 como fallback versionado."""
+    fallback = {
+        "base_model": DEFAULT_LOCAL_BASE_MODEL,
+        "adapter_path": str(DEFAULT_LOCAL_ADAPTER_PATH),
+        "lora_scale": DEFAULT_LOCAL_LORA_SCALE,
+        "promovido_em": None,
+    }
+    try:
+        config = json.loads(PROMOTED_MODEL_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return fallback
+    adapter = Path(str(config.get("adapter_path", "")))
+    if not adapter.is_absolute():
+        adapter = PROJECT_ROOT / adapter
+    if not (adapter / "adapter_model.safetensors").exists():
+        return fallback
+    try:
+        scale = float(config["lora_scale"])
+    except (KeyError, TypeError, ValueError):
+        return fallback
+    if not 0.0 < scale <= 1.0:
+        return fallback
+    return {**config, "adapter_path": str(adapter.resolve()), "lora_scale": scale}
+
+
 def _resolver_local_adapter_path(base_model: str, adapter_path: Optional[str]) -> Optional[str]:
     adapter_resolvido = adapter_path or os.getenv("FASE3_LOCAL_ADAPTER_PATH")
     if adapter_resolvido:
         return adapter_resolvido
-    if base_model == DEFAULT_LOCAL_BASE_MODEL and DEFAULT_LOCAL_ADAPTER_PATH.exists():
-        return str(DEFAULT_LOCAL_ADAPTER_PATH)
+    if base_model == DEFAULT_LOCAL_BASE_MODEL:
+        promovido = get_promoted_local_config()
+        if Path(promovido["adapter_path"]).exists():
+            return str(promovido["adapter_path"])
     if base_model == "distilgpt2" and LEGACY_DISTILGPT2_ADAPTER_PATH.exists():
         return str(LEGACY_DISTILGPT2_ADAPTER_PATH)
     return None
@@ -267,7 +297,11 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
     modelo = AutoModelForCausalLM.from_pretrained(base_model, **model_kwargs)
     if use_adapter:
         modelo = PeftModel.from_pretrained(modelo, adapter_path)
-    escala_padrao = DEFAULT_LOCAL_LORA_SCALE
+    escala_padrao = (
+        get_promoted_local_config()["lora_scale"]
+        if use_adapter and base_model == DEFAULT_LOCAL_BASE_MODEL
+        else DEFAULT_LOCAL_LORA_SCALE
+    )
     escala_informada = kwargs.get("lora_scale")
     lora_scale = float(
         escala_informada

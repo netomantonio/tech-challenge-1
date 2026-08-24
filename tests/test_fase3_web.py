@@ -10,6 +10,32 @@ from fastapi.testclient import TestClient
 from fase3.web_app import AssistantRuntime, create_app
 
 
+class FakeTrainingManager:
+    def __init__(self, active: bool = False) -> None:
+        self.ativo = active
+        self.started: tuple[str, object] | None = None
+
+    def job(self):
+        return None
+
+    def overview(self):
+        return {
+            "dataset": {"train": 40, "validation": 8, "ready": True},
+            "adapters": [],
+            "next_version": "qwen2.5-1.5b-v5",
+            "promoted": {
+                "adapter_path": "resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter",
+                "lora_scale": 0.75,
+            },
+            "latest_calibration": None,
+            "job": None,
+        }
+
+    def iniciar_treino(self, config):
+        self.started = ("treino", config)
+        return {"id": "job-1", "status": "aguardando"}
+
+
 class Fase3WebTests(unittest.TestCase):
     def setUp(self) -> None:
         self.runtime = AssistantRuntime("fake")
@@ -24,6 +50,7 @@ class Fase3WebTests(unittest.TestCase):
         self.assertEqual(favicon.status_code, 200)
         self.assertEqual(favicon.headers["content-type"], "image/svg+xml")
         self.assertIn("Assistente de Protocolos Clinicos", page.text)
+        self.assertIn("Operacoes do modelo", page.text)
         self.assertEqual(status.status_code, 200)
         self.assertEqual(status.json()["backend"], "fake")
         self.assertFalse(status.json()["modelo_carregado"])
@@ -85,6 +112,50 @@ class Fase3WebTests(unittest.TestCase):
             json={"paciente_id": "PAC 0001", "pergunta": "x"},
         )
         self.assertEqual(response.status_code, 422)
+
+    def test_painel_inicia_treino_local_e_descarrega_inferencia(self) -> None:
+        runtime = AssistantRuntime("local")
+        jobs = FakeTrainingManager()
+        client = TestClient(create_app(runtime, jobs))
+        payload = {
+            "version": "qwen2.5-1.5b-v5",
+            "epochs": 6,
+            "batch_size": 2,
+            "gradient_accumulation_steps": 4,
+            "learning_rate": 0.00002,
+            "max_length": 512,
+            "seed": 42,
+            "lora_r": 16,
+            "lora_alpha": 32,
+            "lora_dropout": 0.05,
+        }
+
+        with patch.object(runtime, "descarregar") as descarregar:
+            overview = client.get("/api/treinamento")
+            response = client.post("/api/treinamento/iniciar", json=payload)
+
+        self.assertEqual(overview.status_code, 200)
+        self.assertEqual(overview.json()["dataset"]["train"], 40)
+        self.assertEqual(response.status_code, 200)
+        descarregar.assert_called_once()
+        self.assertEqual(jobs.started, ("treino", payload))
+
+    def test_consulta_fica_bloqueada_durante_job_de_gpu(self) -> None:
+        runtime = AssistantRuntime("local")
+        client = TestClient(create_app(runtime, FakeTrainingManager(active=True)))
+
+        response = client.post(
+            "/api/consultas",
+            json={"paciente_id": "PAC-0001", "pergunta": "Qual a conduta segura?"},
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("operacao de modelo", response.json()["detail"])
+
+    def test_operacoes_de_modelo_exigem_backend_local(self) -> None:
+        response = self.client.get("/api/treinamento")
+
+        self.assertEqual(response.status_code, 409)
 
 
 if __name__ == "__main__":
