@@ -209,13 +209,13 @@
           <div id="model-list" class="model-list"></div>
           <details class="model-registration"><summary>Cadastrar modelo</summary>
             <form id="model-form" class="model-form">
-              <label><span>Alias</span><input name="alias" placeholder="meu-modelo-3b" pattern="[a-z0-9][a-z0-9._-]{1,63}" required /></label>
-              <label><span>Nome</span><input name="label" placeholder="Meu modelo 3B" required /></label>
-              <label><span>Origem</span><select name="source_type"><option value="huggingface">Hugging Face</option><option value="local">Diretorio local</option></select></label>
-              <label class="wide-field"><span>Repo ID ou caminho permitido</span><input name="source" placeholder="organizacao/modelo" required /></label>
-              <label><span>Revisao fixa</span><input name="revision" placeholder="commit opcional" /></label>
-              <label><span>Modulos LoRA</span><input name="target_modules" placeholder="vazio = deteccao automatica" /></label>
-              <label class="check-field"><input name="trust_remote_code" type="checkbox" /><span>Autorizar codigo remoto (exige revisao fixa)</span></label>
+              <label><span>Alias</span><input id="model-alias" name="alias" placeholder="meu-modelo-3b" pattern="[a-z0-9][a-z0-9._-]{1,63}" required /></label>
+              <label><span>Nome</span><input id="model-label" name="label" placeholder="Meu modelo 3B" required /></label>
+              <label><span>Origem</span><select id="model-source-type" name="source_type"><option value="huggingface">Hugging Face</option><option value="local">Diretorio local</option></select></label>
+              <label class="wide-field"><span>Repo ID ou caminho permitido</span><input id="model-source" name="source" placeholder="organizacao/modelo" required /></label>
+              <label><span>Revisao fixa</span><input id="model-revision" name="revision" placeholder="commit opcional" /></label>
+              <label><span>Modulos LoRA</span><input id="model-target-modules" name="target_modules" placeholder="vazio = deteccao automatica" /></label>
+              <label class="check-field"><input id="model-trust-remote-code" name="trust_remote_code" type="checkbox" /><span>Autorizar codigo remoto (exige revisao fixa)</span></label>
               <button class="secondary-button" type="submit">Cadastrar</button>
             </form>
           </details>
@@ -226,7 +226,7 @@
             <div><p class="overline">Artefatos</p><h2 id="adapter-heading">Adapters disponiveis</h2></div>
             <span class="adapter-count" id="adapter-count">0</span>
           </div>
-          <label class="field-label" for="adapter-select">Adapter para avaliar</label>
+          <label class="field-label" for="adapter-select"><span>Adapter para avaliar</span></label>
           <select id="adapter-select"></select>
           <div class="adapter-detail" id="adapter-detail"></div>
           <div class="adapter-actions">
@@ -322,6 +322,7 @@
     </dialog>
 
     <div class="tour-layer" id="tour-layer" hidden><div class="tour-focus" id="tour-focus"></div><aside class="tour-popover" id="tour-popover"><p class="overline" id="tour-progress"></p><h3 id="tour-title"></h3><p id="tour-text"></p><div><button class="secondary-button" id="tour-close" type="button">Encerrar</button><button class="primary-button" id="tour-next" type="button">Proximo</button></div></aside></div>
+    <aside class="field-help-tooltip" id="field-help-tooltip" role="tooltip" hidden><strong></strong><p></p></aside>
 
     <footer>
       <span>FIAP AI for Devs</span>

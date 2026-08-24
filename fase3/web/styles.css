@@ -72,6 +72,27 @@ button:disabled { cursor: wait; opacity: 0.62; }
 h1, h2, h3, p { letter-spacing: 0; }
 h1, h2 { margin: 0; font-size: 20px; line-height: 1.25; }
 .field-label, .section-label { color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: 0; }
+.field-title { display: inline-flex !important; align-items: center; gap: 5px; }
+.field-help-button {
+  width: 17px;
+  height: 17px;
+  min-height: 17px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--teal-dark);
+  background: var(--surface);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+}
+.field-help-button:hover, .field-help-button:focus-visible, .field-help-button[aria-expanded="true"] { color: white; border-color: var(--teal); background: var(--teal); outline: none; }
+.field-help-button:focus-visible { box-shadow: 0 0 0 3px var(--teal-soft); }
+.field-help-tooltip { position: fixed; z-index: 130; width: min(340px, calc(100vw - 20px)); padding: 13px 14px; border: 1px solid #31544d; border-radius: 6px; color: #e5f0ed; background: #152d28; box-shadow: 0 14px 34px rgba(10, 29, 24, .26); text-transform: none; letter-spacing: 0; }
+.field-help-tooltip strong { display: block; color: white; font-size: 11px; }
+.field-help-tooltip p { margin: 5px 0 0; color: #c9dcd7; font-size: 10px; font-weight: 450; line-height: 1.5; }
 
 .select-wrap { position: relative; margin-top: 7px; }
 .select-wrap::after { content: "v"; position: absolute; right: 13px; top: 11px; color: var(--muted); pointer-events: none; font-size: 10px; }
@@ -263,7 +284,11 @@ footer a { margin-left: auto; color: var(--teal-dark); font-weight: 700; text-de
 .model-form label span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 9px; font-weight: 700; }
 .model-form input, .model-form select { width: 100%; height: 36px; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: 5px; }
 .model-form .wide-field { grid-column: 1 / -1; }
-.model-form button { justify-self: start; }
+.model-form .check-field { min-height: 36px; display: flex; align-items: center; gap: 8px; align-self: end; }
+.model-form .check-field input { flex: 0 0 16px; width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--teal); }
+.model-form .check-field > span { margin: 0; }
+.model-form > button[type="submit"] { height: 36px; min-height: 36px; align-self: end; justify-self: start; }
+.model-form .field-help-button { justify-self: auto; }
 
 dialog { padding: 0; border: 0; color: var(--ink); background: transparent; }
 dialog::backdrop { background: rgba(19, 34, 30, .58); backdrop-filter: blur(2px); }

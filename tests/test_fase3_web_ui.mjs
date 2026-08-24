@@ -121,6 +121,18 @@ assert.equal(dom.window.document.querySelector("#train-version").value, "qwen2.5
 assert.equal(dom.window.document.querySelector("#promoted-version").textContent, "qwen2.5-1.5b-v4");
 assert.equal(dom.window.document.querySelector("#metric-acceptance").textContent, "81.2%");
 assert.equal(dom.window.document.querySelector("#promote-adapter").disabled, false);
+const fieldHelpButtons = [...dom.window.document.querySelectorAll(".field-help-button")];
+assert.equal(fieldHelpButtons.length, 21);
+assert.equal(fieldHelpButtons.every((button) => button.getAttribute("aria-expanded") === "false"), true);
+const learningRateHelp = dom.window.document.querySelector('#train-lr').closest("label").querySelector(".field-help-button");
+learningRateHelp.dispatchEvent(new dom.window.Event("pointerenter"));
+assert.equal(dom.window.document.querySelector("#field-help-tooltip").hidden, false);
+assert.match(dom.window.document.querySelector("#field-help-tooltip").textContent, /tamanho de cada atualizacao/i);
+learningRateHelp.click();
+assert.equal(learningRateHelp.getAttribute("aria-expanded"), "true");
+learningRateHelp.focus();
+learningRateHelp.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+assert.equal(dom.window.document.querySelector("#field-help-tooltip").hidden, true);
 const requestsBeforeTour = requests.length;
 dom.window.document.querySelector("#help-button").click();
 await new Promise((resolve) => setTimeout(resolve, 5));

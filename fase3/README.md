@@ -129,6 +129,11 @@ Na tela **Operacoes do modelo** e possivel:
 4. treinar LoRA com versao `{alias}-vN`;
 5. avaliar loss, calibrar escalas, conferir gates e promover o adapter.
 
+Os campos editaveis possuem ajuda contextual pelo botao `?`. Os textos explicam
+funcao, relacoes entre parametros e impacto esperado em memoria, tempo,
+estabilidade, reproducibilidade e qualidade. A ajuda funciona por hover, foco
+de teclado ou clique/toque e pode ser fechada com `Esc`.
+
 Qwen2.5 0.5B e 1.5B sao presets, nao limitacoes. Modelos precisam ser
 compativeis com `AutoModelForCausalLM`, tokenizer e PEFT. Para modelos locais,
 configure raizes com `FASE3_MODEL_ROOTS` separadas pelo delimitador de caminhos

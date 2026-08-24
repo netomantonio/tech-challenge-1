@@ -122,7 +122,202 @@ const elements = {
   tourText: $("#tour-text"),
   tourNext: $("#tour-next"),
   tourClose: $("#tour-close"),
+  fieldHelpTooltip: $("#field-help-tooltip"),
 };
+
+const fieldHelpDefinitions = [
+  {
+    selector: "#train-model",
+    title: "Modelo-base",
+    text: "Define os pesos sobre os quais o LoRA sera treinado. O adapter resultante fica vinculado a esse modelo e nao deve ser promovido sobre outra base. Modelos maiores podem elevar a capacidade, mas exigem mais memoria, armazenamento e tempo.",
+  },
+  {
+    selector: "#train-precision",
+    title: "Precisao",
+    text: "Controla como pesos e calculos ocupam memoria. FP32 prioriza compatibilidade, FP16/BF16 reduzem memoria e NF4 usa QLoRA para economizar ainda mais VRAM. A opcao automatica escolhe conforme o hardware; formatos inadequados podem falhar ou deixar o treino mais lento.",
+  },
+  {
+    selector: "#train-version",
+    title: "Versao de saida",
+    text: "Identifica de forma unica o novo adapter e seus artefatos. Deve seguir o alias do modelo com o sufixo -vN para manter rastreabilidade entre treino, avaliacao e promocao. O nome nao altera a qualidade do modelo.",
+  },
+  {
+    selector: "#train-epochs",
+    title: "Epocas",
+    text: "Numero de passagens completas pelo conjunto de treino. Mais epocas aumentam tempo e adaptacao aos exemplos, mas em excesso podem causar sobreajuste. Deve ser analisado junto do learning rate e da loss de validacao.",
+  },
+  {
+    selector: "#train-lr",
+    title: "Learning rate",
+    text: "Define o tamanho de cada atualizacao dos parametros LoRA. Valores altos aprendem mais rapido, mas podem desestabilizar o treino; valores baixos sao mais conservadores e podem exigir mais epocas. Loss de treino e validacao orientam o ajuste.",
+  },
+  {
+    selector: "#train-batch",
+    title: "Batch",
+    text: "Quantidade de exemplos processados simultaneamente por passo. Batches maiores podem estabilizar o gradiente, mas consomem mais memoria. O batch efetivo e batch multiplicado pela acumulacao.",
+  },
+  {
+    selector: "#train-accumulation",
+    title: "Acumulacao",
+    text: "Soma gradientes de varios microbatches antes de atualizar o modelo. Permite simular um batch efetivo maior sem ocupar toda a memoria de uma vez, com algum aumento no tempo entre atualizacoes.",
+  },
+  {
+    selector: "#train-length",
+    title: "Sequencia",
+    text: "Limite de tokens por exemplo de treinamento. Sequencias menores economizam memoria e tempo, mas podem truncar contexto clinico; sequencias maiores preservam mais texto e elevam o custo, especialmente na atencao do modelo.",
+  },
+  {
+    selector: "#train-seed",
+    title: "Seed",
+    text: "Controla a aleatoriedade da inicializacao, embaralhamento e amostragem. Reutilizar a mesma seed com dados e parametros iguais facilita reproduzir e comparar experimentos. Uma seed diferente nao e, por si so, melhor.",
+  },
+  {
+    selector: "#train-r",
+    title: "LoRA r",
+    text: "Define o rank das matrizes adaptadoras e, portanto, sua capacidade e quantidade de parametros treinaveis. Valores maiores podem representar ajustes mais complexos, mas usam mais memoria e podem sobreajustar. Atua em conjunto com LoRA alpha.",
+  },
+  {
+    selector: "#train-alpha",
+    title: "LoRA alpha",
+    text: "Escala a contribuicao aprendida pelo adapter, normalmente em relacao ao rank r. A razao alpha/r influencia a intensidade efetiva das atualizacoes; valores excessivos podem tornar o ajuste agressivo e instavel.",
+  },
+  {
+    selector: "#train-dropout",
+    title: "Dropout",
+    text: "Desativa aleatoriamente parte do caminho LoRA durante o treino para reduzir sobreajuste. Pode ajudar em datasets pequenos; valores altos demais dificultam o aprendizado. Nao e aplicado da mesma forma durante a inferencia.",
+  },
+  {
+    selector: "#train-checkpointing",
+    title: "Gradient checkpointing",
+    text: "Economiza VRAM ao recalcular ativacoes durante o backward em vez de mante-las todas na memoria. Facilita treinar modelos ou sequencias maiores, mas deixa cada passo mais lento. Nao muda sozinho a arquitetura do adapter.",
+  },
+  {
+    selector: "#model-alias",
+    title: "Alias do modelo",
+    text: "Chave tecnica unica usada em versoes de treino, manifests, adapters e promocao. Escolha um identificador curto e estavel; altera-lo cria outra identidade logica, mesmo quando a origem dos pesos e a mesma.",
+  },
+  {
+    selector: "#model-label",
+    title: "Nome do modelo",
+    text: "Nome amigavel exibido na interface. Ajuda o grupo a reconhecer arquitetura e tamanho, mas nao interfere no download, no treinamento ou na qualidade gerada.",
+  },
+  {
+    selector: "#model-source-type",
+    title: "Origem",
+    text: "Indica se os pesos serao obtidos do Hugging Face ou de um diretorio local autorizado. Essa escolha determina como a origem e validada e instalada; os demais parametros de treino continuam os mesmos.",
+  },
+  {
+    selector: "#model-source",
+    title: "Repo ID ou caminho",
+    text: "Local exato dos pesos e tokenizer. Repositorios precisam ser compativeis com AutoModelForCausalLM; caminhos locais devem estar dentro de FASE3_MODEL_ROOTS. A arquitetura escolhida define memoria, velocidade e modulos disponiveis para LoRA.",
+  },
+  {
+    selector: "#model-revision",
+    title: "Revisao fixa",
+    text: "Commit ou revisao imutavel dos arquivos do modelo. Fixar a revisao melhora reproducibilidade e protege contra mudancas futuras no repositorio. E obrigatoria quando codigo remoto for autorizado.",
+  },
+  {
+    selector: "#model-target-modules",
+    title: "Modulos LoRA",
+    text: "Camadas lineares que receberao os adapters, separadas por virgula. Em branco, o sistema detecta os modulos pela arquitetura e usa all-linear como fallback. Uma selecao incompleta limita a adaptacao; nomes invalidos fazem o treino falhar.",
+  },
+  {
+    selector: "#model-trust-remote-code",
+    title: "Autorizar codigo remoto",
+    text: "Permite executar implementacoes Python fornecidas pelo repositorio do modelo quando Transformers nao possui suporte nativo. Use apenas com fonte confiavel e revisao fixa, pois esse codigo roda na infraestrutura do backend. Nao melhora o modelo quando nao e necessario.",
+  },
+  {
+    selector: "#adapter-select",
+    title: "Adapter para avaliar",
+    text: "Escolhe qual versao sera usada nas operacoes de loss, calibracao, gates e promocao. A selecao nao inicia treino nem altera o adapter; ela direciona os proximos comandos. Confirme se a versao pertence ao modelo-base esperado.",
+  },
+];
+
+let activeFieldHelp = null;
+let fieldHelpPinned = false;
+let fieldHelpHideTimer = null;
+
+function positionFieldHelp(button) {
+  const tooltip = elements.fieldHelpTooltip;
+  const trigger = button.getBoundingClientRect();
+  const box = tooltip.getBoundingClientRect();
+  const padding = 10;
+  const left = Math.min(Math.max(padding, trigger.left), innerWidth - box.width - padding);
+  let top = trigger.bottom + 7;
+  if (top + box.height > innerHeight - padding) top = Math.max(padding, trigger.top - box.height - 7);
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+function showFieldHelp(button, definition, pinned = false) {
+  clearTimeout(fieldHelpHideTimer);
+  if (activeFieldHelp && activeFieldHelp !== button) activeFieldHelp.setAttribute("aria-expanded", "false");
+  activeFieldHelp = button;
+  fieldHelpPinned = pinned;
+  elements.fieldHelpTooltip.querySelector("strong").textContent = definition.title;
+  elements.fieldHelpTooltip.querySelector("p").textContent = definition.text;
+  elements.fieldHelpTooltip.hidden = false;
+  button.setAttribute("aria-expanded", "true");
+  positionFieldHelp(button);
+}
+
+function hideFieldHelp(force = false) {
+  if (fieldHelpPinned && !force) return;
+  clearTimeout(fieldHelpHideTimer);
+  if (activeFieldHelp) activeFieldHelp.setAttribute("aria-expanded", "false");
+  activeFieldHelp = null;
+  fieldHelpPinned = false;
+  elements.fieldHelpTooltip.hidden = true;
+}
+
+function scheduleFieldHelpHide() {
+  clearTimeout(fieldHelpHideTimer);
+  fieldHelpHideTimer = setTimeout(() => hideFieldHelp(), 120);
+}
+
+function initializeFieldHelp() {
+  fieldHelpDefinitions.forEach((definition, index) => {
+    const field = document.querySelector(definition.selector);
+    const label = field?.closest("label") || (field?.id ? document.querySelector(`label[for="${field.id}"]`) : null);
+    const title = label?.querySelector(":scope > span");
+    if (!field || !label || !title) return;
+    label.classList.add("has-field-help");
+    title.classList.add("field-title");
+    const button = document.createElement("button");
+    button.className = "field-help-button";
+    button.type = "button";
+    button.textContent = "?";
+    button.setAttribute("aria-label", `Ajuda sobre ${definition.title}`);
+    button.setAttribute("aria-describedby", elements.fieldHelpTooltip.id);
+    button.setAttribute("aria-expanded", "false");
+    button.dataset.helpIndex = String(index);
+    button.addEventListener("pointerenter", () => showFieldHelp(button, definition));
+    button.addEventListener("pointerleave", scheduleFieldHelpHide);
+    button.addEventListener("focus", () => showFieldHelp(button, definition));
+    button.addEventListener("blur", scheduleFieldHelpHide);
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (activeFieldHelp === button && fieldHelpPinned) hideFieldHelp(true);
+      else showFieldHelp(button, definition, true);
+    });
+    button.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        hideFieldHelp(true);
+        button.focus();
+      }
+    });
+    title.append(button);
+  });
+  elements.fieldHelpTooltip.addEventListener("pointerenter", () => clearTimeout(fieldHelpHideTimer));
+  elements.fieldHelpTooltip.addEventListener("pointerleave", scheduleFieldHelpHide);
+  document.addEventListener("pointerdown", (event) => {
+    if (fieldHelpPinned && !elements.fieldHelpTooltip.contains(event.target) && !activeFieldHelp?.contains(event.target)) hideFieldHelp(true);
+  });
+  addEventListener("resize", () => { if (activeFieldHelp) positionFieldHelp(activeFieldHelp); });
+  addEventListener("scroll", () => hideFieldHelp(true), true);
+}
 
 function classifyBackendUrl(value) {
   let url;
@@ -1231,4 +1426,5 @@ elements.promoteAdapter.addEventListener("click", async () => {
     showOpsError(error);
   }
 });
+initializeFieldHelp();
 initialize();
