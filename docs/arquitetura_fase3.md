@@ -50,7 +50,7 @@ flowchart TD
 
 ## Interface web
 
-O comando `python -m fase3.web_app --backend local` inicia o serviço em
+O comando `npm run fase3` inicia o serviço em
 `http://127.0.0.1:8010` e abre a interface no navegador. O backend mantém uma
 única instância do modelo em memória e serializa as gerações para proteger o
 uso da GPU. A tela consome apenas os endpoints locais `/api/status`,

@@ -19,7 +19,15 @@ from starlette.concurrency import run_in_threadpool
 
 from fase3.clinical_flow_graph import executar_fluxo_clinico
 from fase3.ehr_tools import DEFAULT_PACIENTES_JSON
-from fase3.llm_backend import LLMUnavailableError, get_llm
+from fase3.llm_backend import (
+    DEFAULT_LLM_BACKEND,
+    DEFAULT_LOCAL_ADAPTER_PATH,
+    DEFAULT_LOCAL_BASE_MODEL,
+    DEFAULT_LOCAL_LORA_SCALE,
+    LLMUnavailableError,
+    get_llm,
+    resolver_backend,
+)
 
 STATIC_DIR = Path(__file__).resolve().parent / "web"
 logger = logging.getLogger("fase3.web")
@@ -34,7 +42,7 @@ class AssistantRuntime:
     """Mantem uma unica instancia do modelo e serializa o uso da GPU."""
 
     def __init__(self, backend: str | None = None) -> None:
-        self.backend = backend or os.getenv("FASE3_WEB_BACKEND", "local")
+        self.backend = resolver_backend(backend)
         self._llm: Any = None
         self._lock = threading.Lock()
 
@@ -97,11 +105,16 @@ def create_app(runtime: AssistantRuntime | None = None) -> FastAPI:
     )
 
     @app.get("/api/status")
-    async def status() -> dict[str, str | bool]:
+    async def status() -> dict[str, Any]:
         return {
             "status": "ready",
             "backend": assistant_runtime.backend,
             "modelo_carregado": assistant_runtime.carregado,
+            "modelo_base": DEFAULT_LOCAL_BASE_MODEL if assistant_runtime.backend == "local" else None,
+            "adapter": str(DEFAULT_LOCAL_ADAPTER_PATH) if assistant_runtime.backend == "local" else None,
+            "escala_lora": DEFAULT_LOCAL_LORA_SCALE if assistant_runtime.backend == "local" else None,
+            "cache_hf": os.getenv("HF_HOME") if assistant_runtime.backend == "local" else None,
+            "offline": os.getenv("HF_HUB_OFFLINE") == "1" if assistant_runtime.backend == "local" else None,
         }
 
     @app.get("/api/pacientes")
@@ -130,6 +143,10 @@ def create_app(runtime: AssistantRuntime | None = None) -> FastAPI:
     async def index() -> FileResponse:
         return FileResponse(STATIC_DIR / "index.html")
 
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon() -> FileResponse:
+        return FileResponse(STATIC_DIR / "favicon.svg", media_type="image/svg+xml")
+
     app.mount("/assets", StaticFiles(directory=STATIC_DIR), name="assets")
     return app
 
@@ -140,7 +157,12 @@ app = create_app(runtime)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--backend", choices=["local", "groq", "fake"], default="local")
+    parser.add_argument(
+        "--backend",
+        choices=["local", "groq", "fake"],
+        default=DEFAULT_LLM_BACKEND,
+        help="Backend de inferencia (padrao: local).",
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8010)
     parser.add_argument("--no-open-browser", action="store_true")

@@ -17,13 +17,26 @@ class Fase3WebTests(unittest.TestCase):
 
     def test_interface_e_status_estao_disponiveis(self) -> None:
         page = self.client.get("/")
+        favicon = self.client.get("/favicon.ico")
         status = self.client.get("/api/status")
 
         self.assertEqual(page.status_code, 200)
+        self.assertEqual(favicon.status_code, 200)
+        self.assertEqual(favicon.headers["content-type"], "image/svg+xml")
         self.assertIn("Assistente de Protocolos Clinicos", page.text)
         self.assertEqual(status.status_code, 200)
         self.assertEqual(status.json()["backend"], "fake")
         self.assertFalse(status.json()["modelo_carregado"])
+
+    def test_runtime_web_padrao_informa_modelo_local(self) -> None:
+        with patch.dict("os.environ", {}, clear=True):
+            client = TestClient(create_app(AssistantRuntime()))
+            status = client.get("/api/status").json()
+
+        self.assertEqual(status["backend"], "local")
+        self.assertEqual(status["modelo_base"], "Qwen/Qwen2.5-1.5B-Instruct")
+        self.assertIn("qwen2.5-1.5b-v4", status["adapter"])
+        self.assertEqual(status["escala_lora"], 0.75)
 
     def test_lista_somente_prontuarios_sinteticos(self) -> None:
         response = self.client.get("/api/pacientes")

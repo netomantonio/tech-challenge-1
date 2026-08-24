@@ -588,36 +588,46 @@ escalas e baseline fica em `resultados/fase3/calibracao_adapter.json`.
 
 ### Execução
 
-```bash
-python -m pip install -r requirements.txt -r requirements-fase3.txt
-python -m fase3.data.build_finetuning_dataset
+Na primeira execução:
 
-# Interface web local (abre o navegador automaticamente)
-python -m fase3.web_app --backend local
-
-python -m fase3.cli_demo --paciente-id PAC-0001 \
-  --pergunta "Posso iniciar a quimioterapia hoje?" --backend local
-
-python -m fase3.evaluate_assistant --backend local \
-  --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter \
-  --lora-scale 0.75 --baseline-summary resultados/fase3/resumo_avaliacao_assistente_base.json \
-  --enforce-gates
-
-python -m unittest discover -s tests -v
+```powershell
+npm run fase3:setup
+npm run fase3
 ```
 
-A interface fica disponível em `http://127.0.0.1:8010`. O modelo é carregado
-na GPU somente na primeira consulta e permanece em memória nas seguintes. Para
-testar a experiência sem carregar o modelo, use
-`python -m fase3.web_app --backend fake`. A documentação dos endpoints fica em
-`http://127.0.0.1:8010/docs`.
+O serviço sempre inicia com o modelo local e abre
+`http://127.0.0.1:8010`. Groq só é usado quando solicitado explicitamente.
+O guia completo de instalação, execução, diagnóstico e testes está em
+[fase3/README.md](fase3/README.md).
+
+Para uma consulta isolada pelo terminal, a CLI também usa o modelo local por
+padrão:
+
+```powershell
+.\.venv-fase3\Scripts\python.exe -m fase3.cli_demo `
+  --paciente-id PAC-0001 `
+  --pergunta "Posso iniciar a quimioterapia hoje?"
+```
+
+Para reexecutar a avaliação formal:
+
+```powershell
+.\.venv-fase3\Scripts\python.exe -m fase3.evaluate_assistant --backend local `
+  --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter `
+  --lora-scale 0.75 --baseline-summary resultados/fase3/resumo_avaliacao_assistente_base.json `
+  --enforce-gates
+
+.\.venv-fase3\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+A documentação dos endpoints fica em `http://127.0.0.1:8010/docs`.
 
 Toda resposta final é fundamentada em fontes válidas, recebe aviso de
 validação médica e nunca autoriza prescrição autônoma. O projeto é
 acadêmico, usa dados fictícios e não deve ser empregado em assistência
 clínica real.
 
-Ao final desta versão, executamos **56 testes automatizados**, incluindo 41
+Ao final desta versão, executamos **59 testes automatizados**, incluindo 44
 testes relacionados diretamente à Fase 3 e à sua interface web.
 
 Detalhes: [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md),

@@ -29,6 +29,7 @@ from fase3.evaluate_assistant import CASES_PATH, avaliar_resposta, carregar_caso
 from fase3.finetuning.train_lora import _formatar_instrucao, _tokenizar_exemplo_resposta
 from fase3.guardrails import DISCLAIMER, aplicar_guardrails
 from fase3.llm_backend import (
+    DEFAULT_LLM_BACKEND,
     DEFAULT_LOCAL_BASE_MODEL,
     DEFAULT_LOCAL_ADAPTER_PATH,
     DEFAULT_LOCAL_LORA_SCALE,
@@ -37,6 +38,7 @@ from fase3.llm_backend import (
     LLMUnavailableError,
     _resolver_local_adapter_path,
     get_llm,
+    resolver_backend,
 )
 from fase3.retrieval import buscar_protocolos, construir_retriever
 from fase3.prompting import formatar_prompt_usuario
@@ -114,6 +116,15 @@ class GuardrailsTests(unittest.TestCase):
 
 
 class LLMBackendTests(unittest.TestCase):
+    def test_backend_padrao_e_local(self) -> None:
+        self.assertEqual(DEFAULT_LLM_BACKEND, "local")
+        with unittest.mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(resolver_backend(), "local")
+
+    def test_backend_explicito_tem_prioridade_sobre_ambiente(self) -> None:
+        with unittest.mock.patch.dict(os.environ, {"FASE3_LLM_BACKEND": "groq"}):
+            self.assertEqual(resolver_backend("local"), "local")
+
     def test_backend_local_usa_adapter_e_escala_promovidos(self) -> None:
         self.assertIn("qwen2.5-1.5b-v4", str(DEFAULT_LOCAL_ADAPTER_PATH))
         self.assertEqual(DEFAULT_LOCAL_LORA_SCALE, 0.75)

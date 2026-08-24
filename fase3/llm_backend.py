@@ -1,15 +1,15 @@
 """Backend de LLM plugavel para o assistente medico da Fase 3.
 
-Tres modos, escolhidos por ``backend=`` ou pela variavel de ambiente
-``FASE3_LLM_BACKEND``:
+Tres modos, escolhidos por ``backend=`` ou, para usos avancados, pela variavel
+de ambiente ``FASE3_LLM_BACKEND``:
 
-- ``"groq"`` (padrao): reaproveita o padrao de chamada HTTP + retry em 429
-  ja usado em ``src/llm_interpretation.py`` (Fase 2), so que exposto como um
-  LLM compativel com LangChain.
-- ``"local"``: carrega o modelo base instrucional + adapter LoRA treinado em
+- ``"local"`` (padrao): carrega o modelo base instrucional + adapter LoRA treinado em
   ``fase3/finetuning/train_lora.py`` via ``transformers``/``peft``. A classe
   local aplica o chat template do tokenizer, usa decodificacao deterministica e devolve
   somente os tokens novos. Requer ``requirements-fase3.txt`` instalado.
+- ``"groq"``: reaproveita o padrao de chamada HTTP + retry em 429
+  ja usado em ``src/llm_interpretation.py`` (Fase 2), so que exposto como um
+  LLM compativel com LangChain.
 - ``"fake"``: LLM determinístico usado em testes automatizados, sem rede e
   sem dependencias pesadas.
 """
@@ -28,10 +28,13 @@ from langchain_core.language_models.llms import LLM
 from fase3.prompting import SYSTEM_PROMPT_CLINICO
 
 DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant"
+DEFAULT_LLM_BACKEND = "local"
 DEFAULT_LOCAL_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 DEFAULT_LOCAL_LORA_SCALE = 0.75
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+LOCAL_CACHE_POINTER = PROJECT_ROOT / ".cache" / "fase3-hf-home.txt"
 DEFAULT_LOCAL_ADAPTER_PATH = (
-    Path(__file__).resolve().parent.parent
+    PROJECT_ROOT
     / "resultados"
     / "fase3"
     / "finetuning"
@@ -226,6 +229,14 @@ class LocalAdapterLLM(LLM):
 
 
 def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **kwargs: Any) -> LLM:
+    if not os.getenv("HF_HOME") and LOCAL_CACHE_POINTER.exists():
+        cache_configurado = LOCAL_CACHE_POINTER.read_text(encoding="utf-8").strip()
+        if cache_configurado:
+            os.environ["HF_HOME"] = cache_configurado
+            # O setup e responsavel pelo download. Inferencia nunca deve iniciar
+            # uma transferencia grande no meio de uma consulta clinica.
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
     os.environ["USE_TF"] = "0"
     os.environ["TRANSFORMERS_NO_TF"] = "1"
     os.environ.setdefault("USE_TORCH", "1")
@@ -252,7 +263,7 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     usar_cuda = torch.cuda.is_available()
-    model_kwargs = {"torch_dtype": torch.float16} if usar_cuda else {}
+    model_kwargs = {"dtype": torch.float16} if usar_cuda else {}
     modelo = AutoModelForCausalLM.from_pretrained(base_model, **model_kwargs)
     if use_adapter:
         modelo = PeftModel.from_pretrained(modelo, adapter_path)
@@ -290,9 +301,14 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
     )
 
 
+def resolver_backend(backend: Optional[str] = None) -> str:
+    """Resolve o backend; uma escolha explicita sempre vence o ambiente."""
+    return (backend or os.getenv("FASE3_LLM_BACKEND") or DEFAULT_LLM_BACKEND).strip().lower()
+
+
 def get_llm(backend: Optional[str] = None, **kwargs: Any) -> LLM:
     """Fabrica o LLM plugavel do assistente medico de acordo com o backend escolhido."""
-    backend = backend or os.getenv("FASE3_LLM_BACKEND", "groq")
+    backend = resolver_backend(backend)
     if backend == "groq":
         return GroqLLM(
             api_key=kwargs.get("api_key"),

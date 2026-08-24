@@ -4,7 +4,7 @@ Monta uma chain LCEL (``prompt | llm | StrOutputParser``) que integra:
 
 1. Retrieval sobre os protocolos internos (``fase3.retrieval``);
 2. Contexto estruturado do paciente vindo do mock de EHR (``fase3.ehr_tools``);
-3. O LLM plugavel (``fase3.llm_backend``, "groq" por padrao);
+3. O LLM plugavel (``fase3.llm_backend``, modelo local por padrao);
 4. Guardrails de seguranca e disclaimer obrigatorio (``fase3.guardrails``);
 5. Log de auditoria com as fontes usadas, para explainability (``fase3.logging_utils``).
 """

@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "fase3": "powershell -NoProfile -ExecutionPolicy Bypass -File fase3/start.ps1",
+    "fase3:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File fase3/setup.ps1",
     "check:worker": "cd cloudflare/api && uv run pywrangler deploy --dry-run --outdir ../../dist/worker",
     "deploy:worker": "bash deploy/cloudflare/deploy-worker.sh",
     "test:worker": "bash deploy/cloudflare/test-worker.sh"

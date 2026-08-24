@@ -25,14 +25,19 @@ from __future__ import annotations
 import argparse
 
 from fase3.clinical_flow_graph import executar_fluxo_clinico
-from fase3.llm_backend import get_llm
+from fase3.llm_backend import DEFAULT_LLM_BACKEND, get_llm
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--paciente-id", default=None, help="Codigo do paciente, ex.: PAC-0001")
     parser.add_argument("--pergunta", required=True)
-    parser.add_argument("--backend", default="groq", choices=["groq", "local", "fake"])
+    parser.add_argument(
+        "--backend",
+        default=DEFAULT_LLM_BACKEND,
+        choices=["local", "groq", "fake"],
+        help="Backend de inferencia (padrao: local).",
+    )
     parser.add_argument(
         "--base-model",
         default=None,
