@@ -145,6 +145,30 @@ chain, enquanto `emitir_alertas` consolida mensagens no estado sem enviar
 notificações externas. Também removemos a emissão duplicada do alerta de
 exames.
 
+### 6.1. Plataforma multi-backend
+
+Separamos o frontend estático do backend de inferência. O mesmo frontend pode
+ser publicado no Cloudflare Pages, enquanto cada integrante conecta sua
+própria infraestrutura por loopback, LAN, VPN ou URL HTTPS/Tunnel. As chamadas
+saem diretamente do navegador; a Cloudflare não processa consultas nem jobs.
+
+O wizard de primeira execução valida rota, CORS, Private Network Access,
+versão da API, CPU/GPU, memória e modelos antes de salvar o perfil no
+`localStorage`. Chats são isolados por backend e paciente. Os tours de consulta
+e treinamento apenas destacam controles e nunca iniciam uma operação real.
+
+O endpoint `/api/capabilities` expõe os recursos do backend. Origens aceitas
+são configuradas por `FASE3_ALLOWED_ORIGINS`; operações de modelo vindas de
+outra máquina exigem `FASE3_ALLOW_REMOTE_TRAINING=1` e permanecem desativadas
+por padrão. O backend continua vinculado a `127.0.0.1`, salvo uso explícito de
+`--host 0.0.0.0`.
+
+Qwen 0,5B e 1,5B permanecem como presets reproduzíveis, mas o catálogo aceita
+outros modelos compatíveis com Transformers e PEFT, inclusive caminhos locais
+autorizados. O pipeline suporta FP32, FP16, BF16 e QLoRA NF4 conforme o
+hardware. Cada novo adapter recebe manifesto com modelo-base, revisão,
+precisão e parâmetros, usados novamente na loss, calibração e promoção.
+
 ## 7. Avaliação final
 
 Comparamos as escalas `0.25`, `0.5`, `0.75` e `1.0` nos oito casos de

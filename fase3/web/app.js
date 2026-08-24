@@ -7,6 +7,19 @@ const state = {
   selectedAdapter: null,
   trainingPoll: null,
   nextVersion: null,
+  profiles: [],
+  activeProfile: null,
+  capabilities: null,
+  setupStep: 0,
+  setupValidated: null,
+  tour: null,
+  editingProfile: null,
+};
+
+const STORAGE_KEYS = {
+  profiles: "fase3.backendProfiles.v1",
+  active: "fase3.activeBackend.v1",
+  tours: "fase3.completedTours.v1",
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -62,7 +75,140 @@ const elements = {
   metricQuality: $("#metric-quality"),
   metricSafety: $("#metric-safety"),
   gateList: $("#gate-list"),
+  profileSelect: $("#profile-select"),
+  manageProfiles: $("#manage-profiles"),
+  helpButton: $("#help-button"),
+  activeModelBadge: $("#active-model-badge"),
+  apiDocsLink: $("#api-docs-link"),
+  setupDialog: $("#setup-dialog"),
+  setupForm: $("#setup-form"),
+  setupBack: $("#setup-back"),
+  setupNext: $("#setup-next"),
+  setupName: $("#setup-name"),
+  setupUrl: $("#setup-url"),
+  setupCommand: $("#setup-command"),
+  setupNetworkHint: $("#setup-network-hint"),
+  setupSteps: [...document.querySelectorAll("#setup-steps li")],
+  setupPages: [...document.querySelectorAll(".setup-page")],
+  testConnection: $("#test-connection"),
+  connectionDiagnostic: $("#connection-diagnostic"),
+  setupModel: $("#setup-model"),
+  installSetupModel: $("#install-setup-model"),
+  modelDiagnostic: $("#model-diagnostic"),
+  setupSummary: $("#setup-summary"),
+  copyCommand: $("#copy-command"),
+  profilesDialog: $("#profiles-dialog"),
+  profilesList: $("#profiles-list"),
+  closeProfiles: $("#close-profiles"),
+  newProfile: $("#new-profile"),
+  resetProfiles: $("#reset-profiles"),
+  trainModel: $("#train-model"),
+  trainPrecision: $("#train-precision"),
+  hardwareSummary: $("#hardware-summary"),
+  modelCount: $("#model-count"),
+  modelList: $("#model-list"),
+  modelForm: $("#model-form"),
+  tourLayer: $("#tour-layer"),
+  tourFocus: $("#tour-focus"),
+  tourPopover: $("#tour-popover"),
+  tourProgress: $("#tour-progress"),
+  tourTitle: $("#tour-title"),
+  tourText: $("#tour-text"),
+  tourNext: $("#tour-next"),
+  tourClose: $("#tour-close"),
 };
+
+function classifyBackendUrl(value) {
+  let url;
+  try { url = new URL(value); } catch { return { type: "invalid", reason: "URL invalida" }; }
+  if (!['http:', 'https:'].includes(url.protocol)) return { type: "invalid", reason: "Use HTTP ou HTTPS" };
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const parts = host.split(".").map(Number);
+  const ipv4 = parts.length === 4 && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255);
+  const loopback = host === "localhost" || host === "::1" || (ipv4 && parts[0] === 127);
+  if (loopback) return { type: "loopback", url: url.origin };
+  const privateIp = ipv4 && (
+    parts[0] === 10
+    || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
+    || (parts[0] === 192 && parts[1] === 168)
+    || (parts[0] === 169 && parts[1] === 254)
+    || (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127)
+  );
+  const privateHost = privateIp || host.endsWith(".local") || host === "0.0.0.0" || host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd");
+  if (privateHost) return { type: "private", url: url.origin };
+  if (url.protocol !== "https:") return { type: "invalid", reason: "Backend publico exige HTTPS" };
+  return { type: "public", url: url.origin };
+}
+
+window.fase3ClassifyBackendUrl = classifyBackendUrl;
+
+function loadProfiles() {
+  try { state.profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.profiles) || "[]"); }
+  catch { state.profiles = []; }
+  const activeId = localStorage.getItem(STORAGE_KEYS.active);
+  state.activeProfile = state.profiles.find((profile) => profile.id === activeId) || state.profiles[0] || null;
+}
+
+function persistProfiles() {
+  localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(state.profiles));
+  if (state.activeProfile) localStorage.setItem(STORAGE_KEYS.active, state.activeProfile.id);
+  else localStorage.removeItem(STORAGE_KEYS.active);
+}
+
+function renderProfiles() {
+  elements.profileSelect.replaceChildren();
+  state.profiles.forEach((profile) => {
+    const option = document.createElement("option");
+    option.value = profile.id;
+    option.textContent = profile.name;
+    option.selected = profile.id === state.activeProfile?.id;
+    elements.profileSelect.append(option);
+  });
+  elements.profileSelect.disabled = state.profiles.length < 2;
+  elements.profilesList.replaceChildren();
+  state.profiles.forEach((profile) => {
+    const row = document.createElement("div");
+    row.className = "profile-row";
+    row.append(detailItem(profile.name, `${profile.baseUrl} | ${profile.networkType}`));
+    const test = textElement("button", "secondary-button", "Testar");
+    test.type = "button";
+    test.addEventListener("click", async () => {
+      state.activeProfile = profile;
+      persistProfiles();
+      renderProfiles();
+      await initializeBackend();
+    });
+    const edit = textElement("button", "secondary-button", "Editar");
+    edit.type = "button";
+    edit.addEventListener("click", () => { elements.profilesDialog.close(); openSetup(profile); });
+    const actions = document.createElement("div");
+    actions.className = "profile-actions";
+    actions.append(test, edit);
+    row.append(actions);
+    elements.profilesList.append(row);
+  });
+}
+
+function requestInitFor(profile, options) {
+  const init = { ...options };
+  if (profile.networkType === "loopback") init.targetAddressSpace = "loopback";
+  if (profile.networkType === "private") init.targetAddressSpace = "local";
+  return init;
+}
+
+async function profileFetch(path, options = {}, profile = state.activeProfile) {
+  if (!profile) throw new Error("Configure um backend antes de continuar.");
+  const url = `${profile.baseUrl}${path}`;
+  const init = requestInitFor(profile, options);
+  try {
+    return await fetch(url, init);
+  } catch (firstError) {
+    const method = String(init.method || "GET").toUpperCase();
+    if (!("targetAddressSpace" in init) || method !== "GET") throw firstError;
+    const { targetAddressSpace, ...fallbackInit } = init;
+    return fetch(url, fallbackInit);
+  }
+}
 
 const questionsByPatient = {
   "PAC-0001": ["Posso iniciar a quimioterapia hoje?", "Quais exames ainda impedem o primeiro ciclo?"],
@@ -99,11 +245,20 @@ function fillList(container, items, emptyText) {
   items.forEach((item) => container.append(textElement("li", "", item.replaceAll("_", " "))));
 }
 
-function getSession(patientId) {
-  if (!state.sessions.has(patientId)) {
-    state.sessions.set(patientId, { messages: [], lastResult: null, draft: "" });
+function formatStageLabel(stage) {
+  const normalized = String(stage || "").trim().toLowerCase().replaceAll("_", " ");
+  if (!normalized || ["a definir", "nao definido"].includes(normalized)) {
+    return "Estagio em definicao";
   }
-  return state.sessions.get(patientId);
+  return `Estagio ${stage}`;
+}
+
+function getSession(patientId) {
+  const key = `${state.activeProfile?.id || "unconfigured"}:${patientId}`;
+  if (!state.sessions.has(key)) {
+    state.sessions.set(key, { messages: [], lastResult: null, draft: "" });
+  }
+  return state.sessions.get(key);
 }
 
 function renderPatient(patient) {
@@ -114,7 +269,7 @@ function renderPatient(patient) {
   const heading = document.createElement("div");
   heading.className = "patient-id-line";
   heading.append(textElement("strong", "", patient.paciente_id));
-  heading.append(textElement("span", "stage-badge", `Estagio ${patient.estagio}`));
+  heading.append(textElement("span", "stage-badge", formatStageLabel(patient.estagio)));
 
   const diagnosis = textElement("p", "diagnosis", patient.diagnostico);
   const facts = document.createElement("div");
@@ -243,7 +398,7 @@ async function submitQuestion(event) {
   elements.conversation.setAttribute("aria-busy", "true");
 
   try {
-    const response = await fetch("/api/consultas", {
+    const response = await profileFetch("/api/consultas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ paciente_id: patientId, pergunta: question }),
@@ -279,7 +434,7 @@ const stageByJobType = {
 };
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await profileFetch(path, {
     ...options,
     headers: options.body ? { "Content-Type": "application/json", ...(options.headers || {}) } : options.headers,
   });
@@ -292,7 +447,7 @@ async function apiRequest(path, options = {}) {
 }
 
 function adapterVersion(path = "") {
-  const match = path.replaceAll("\\", "/").match(/qwen2\.5-1\.5b-v\d+/);
+  const match = path.replaceAll("\\", "/").match(/[a-z0-9][a-z0-9._-]{1,63}-v\d+/);
   return match ? match[0] : "Adapter nao identificado";
 }
 
@@ -470,10 +625,29 @@ function renderTraining(overview) {
   elements.promotedScale.textContent = `Escala LoRA ${promoted.lora_scale ?? "-"}`;
   elements.datasetTrain.textContent = overview.dataset.train;
   elements.datasetValidation.textContent = overview.dataset.validation;
+  const previousModel = elements.trainModel.value;
+  elements.trainModel.replaceChildren();
+  (overview.models || state.capabilities?.models || []).forEach((model) => {
+    const option = document.createElement("option");
+    option.value = model.alias;
+    option.textContent = `${model.label}${model.installed ? "" : " (nao instalado)"}`;
+    option.selected = model.alias === previousModel || (!previousModel && model.alias === "qwen2.5-1.5b");
+    elements.trainModel.append(option);
+  });
+  const modelAlias = elements.trainModel.value || "qwen2.5-1.5b";
+  const nextVersion = overview.next_versions?.[modelAlias] || overview.next_version;
   if (!elements.trainVersion.value || elements.trainVersion.value === state.nextVersion) {
-    elements.trainVersion.value = overview.next_version;
+    elements.trainVersion.value = nextVersion;
   }
-  state.nextVersion = overview.next_version;
+  state.nextVersion = nextVersion;
+  const hardware = overview.hardware || state.capabilities?.hardware || {};
+  elements.hardwareSummary.textContent = hardware.device === "cuda"
+    ? `${hardware.device_name} | ${Math.round((hardware.memory_bytes || 0) / 1073741824)} GB`
+    : hardware.device_name || "CPU";
+  [...elements.trainPrecision.options].forEach((option) => {
+    option.disabled = !(hardware.quantization || ["auto", "fp32"]).includes(option.value);
+  });
+  renderModelCatalog(overview.models || []);
   renderPipeline(overview);
   renderJob(overview.job);
   renderAdapter(overview);
@@ -524,13 +698,19 @@ function switchView(view) {
   elements.clinicalView.hidden = training;
   elements.trainingView.hidden = !training;
   elements.viewTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.view === view));
-  if (training) loadTrainingOverview();
+  if (training) {
+    loadTrainingOverview();
+    setTimeout(() => maybeStartTour("training"), 50);
+  }
 }
 
 function trainingPayload() {
   const data = new FormData(elements.trainingForm);
   return {
     version: data.get("version"),
+    model_alias: data.get("model_alias"),
+    precision: data.get("precision"),
+    gradient_checkpointing: data.get("gradient_checkpointing") === "on",
     epochs: Number(data.get("epochs")),
     batch_size: Number(data.get("batch_size")),
     gradient_accumulation_steps: Number(data.get("gradient_accumulation_steps")),
@@ -543,30 +723,292 @@ function trainingPayload() {
   };
 }
 
-async function initialize() {
-  try {
-    const [statusResponse, patientsResponse] = await Promise.all([fetch("/api/status"), fetch("/api/pacientes")]);
-    if (!statusResponse.ok || !patientsResponse.ok) throw new Error("Servico indisponivel");
-    state.status = await statusResponse.json();
-    state.patients = await patientsResponse.json();
-    elements.status.classList.add("ready");
-    const loadNote = state.status.modelo_carregado ? "modelo carregado" : "carrega na primeira consulta";
-    elements.status.querySelector("span:last-child").textContent = `${state.status.backend.toUpperCase()} | ${loadNote}`;
+function renderModelCatalog(models) {
+  elements.modelCount.textContent = models.length;
+  elements.modelList.replaceChildren();
+  models.forEach((model) => {
+    const row = document.createElement("div");
+    row.className = "model-row";
+    const description = document.createElement("div");
+    description.append(textElement("strong", "", model.label), textElement("span", "", `${model.source} | ${model.installed ? "pronto" : "nao instalado"}`));
+    const actions = document.createElement("div");
+    if (!model.installed) {
+      const install = textElement("button", "secondary-button", "Instalar");
+      install.type = "button";
+      install.addEventListener("click", () => runTrainingOperation("/api/modelos/instalar", { alias: model.alias }));
+      actions.append(install);
+    }
+    if (!model.builtin) {
+      const remove = textElement("button", "danger-button", "Remover");
+      remove.type = "button";
+      remove.addEventListener("click", async () => {
+        try { await apiRequest(`/api/modelos/${encodeURIComponent(model.alias)}`, { method: "DELETE" }); await loadTrainingOverview(); }
+        catch (error) { showOpsError(error); }
+      });
+      actions.append(remove);
+    }
+    row.append(description, actions);
+    elements.modelList.append(row);
+  });
+}
 
-    elements.patientSelect.replaceChildren();
-    state.patients.forEach((patient) => {
-      const option = document.createElement("option");
-      option.value = patient.paciente_id;
-      option.textContent = `${patient.paciente_id} | ${patient.diagnostico}`;
-      elements.patientSelect.append(option);
-    });
-    if (state.patients.length) renderPatient(state.patients[0]);
+function populatePatients() {
+  elements.patientSelect.replaceChildren();
+  state.patients.forEach((patient) => {
+    const option = document.createElement("option");
+    option.value = patient.paciente_id;
+    option.textContent = `${patient.paciente_id} | ${patient.diagnostico}`;
+    elements.patientSelect.append(option);
+  });
+  if (state.patients.length) renderPatient(state.patients[0]);
+}
+
+async function initializeBackend() {
+  try {
+    elements.status.className = "runtime-status";
+    elements.status.querySelector("span:last-child").textContent = "Conectando";
+    const [capabilities, status, patients] = await Promise.all([
+      apiRequest("/api/capabilities"), apiRequest("/api/status"), apiRequest("/api/pacientes"),
+    ]);
+    if (Number(String(capabilities.api_version).split(".")[0]) !== 2) throw new Error("Versao da API incompatível. Esperada: 2.x.");
+    state.capabilities = capabilities;
+    state.status = status;
+    state.patients = patients;
+    state.selected = null;
+    state.training = null;
+    state.activeProfile.lastCapabilities = capabilities;
+    persistProfiles();
+    elements.status.className = "runtime-status ready";
+    const loadNote = state.status.modelo_carregado ? "modelo carregado" : "carrega na primeira consulta";
+    elements.status.querySelector("span:last-child").textContent = `${capabilities.instance_name} | ${loadNote}`;
+    elements.activeModelBadge.textContent = capabilities.promoted?.model_alias || status.modelo_base || "Modelo configurado";
+    elements.apiDocsLink.href = `${state.activeProfile.baseUrl}/docs`;
+    populatePatients();
+    renderProfiles();
   } catch (error) {
-    elements.status.classList.add("error");
+    elements.status.className = "runtime-status error";
     elements.status.querySelector("span:last-child").textContent = "Servico indisponivel";
-    elements.error.textContent = "Nao foi possivel carregar os dados da aplicacao.";
+    elements.error.textContent = error instanceof Error ? error.message : "Nao foi possivel carregar os dados da aplicacao.";
     elements.error.hidden = false;
   }
+}
+
+function selectedTopology() {
+  return elements.setupForm.querySelector('input[name="topology"]:checked')?.value || "loopback";
+}
+
+function configureTopologyFields() {
+  const topology = selectedTopology();
+  const defaults = {
+    loopback: ["Backend local", "http://127.0.0.1:8010"],
+    private: ["Backend da rede", "http://192.168.1.10:8010"],
+    public: ["Backend remoto", "https://backend.exemplo.com"],
+  };
+  [elements.setupName.value, elements.setupUrl.value] = defaults[topology];
+  const originArg = location.origin.startsWith("http") ? ` --allowed-origin ${location.origin}` : "";
+  elements.setupCommand.textContent = topology === "private"
+    ? `python -m fase3 --host 0.0.0.0${originArg}`
+    : `python -m fase3${originArg}`;
+  elements.setupNetworkHint.textContent = topology === "loopback"
+    ? "O navegador pode solicitar permissao para acessar esta maquina."
+    : topology === "private"
+      ? "As maquinas precisam estar na mesma rede ou VPN; libere a porta 8010 no firewall."
+      : "Use HTTPS. Sem uma rota publica, use VPN ou Cloudflare Tunnel.";
+}
+
+function renderSetupStep() {
+  elements.setupPages.forEach((page, index) => { page.hidden = index !== state.setupStep; });
+  elements.setupSteps.forEach((step, index) => {
+    step.classList.toggle("active", index === state.setupStep);
+    step.classList.toggle("complete", index < state.setupStep);
+  });
+  elements.setupBack.disabled = state.setupStep === 0;
+  elements.setupNext.textContent = state.setupStep === 4 ? "Abrir consulta" : "Continuar";
+  if (state.setupStep === 1) configureTopologyFields();
+  if (state.setupStep === 4 && state.setupValidated) {
+    elements.setupSummary.textContent = `${state.setupValidated.capabilities.instance_name} em ${state.setupValidated.profile.baseUrl}. O perfil e os chats ficam isolados neste navegador.`;
+  }
+}
+
+function openSetup(profile = null) {
+  state.editingProfile = profile;
+  state.setupStep = profile ? 1 : 0;
+  state.setupValidated = null;
+  if (profile) {
+    const radio = elements.setupForm.querySelector(`input[name="topology"][value="${profile.networkType}"]`);
+    if (radio) radio.checked = true;
+  }
+  renderSetupStep();
+  if (profile) {
+    elements.setupName.value = profile.name;
+    elements.setupUrl.value = profile.baseUrl;
+  }
+  if (!elements.setupDialog.open) elements.setupDialog.showModal();
+}
+
+function connectionErrorMessage(error, classification) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (location.protocol === "https:" && classification?.type === "public" && classification.url.startsWith("http:")) return "Mixed content: um site HTTPS nao pode chamar este backend publico por HTTP.";
+  if (/aborted|timeout/i.test(message)) return "Tempo esgotado. Verifique endereco, rota VPN e firewall.";
+  if (/failed to fetch|networkerror|fetch/i.test(message)) return "Sem resposta legivel. Verifique se o backend esta ativo, a porta, o firewall, a permissao de rede local e FASE3_ALLOWED_ORIGINS.";
+  return message;
+}
+
+async function testSetupConnection() {
+  const classification = classifyBackendUrl(elements.setupUrl.value.trim());
+  if (classification.type === "invalid") {
+    elements.connectionDiagnostic.className = "connection-diagnostic error";
+    elements.connectionDiagnostic.textContent = classification.reason;
+    return;
+  }
+  const temporaryProfile = {
+    id: state.editingProfile?.id || `backend-${Date.now()}`,
+    name: elements.setupName.value.trim() || "Backend",
+    baseUrl: classification.url,
+    networkType: classification.type,
+  };
+  elements.connectionDiagnostic.className = "connection-diagnostic running";
+  elements.connectionDiagnostic.textContent = "Testando rota, CORS e versao da API...";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await profileFetch("/api/capabilities", { signal: controller.signal }, temporaryProfile);
+    const capabilities = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(capabilities.detail || `HTTP ${response.status}`);
+    if (Number(String(capabilities.api_version).split(".")[0]) !== 2) throw new Error(`Backend incompatível: API ${capabilities.api_version || "desconhecida"}.`);
+    state.setupValidated = { profile: temporaryProfile, capabilities };
+    elements.connectionDiagnostic.className = "connection-diagnostic success";
+    const hardware = capabilities.hardware || {};
+    elements.connectionDiagnostic.textContent = `Conectado a ${capabilities.instance_name}. ${hardware.device_name || "CPU"}; API ${capabilities.api_version}; treinamento remoto ${capabilities.features?.remote_training ? "habilitado" : "desabilitado"}.`;
+    elements.setupModel.replaceChildren();
+    (capabilities.models || []).forEach((model) => {
+      const option = document.createElement("option");
+      option.value = model.alias;
+      option.textContent = `${model.label}${model.installed ? " | pronto" : " | requer instalacao"}`;
+      option.dataset.installed = String(model.installed);
+      elements.setupModel.append(option);
+    });
+  } catch (error) {
+    state.setupValidated = null;
+    elements.connectionDiagnostic.className = "connection-diagnostic error";
+    elements.connectionDiagnostic.textContent = connectionErrorMessage(error, classification);
+  } finally { clearTimeout(timeout); }
+}
+
+async function pollSetupInstall() {
+  const profile = state.setupValidated.profile;
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    const body = await (await profileFetch("/api/treinamento/job", {}, profile)).json();
+    const job = body.job;
+    elements.modelDiagnostic.textContent = `${job?.etapa || "Preparando"} ${Math.round((job?.progresso || 0) * 100)}%`;
+    if (!job || !activeJobStatuses.has(job.status)) {
+      if (job?.status !== "concluido") throw new Error(job?.logs?.at(-1) || "A instalacao falhou.");
+      await testSetupConnection();
+      elements.modelDiagnostic.textContent = "Modelo instalado e disponivel.";
+      return;
+    }
+  }
+}
+
+async function installSetupModel() {
+  if (!state.setupValidated) return;
+  elements.modelDiagnostic.textContent = "Iniciando download confirmado...";
+  try {
+    await profileFetch("/api/modelos/instalar", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alias: elements.setupModel.value }),
+    }, state.setupValidated.profile).then(async (response) => {
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "Falha ao iniciar instalacao.");
+    });
+    await pollSetupInstall();
+  } catch (error) { elements.modelDiagnostic.textContent = connectionErrorMessage(error); }
+}
+
+async function setupNext() {
+  if (state.setupStep === 1 && classifyBackendUrl(elements.setupUrl.value.trim()).type === "invalid") {
+    elements.setupNetworkHint.textContent = classifyBackendUrl(elements.setupUrl.value.trim()).reason;
+    return;
+  }
+  if (state.setupStep === 2 && !state.setupValidated) {
+    await testSetupConnection();
+    if (!state.setupValidated) return;
+  }
+  if (state.setupStep === 3) {
+    const selected = elements.setupModel.selectedOptions[0];
+    if (selected && selected.dataset.installed !== "true") {
+      elements.modelDiagnostic.textContent = "Instale o modelo selecionado antes de concluir.";
+      return;
+    }
+  }
+  if (state.setupStep === 4) {
+    const profile = state.setupValidated.profile;
+    const existing = state.profiles.findIndex((item) => item.id === profile.id || item.baseUrl === profile.baseUrl);
+    if (existing >= 0) state.profiles[existing] = profile;
+    else state.profiles.push(profile);
+    state.activeProfile = profile;
+    persistProfiles();
+    renderProfiles();
+    elements.setupDialog.close();
+    await initializeBackend();
+    maybeStartTour("clinical");
+    return;
+  }
+  state.setupStep += 1;
+  renderSetupStep();
+}
+
+const tours = {
+  clinical: [
+    ["backend", "Backend ativo", "Troque de infraestrutura sem misturar pacientes, modelos ou conversas."],
+    ["patient", "Contexto isolado", "Cada paciente possui uma conversa propria dentro deste backend."],
+    ["suggestions", "Perguntas sugeridas", "Um clique apenas preenche a pergunta; o envio continua sob seu controle."],
+    ["model", "Modelo em uso", "Aqui aparece o modelo-base ou adapter promovido pelo backend ativo."],
+    ["question", "Analise clinica", "A pergunta percorre recuperacao, LangGraph, guardrails e auditoria."],
+    ["evidence", "Explicabilidade", "Fontes, alertas e a rota decisoria ficam visiveis apos cada resposta."],
+  ],
+  training: [
+    ["infrastructure", "Infraestrutura detectada", "CPU, GPU, memoria e permissoes pertencem ao backend selecionado."],
+    ["models", "Modelo-base configuravel", "Use um preset ou um modelo cadastrado compativel com Transformers e PEFT."],
+    ["pipeline", "Etapas controladas", "Dados, treino, loss, calibracao e promocao preservam seus gates."],
+    ["job", "Execucao observavel", "Progresso, logs e cancelamento acompanham a operacao real do backend."],
+    ["adapters", "Promocao segura", "Somente adapters calibrados e aprovados podem entrar em inferencia."],
+  ],
+};
+
+function completedTours() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.tours) || "{}"); } catch { return {}; }
+}
+
+function renderTour() {
+  const item = tours[state.tour.name][state.tour.index];
+  const target = document.querySelector(`[data-tour="${item[0]}"]`);
+  if (!target) return closeTour();
+  const rect = target.getBoundingClientRect();
+  elements.tourLayer.hidden = false;
+  Object.assign(elements.tourFocus.style, { left: `${rect.left - 5}px`, top: `${rect.top - 5}px`, width: `${rect.width + 10}px`, height: `${rect.height + 10}px` });
+  const popoverTop = rect.bottom + 12 + 190 < innerHeight ? rect.bottom + 12 : Math.max(12, rect.top - 202);
+  Object.assign(elements.tourPopover.style, { left: `${Math.min(Math.max(12, rect.left), innerWidth - 352)}px`, top: `${popoverTop}px` });
+  elements.tourProgress.textContent = `${state.tour.index + 1} de ${tours[state.tour.name].length}`;
+  elements.tourTitle.textContent = item[1];
+  elements.tourText.textContent = item[2];
+  elements.tourNext.textContent = state.tour.index === tours[state.tour.name].length - 1 ? "Concluir" : "Proximo";
+}
+
+function startTour(name) { state.tour = { name, index: 0 }; renderTour(); }
+function closeTour(markComplete = false) {
+  if (markComplete && state.tour) localStorage.setItem(STORAGE_KEYS.tours, JSON.stringify({ ...completedTours(), [state.tour.name]: true }));
+  state.tour = null;
+  elements.tourLayer.hidden = true;
+}
+function maybeStartTour(name) { if (!completedTours()[name]) startTour(name); }
+
+async function initialize() {
+  loadProfiles();
+  renderProfiles();
+  if (!state.activeProfile) { openSetup(); return; }
+  await initializeBackend();
+  maybeStartTour("clinical");
 }
 
 elements.patientSelect.addEventListener("change", () => {
@@ -577,11 +1019,77 @@ elements.question.addEventListener("input", () => {
   elements.characterCount.textContent = elements.question.value.length;
   if (state.selected) getSession(state.selected.paciente_id).draft = elements.question.value;
 });
+elements.question.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  if (!elements.submit.disabled && elements.question.value.trim()) {
+    elements.form.requestSubmit();
+  }
+});
 elements.form.addEventListener("submit", submitQuestion);
 elements.viewTabs.forEach((tab) => tab.addEventListener("click", () => switchView(tab.dataset.view)));
+elements.profileSelect.addEventListener("change", async () => {
+  state.activeProfile = state.profiles.find((profile) => profile.id === elements.profileSelect.value) || null;
+  persistProfiles();
+  state.selectedAdapter = null;
+  clearTimeout(state.trainingPoll);
+  await initializeBackend();
+});
+elements.manageProfiles.addEventListener("click", () => { renderProfiles(); elements.profilesDialog.showModal(); });
+elements.closeProfiles.addEventListener("click", () => elements.profilesDialog.close());
+elements.newProfile.addEventListener("click", () => { elements.profilesDialog.close(); openSetup(); });
+elements.resetProfiles.addEventListener("click", () => {
+  state.profiles = [];
+  state.activeProfile = null;
+  state.sessions.clear();
+  localStorage.removeItem(STORAGE_KEYS.profiles);
+  localStorage.removeItem(STORAGE_KEYS.active);
+  elements.profilesDialog.close();
+  openSetup();
+});
+elements.helpButton.addEventListener("click", () => startTour(elements.trainingView.hidden ? "clinical" : "training"));
+elements.setupNext.addEventListener("click", setupNext);
+elements.setupBack.addEventListener("click", () => { if (state.setupStep > 0) { state.setupStep -= 1; renderSetupStep(); } });
+elements.testConnection.addEventListener("click", testSetupConnection);
+elements.installSetupModel.addEventListener("click", installSetupModel);
+elements.copyCommand.addEventListener("click", async () => {
+  await navigator.clipboard?.writeText(elements.setupCommand.textContent);
+  elements.copyCommand.textContent = "Copiado";
+  setTimeout(() => { elements.copyCommand.textContent = "Copiar"; }, 1200);
+});
+elements.setupDialog.addEventListener("cancel", (event) => { if (!state.activeProfile) event.preventDefault(); });
+elements.trainModel.addEventListener("change", () => {
+  if (!state.training) return;
+  const next = state.training.next_versions?.[elements.trainModel.value];
+  if (next) { elements.trainVersion.value = next; state.nextVersion = next; }
+});
+elements.tourNext.addEventListener("click", () => {
+  if (!state.tour) return;
+  if (state.tour.index >= tours[state.tour.name].length - 1) closeTour(true);
+  else { state.tour.index += 1; renderTour(); }
+});
+elements.tourClose.addEventListener("click", () => closeTour(false));
+addEventListener("resize", () => { if (state.tour) renderTour(); });
 elements.trainingForm.addEventListener("submit", (event) => {
   event.preventDefault();
   runTrainingOperation("/api/treinamento/iniciar", trainingPayload());
+});
+elements.modelForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = new FormData(elements.modelForm);
+  const targetModules = String(data.get("target_modules") || "").split(",").map((item) => item.trim()).filter(Boolean);
+  try {
+    await apiRequest("/api/modelos", {
+      method: "POST",
+      body: JSON.stringify({
+        alias: data.get("alias"), label: data.get("label"), source_type: data.get("source_type"),
+        source: data.get("source"), revision: data.get("revision") || null, target_modules: targetModules,
+        trust_remote_code: data.get("trust_remote_code") === "on",
+      }),
+    });
+    elements.modelForm.reset();
+    await loadTrainingOverview();
+  } catch (error) { showOpsError(error); }
 });
 elements.rebuildDataset.addEventListener("click", () => runTrainingOperation("/api/treinamento/dataset"));
 elements.cancelJob.addEventListener("click", () => runTrainingOperation("/api/treinamento/cancelar"));

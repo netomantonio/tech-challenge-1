@@ -64,10 +64,11 @@ def _import_ml_stack():
     try:
         import torch
         from datasets import Dataset
-        from peft import LoraConfig, get_peft_model
+        from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
         from transformers import (
             AutoModelForCausalLM,
             AutoTokenizer,
+            BitsAndBytesConfig,
             DataCollatorForSeq2Seq,
             Trainer,
             TrainingArguments,
@@ -79,31 +80,33 @@ def _import_ml_stack():
         "Dataset": Dataset,
         "LoraConfig": LoraConfig,
         "get_peft_model": get_peft_model,
+        "prepare_model_for_kbit_training": prepare_model_for_kbit_training,
         "AutoModelForCausalLM": AutoModelForCausalLM,
         "AutoTokenizer": AutoTokenizer,
+        "BitsAndBytesConfig": BitsAndBytesConfig,
         "DataCollatorForSeq2Seq": DataCollatorForSeq2Seq,
         "Trainer": Trainer,
         "TrainingArguments": TrainingArguments,
     }
 
 
-def _default_target_modules(base_model: str) -> list[str]:
+def _default_target_modules(base_model: str) -> list[str] | str:
     nome = base_model.lower()
     if "gpt2" in nome or "gpt-2" in nome:
         return ["c_attn"]
     if "falcon" in nome:
         return ["query_key_value"]
-    # Qwen/Llama-like: adapta atencao e MLP para dar capacidade suficiente ao
-    # formato clinico, ainda treinando menos de 2% dos parametros.
-    return [
-        "q_proj",
-        "k_proj",
-        "v_proj",
-        "o_proj",
-        "gate_proj",
-        "up_proj",
-        "down_proj",
-    ]
+    if any(nome_modelo in nome for nome_modelo in ("qwen", "llama", "mistral", "gemma")):
+        return [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
+        ]
+    return "all-linear"
 
 
 def _carregar_exemplos(path: Path) -> list[dict]:
@@ -214,7 +217,11 @@ def treinar(args: argparse.Namespace) -> dict:
     if not train_examples or not val_examples:
         raise SystemExit("Os filtros deixaram o split de treino ou validacao vazio.")
 
-    tokenizer = stack["AutoTokenizer"].from_pretrained(args.base_model)
+    load_options = {
+        "revision": args.model_revision,
+        "trust_remote_code": args.trust_remote_code,
+    }
+    tokenizer = stack["AutoTokenizer"].from_pretrained(args.base_model, **load_options)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
@@ -229,11 +236,46 @@ def treinar(args: argparse.Namespace) -> dict:
         tokenizar, remove_columns=list(val_examples[0].keys())
     )
 
-    usar_fp16 = bool(torch.cuda.is_available() and not args.no_fp16)
-    model_kwargs = {"dtype": torch.float16} if usar_fp16 else {}
+    precision = args.precision
+    if args.no_fp16:
+        precision = "fp32"
+    if precision == "auto":
+        precision = "fp16" if torch.cuda.is_available() else "fp32"
+    if precision in {"fp16", "bf16", "nf4"} and not torch.cuda.is_available():
+        raise SystemExit(f"A precisao {precision} exige uma GPU CUDA neste pipeline.")
+    if precision == "bf16" and not torch.cuda.is_bf16_supported():
+        raise SystemExit("A GPU atual nao oferece suporte a BF16.")
+
+    usar_fp16 = precision in {"fp16", "nf4"}
+    usar_bf16 = precision == "bf16"
+    model_kwargs = dict(load_options)
+    if usar_fp16:
+        model_kwargs["dtype"] = torch.float16
+    elif usar_bf16:
+        model_kwargs["dtype"] = torch.bfloat16
+    if precision == "nf4":
+        try:
+            import bitsandbytes  # noqa: F401
+        except ImportError as exc:
+            raise SystemExit("QLoRA NF4 exige bitsandbytes instalado.") from exc
+        model_kwargs.update(
+            {
+                "quantization_config": stack["BitsAndBytesConfig"](
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_compute_dtype=torch.float16,
+                    bnb_4bit_use_double_quant=True,
+                ),
+                "device_map": "auto",
+            }
+        )
     modelo = stack["AutoModelForCausalLM"].from_pretrained(
         args.base_model, **model_kwargs
     )
+    if precision == "nf4":
+        modelo = stack["prepare_model_for_kbit_training"](
+            modelo, use_gradient_checkpointing=args.gradient_checkpointing
+        )
     modelo.config.use_cache = False
     if args.gradient_checkpointing:
         modelo.gradient_checkpointing_enable()
@@ -269,6 +311,7 @@ def treinar(args: argparse.Namespace) -> dict:
         seed=args.seed,
         data_seed=args.seed,
         fp16=usar_fp16,
+        bf16=usar_bf16,
     )
 
     collator = stack["DataCollatorForSeq2Seq"](
@@ -329,6 +372,10 @@ def treinar(args: argparse.Namespace) -> dict:
 
     resumo = {
         "base_model": args.base_model,
+        "model_alias": args.model_alias,
+        "model_revision": args.model_revision,
+        "precision": precision,
+        "trust_remote_code": args.trust_remote_code,
         "modelo_instrucional": bool(getattr(tokenizer, "chat_template", None)),
         "loss_apenas_na_resposta": True,
         "lora_target_modules": target_modules,
@@ -379,12 +426,33 @@ def treinar(args: argparse.Namespace) -> dict:
     (args.output_dir / "training_summary.json").write_text(
         json.dumps(resumo, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    manifest = {
+        "schema_version": 1,
+        "model_alias": args.model_alias,
+        "base_model": args.base_model,
+        "revision": args.model_revision,
+        "precision": precision,
+        "trust_remote_code": args.trust_remote_code,
+        "target_modules": target_modules,
+        "training_summary": str(args.output_dir / "training_summary.json"),
+    }
+    (args.output_dir / "lora_adapter" / "adapter_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return resumo
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--base-model", default=DEFAULT_BASE_MODEL)
+    parser.add_argument("--model-alias", default="qwen2.5-1.5b")
+    parser.add_argument("--model-revision", default=None)
+    parser.add_argument("--trust-remote-code", action="store_true")
+    parser.add_argument(
+        "--precision",
+        choices=["auto", "fp32", "fp16", "bf16", "nf4"],
+        default="auto",
+    )
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_QUALITY_OUTPUT_DIR)
     parser.add_argument("--epochs", type=int, default=4)

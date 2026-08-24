@@ -1,6 +1,6 @@
 # Relatório de aderência final - Fase 3
 
-Data da auditoria: 2026-08-23
+Data da auditoria: 2026-08-24
 
 ## Escopo
 
@@ -92,8 +92,11 @@ losses reavaliadas foram 0,486915 no treino e 0,435758 na validação.
 ## Verificação executada
 
 - Dataset regenerado: 48 exemplos, split 40/8.
-- Testes específicos da Fase 3 e da interface web: 41 aprovados.
-- Suíte completa com `python -m unittest discover -s tests -v`: 56 aprovados.
+- Testes específicos da Fase 3 e da interface web: 59 aprovados.
+- Suíte completa com `python -m unittest discover -s tests -v`: 74 aprovados.
+- Teste JSDOM de perfis, isolamento, wizard, tours e treinamento: aprovado.
+- Build e preview estático do Cloudflare Pages: aprovados.
+- Preflight CORS e Private Network Access real: aprovado.
 - Compilação de `fase3/`: concluída sem erros.
 - `git diff --check`: concluído sem erros de whitespace.
 

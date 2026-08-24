@@ -47,7 +47,7 @@ flowchart TD
 | --- | --- |
 | `fase3/prompting.py` | Contrato único de prompt para treino e inferência |
 | `fase3/data/build_finetuning_dataset.py` | Anonimização, curadoria e splits 40/8 |
-| `fase3/finetuning/train_lora.py` | Treino LoRA/PEFT response-only |
+| `fase3/finetuning/train_lora.py` | Treino LoRA/QLoRA genérico, response-only e manifesto do adapter |
 | `fase3/finetuning/evaluate_adapter_loss.py` | Reavaliação reproduzível de loss |
 | `fase3/calibrate_adapter.py` | Baseline, escalas, promoção e gates |
 | `fase3/evaluate_assistant.py` | Avaliação bruta, final e adversarial |
@@ -58,9 +58,40 @@ flowchart TD
 | `fase3/clinical_flow_graph.py` | Rotas decisórias e alertas |
 | `fase3/guardrails.py` | Bloqueio de PII e prescrição direta |
 | `fase3/logging_utils.py` | Auditoria estruturada |
-| `fase3/web_app.py` | API local, ciclo de vida do modelo e serialização das consultas |
+| `fase3/model_registry.py` | Presets e catálogo de modelos Hugging Face/locais permitidos |
+| `fase3/model_manager.py`, `fase3/manage.py` | Download, diagnóstico e preparação portáteis |
+| `fase3/web_app.py` | API 2.x, capacidades, CORS/PNA e ciclo de vida do modelo |
 | `fase3/training_service.py` | Subprocessos permitidos, exclusão mútua, logs e promoção versionada |
-| `fase3/web/` | Interface responsiva de consulta, evidências e operações do modelo |
+| `fase3/web/` | Interface, perfis multi-backend, wizard, tours e build Cloudflare Pages |
+
+## Distribuição multi-backend
+
+```mermaid
+flowchart LR
+    PAGES[Cloudflare Pages: arquivos estáticos] --> BROWSER[Navegador]
+    BROWSER -->|loopback| LOCAL[127.0.0.1:8010]
+    BROWSER -->|LAN / VPN| PRIVATE[IP privado ou .local]
+    BROWSER -->|HTTPS| REMOTE[Servidor ou Tunnel]
+    LOCAL --> MODEL1[Modelo e GPU do integrante A]
+    PRIVATE --> MODEL2[Modelo e GPU do integrante B]
+    REMOTE --> MODEL3[Infraestrutura remota]
+```
+
+Cloudflare entrega apenas HTML, CSS e JavaScript. O navegador chama diretamente
+o backend selecionado e persiste os perfis apenas em `localStorage`. A camada de
+rede classifica loopback, endereços privados e URLs públicas, usa Local Network
+Access quando disponível e nunca usa `no-cors`. HTTP público é rejeitado.
+
+O backend mantém bind padrão em `127.0.0.1`; `--host 0.0.0.0` precisa ser
+explícito. CORS aceita somente as origens de `FASE3_ALLOWED_ORIGINS` e preflights
+privados recebem `Access-Control-Allow-Private-Network: true`. Treinamento e
+instalação vindos de outra máquina exigem `FASE3_ALLOW_REMOTE_TRAINING=1`,
+desativado por padrão e sem autenticação nesta versão acadêmica.
+
+Perfis isolam pacientes, capacidades, adapters, jobs e conversas. A chave da
+conversa é `backend_id + paciente_id`. O wizard valida rota, CORS, API 2.x,
+hardware e modelo antes de salvar o perfil. Tours de consulta e treinamento não
+iniciam operações reais.
 
 ## Interface web
 
@@ -71,7 +102,8 @@ uso da GPU. A área clínica consome `/api/status`, `/api/pacientes` e
 `/api/consultas`; a lógica clínica continua centralizada no LangGraph e não é
 duplicada no frontend.
 
-A área **Operações do modelo** usa os endpoints `/api/treinamento/*`. O
+A área **Operações do modelo** usa `/api/modelos`, `/api/capabilities` e os
+endpoints `/api/treinamento/*`. O
 `TrainingJobManager` não aceita comandos arbitrários: cada ação monta uma CLI
 conhecida com argumentos validados, executa um subprocesso por vez e mantém as
 últimas 600 linhas do log em memória. Treino e avaliação descarregam a
@@ -79,6 +111,14 @@ inferência antes de ocupar a GPU, e consultas retornam conflito enquanto um job
 está ativo. A promoção exige que o resultado mais recente pertença ao adapter
 selecionado e que todos os gates estejam aprovados; só então o registro
 `.cache/fase3-promoted-model.json` é atualizado.
+
+Modelos-base são cadastrados por alias e podem apontar para um repo ID/revisão
+do Hugging Face ou para um caminho dentro de `FASE3_MODEL_ROOTS`. Qwen 0.5B e
+1.5B são presets. O treino escolhe módulos LoRA pela arquitetura e usa
+`all-linear` quando não há preset. FP32, FP16, BF16 e NF4 são oferecidos somente
+quando o backend reporta suporte; `trust_remote_code` exige opt-in e revisão
+fixa. Cada adapter grava o modelo-base, revisão, precisão e hiperparâmetros em
+seu manifesto, preservados nas etapas de loss, calibração e promoção.
 
 A API também devolve `etapas_executadas`. Dessa forma, a interface apresenta
 o caminho realmente percorrido no grafo, em vez de reconstruir uma sequência

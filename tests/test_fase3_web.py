@@ -29,6 +29,8 @@ class FakeTrainingManager:
             },
             "latest_calibration": None,
             "job": None,
+            "models": [],
+            "hardware": {"device": "cpu", "quantization": ["auto", "fp32"]},
         }
 
     def iniciar_treino(self, config):
@@ -148,7 +150,10 @@ class Fase3WebTests(unittest.TestCase):
         self.assertEqual(overview.json()["dataset"]["train"], 40)
         self.assertEqual(response.status_code, 200)
         descarregar.assert_called_once()
-        self.assertEqual(jobs.started, ("treino", payload))
+        self.assertEqual(jobs.started[0], "treino")
+        self.assertEqual(jobs.started[1]["version"], payload["version"])
+        self.assertEqual(jobs.started[1]["model_alias"], "qwen2.5-1.5b")
+        self.assertEqual(jobs.started[1]["precision"], "auto")
 
     def test_consulta_fica_bloqueada_durante_job_de_gpu(self) -> None:
         runtime = AssistantRuntime("local")
@@ -166,6 +171,44 @@ class Fase3WebTests(unittest.TestCase):
         response = self.client.get("/api/treinamento")
 
         self.assertEqual(response.status_code, 409)
+
+    def test_capabilities_explica_api_hardware_e_permissoes(self) -> None:
+        response = self.client.get("/api/capabilities")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["api_version"].split(".")[0], "2")
+        self.assertTrue(body["features"]["private_network_access"])
+        self.assertIn("hardware", body)
+        self.assertIn("models", body)
+
+    def test_cors_e_preflight_de_rede_privada(self) -> None:
+        with patch.dict("os.environ", {"FASE3_ALLOWED_ORIGINS": "https://fase3.pages.dev"}):
+            client = TestClient(create_app(AssistantRuntime("fake")))
+            response = client.options(
+                "/api/capabilities",
+                headers={
+                    "Origin": "https://fase3.pages.dev",
+                    "Access-Control-Request-Method": "GET",
+                    "Access-Control-Request-Private-Network": "true",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["access-control-allow-origin"], "https://fase3.pages.dev")
+        self.assertEqual(response.headers["access-control-allow-private-network"], "true")
+
+    def test_treinamento_remoto_exige_opt_in_do_proprietario(self) -> None:
+        runtime = AssistantRuntime("local")
+        app = create_app(runtime, FakeTrainingManager())
+        remote = TestClient(app, client=("192.168.1.50", 50000))
+        with patch.dict("os.environ", {"FASE3_ALLOW_REMOTE_TRAINING": "0"}):
+            blocked = remote.get("/api/treinamento")
+        with patch.dict("os.environ", {"FASE3_ALLOW_REMOTE_TRAINING": "1"}):
+            allowed = remote.get("/api/treinamento")
+
+        self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(allowed.status_code, 200)
 
 
 if __name__ == "__main__":

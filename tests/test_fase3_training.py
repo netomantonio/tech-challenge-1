@@ -52,6 +52,44 @@ class TrainingServiceTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             manager.iniciar_treino({**config, "version": "qwen2.5-1.5b-v4"})
 
+    def test_treino_aceita_modelo_customizado_e_precisao_nf4(self) -> None:
+        manager = TrainingJobManager()
+        config = {
+            "version": "modelo-clinico-v99",
+            "model_alias": "modelo-clinico",
+            "precision": "nf4",
+            "gradient_checkpointing": True,
+            "epochs": 1,
+            "batch_size": 1,
+            "gradient_accumulation_steps": 8,
+            "learning_rate": 2e-5,
+            "max_length": 384,
+            "seed": 42,
+            "lora_r": 16,
+            "lora_alpha": 32,
+            "lora_dropout": 0.05,
+        }
+        model = {
+            "alias": "modelo-clinico",
+            "label": "Modelo clinico",
+            "source": "organizacao/modelo-clinico",
+            "source_type": "huggingface",
+            "revision": "abc123",
+            "target_modules": [],
+        }
+
+        with (
+            patch.object(training_service, "get_model", return_value=model),
+            patch.object(manager, "_iniciar", return_value={"status": "aguardando"}) as iniciar,
+        ):
+            manager.iniciar_treino(config)
+
+        command = iniciar.call_args.args[2]
+        self.assertIn("organizacao/modelo-clinico", command)
+        self.assertEqual(command[command.index("--precision") + 1], "nf4")
+        self.assertIn("--gradient-checkpointing", command)
+        self.assertIn("abc123", command)
+
     def test_promocao_exige_calibracao_aprovada_do_mesmo_adapter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

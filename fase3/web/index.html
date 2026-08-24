@@ -18,9 +18,15 @@
         <button class="view-tab active" type="button" data-view="clinical">Consulta</button>
         <button class="view-tab" type="button" data-view="training">Operacoes do modelo</button>
       </nav>
-      <div class="runtime-status" id="runtime-status" aria-live="polite">
-        <span class="status-dot"></span>
-        <span>Verificando servico</span>
+      <div class="header-tools">
+        <label class="sr-only" for="profile-select">Backend ativo</label>
+        <select class="profile-select" id="profile-select" data-tour="backend"><option>Backend</option></select>
+        <button class="icon-button" id="manage-profiles" type="button" title="Gerenciar backends" aria-label="Gerenciar backends">&#9881;</button>
+        <button class="icon-button" id="help-button" type="button" title="Ajuda e tours" aria-label="Ajuda e tours">?</button>
+        <div class="runtime-status" id="runtime-status" aria-live="polite">
+          <span class="status-dot"></span>
+          <span>Verificando servico</span>
+        </div>
       </div>
     </header>
 
@@ -32,7 +38,7 @@
         </div>
 
         <label class="field-label" for="patient-select">Paciente</label>
-        <div class="select-wrap">
+        <div class="select-wrap" data-tour="patient">
           <select id="patient-select" aria-describedby="synthetic-note"></select>
         </div>
         <p class="privacy-note" id="synthetic-note">Registros ficticios, sem dados pessoais reais.</p>
@@ -58,9 +64,9 @@
             <p class="overline">Apoio a decisao</p>
             <h2 id="consultation-heading">Consulta clinica</h2>
           </div>
-          <div class="header-badges">
+          <div class="header-badges" data-tour="model">
             <span class="chat-patient-badge" id="chat-patient-badge">Conversa</span>
-            <span class="model-badge">Qwen2.5 + LoRA</span>
+            <span class="model-badge" id="active-model-badge">Modelo promovido</span>
           </div>
         </div>
 
@@ -72,14 +78,14 @@
 
         <div class="conversation" id="conversation" aria-live="polite" aria-busy="false"></div>
 
-        <div class="suggestion-area">
+        <div class="suggestion-area" data-tour="suggestions">
           <p class="field-label">Perguntas sugeridas</p>
           <div class="suggestions" id="suggestions"></div>
         </div>
 
-        <form class="question-form" id="question-form">
+        <form class="question-form" id="question-form" data-tour="question">
           <label class="sr-only" for="question">Pergunta clinica</label>
-          <textarea id="question" rows="3" maxlength="1200" placeholder="Digite uma pergunta sobre o caso selecionado..." required></textarea>
+          <textarea id="question" rows="3" maxlength="1200" aria-keyshortcuts="Enter" placeholder="Digite uma pergunta sobre o caso selecionado..." required></textarea>
           <div class="form-footer">
             <span><strong id="character-count">0</strong>/1200</span>
             <button class="primary-button" id="submit-button" type="submit">
@@ -90,7 +96,7 @@
         <div class="error-message" id="error-message" role="alert" hidden></div>
       </section>
 
-      <aside class="evidence-panel" aria-labelledby="evidence-heading">
+      <aside class="evidence-panel" aria-labelledby="evidence-heading" data-tour="evidence">
         <div class="panel-heading">
           <p class="overline">Explicabilidade</p>
           <h2 id="evidence-heading">Evidencias do fluxo</h2>
@@ -123,7 +129,7 @@
     </main>
 
     <main class="model-ops" id="training-view" hidden>
-      <header class="ops-heading">
+      <header class="ops-heading" data-tour="infrastructure">
         <div>
           <p class="overline">Ciclo de desenvolvimento</p>
           <h1>Operacoes do modelo</h1>
@@ -136,7 +142,7 @@
         </div>
       </header>
 
-      <ol class="pipeline" aria-label="Etapas do pipeline de treinamento">
+      <ol class="pipeline" aria-label="Etapas do pipeline de treinamento" data-tour="pipeline">
         <li id="stage-data"><span>1</span><div><strong>Dados</strong><small id="stage-data-detail">Verificando splits</small></div></li>
         <li id="stage-train"><span>2</span><div><strong>Fine-tuning</strong><small id="stage-train-detail">Adapter LoRA</small></div></li>
         <li id="stage-loss"><span>3</span><div><strong>Loss</strong><small>Treino e validacao</small></div></li>
@@ -154,12 +160,14 @@
           <div class="dataset-strip">
             <div><span>Treino</span><strong id="dataset-train">-</strong></div>
             <div><span>Validacao</span><strong id="dataset-validation">-</strong></div>
-            <div><span>Base</span><strong>Qwen2.5 1.5B</strong></div>
+            <div><span>Infraestrutura</span><strong id="hardware-summary">Verificando</strong></div>
           </div>
 
           <form id="training-form">
             <div class="parameter-grid">
-              <label class="wide-field"><span>Versao de saida</span><input id="train-version" name="version" required pattern="qwen2\.5-1\.5b-v[1-9][0-9]*" /></label>
+              <label class="wide-field"><span>Modelo-base</span><select id="train-model" name="model_alias" data-tour="models"></select></label>
+              <label><span>Precisao</span><select id="train-precision" name="precision"><option value="auto">Automatica</option><option value="fp32">FP32</option><option value="fp16">FP16</option><option value="bf16">BF16</option><option value="nf4">QLoRA NF4</option></select></label>
+              <label class="wide-field"><span>Versao de saida</span><input id="train-version" name="version" required pattern="[a-z0-9][a-z0-9._-]{1,63}-v[1-9][0-9]*" /></label>
               <label><span>Epocas</span><input id="train-epochs" name="epochs" type="number" min="1" max="12" value="6" required /></label>
               <label><span>Learning rate</span><input id="train-lr" name="learning_rate" type="number" min="0.000001" max="0.001" step="0.000001" value="0.00002" required /></label>
               <label><span>Batch</span><input id="train-batch" name="batch_size" type="number" min="1" max="8" value="2" required /></label>
@@ -169,6 +177,7 @@
               <label><span>LoRA r</span><input id="train-r" name="lora_r" type="number" min="1" max="256" value="16" required /></label>
               <label><span>LoRA alpha</span><input id="train-alpha" name="lora_alpha" type="number" min="1" max="512" value="32" required /></label>
               <label><span>Dropout</span><input id="train-dropout" name="lora_dropout" type="number" min="0" max="0.99" step="0.01" value="0.05" required /></label>
+              <label class="check-field"><input id="train-checkpointing" name="gradient_checkpointing" type="checkbox" /><span>Gradient checkpointing</span></label>
             </div>
             <div class="training-actions">
               <p>O modelo de inferencia sera descarregado da GPU antes do treino.</p>
@@ -177,7 +186,7 @@
           </form>
         </section>
 
-        <section class="ops-panel job-panel" aria-labelledby="job-heading">
+        <section class="ops-panel job-panel" aria-labelledby="job-heading" data-tour="job">
           <div class="ops-section-heading">
             <div><p class="overline">Execucao</p><h2 id="job-heading">Monitor do job</h2></div>
             <span class="job-status idle" id="job-status">Sem operacao</span>
@@ -195,7 +204,24 @@
           <div class="ops-error" id="ops-error" role="alert" hidden></div>
         </section>
 
-        <section class="ops-panel adapter-panel" aria-labelledby="adapter-heading">
+        <section class="ops-panel model-catalog-panel" aria-labelledby="model-catalog-heading">
+          <div class="ops-section-heading"><div><p class="overline">Catalogo</p><h2 id="model-catalog-heading">Modelos-base</h2></div><span class="adapter-count" id="model-count">0</span></div>
+          <div id="model-list" class="model-list"></div>
+          <details class="model-registration"><summary>Cadastrar modelo</summary>
+            <form id="model-form" class="model-form">
+              <label><span>Alias</span><input name="alias" placeholder="meu-modelo-3b" pattern="[a-z0-9][a-z0-9._-]{1,63}" required /></label>
+              <label><span>Nome</span><input name="label" placeholder="Meu modelo 3B" required /></label>
+              <label><span>Origem</span><select name="source_type"><option value="huggingface">Hugging Face</option><option value="local">Diretorio local</option></select></label>
+              <label class="wide-field"><span>Repo ID ou caminho permitido</span><input name="source" placeholder="organizacao/modelo" required /></label>
+              <label><span>Revisao fixa</span><input name="revision" placeholder="commit opcional" /></label>
+              <label><span>Modulos LoRA</span><input name="target_modules" placeholder="vazio = deteccao automatica" /></label>
+              <label class="check-field"><input name="trust_remote_code" type="checkbox" /><span>Autorizar codigo remoto (exige revisao fixa)</span></label>
+              <button class="secondary-button" type="submit">Cadastrar</button>
+            </form>
+          </details>
+        </section>
+
+        <section class="ops-panel adapter-panel" aria-labelledby="adapter-heading" data-tour="adapters">
           <div class="ops-section-heading">
             <div><p class="overline">Artefatos</p><h2 id="adapter-heading">Adapters disponiveis</h2></div>
             <span class="adapter-count" id="adapter-count">0</span>
@@ -226,10 +252,67 @@
       </div>
     </main>
 
+    <dialog class="setup-dialog" id="setup-dialog" aria-labelledby="setup-title">
+      <form method="dialog" class="setup-shell" id="setup-form">
+        <aside class="setup-progress">
+          <p class="overline">Primeira conexao</p>
+          <h2 id="setup-title">Configurar backend</h2>
+          <ol id="setup-steps">
+            <li class="active">Localizacao</li><li>Endereco</li><li>Validacao</li><li>Modelo</li><li>Concluir</li>
+          </ol>
+        </aside>
+        <section class="setup-content">
+          <div class="setup-page" data-step="0">
+            <p class="overline">Etapa 1 de 5</p><h3>Onde o backend esta?</h3>
+            <p class="setup-copy">O navegador conversa diretamente com a infraestrutura escolhida. O frontend hospedado nao processa dados clinicos nem treinamentos.</p>
+            <div class="topology-options">
+              <label><input type="radio" name="topology" value="loopback" checked /><strong>Nesta maquina</strong><span>Backend em 127.0.0.1:8010.</span></label>
+              <label><input type="radio" name="topology" value="private" /><strong>Outra maquina da rede</strong><span>IP local, hostname .local ou VPN.</span></label>
+              <label><input type="radio" name="topology" value="public" /><strong>Servidor remoto</strong><span>HTTPS publico ou Cloudflare Tunnel.</span></label>
+            </div>
+          </div>
+          <div class="setup-page" data-step="1" hidden>
+            <p class="overline">Etapa 2 de 5</p><h3>Endereco do backend</h3>
+            <label class="setup-field"><span>Nome deste perfil</span><input id="setup-name" value="Backend local" maxlength="60" /></label>
+            <label class="setup-field"><span>URL-base</span><input id="setup-url" value="http://127.0.0.1:8010" inputmode="url" /></label>
+            <div class="command-box"><code id="setup-command">npm run fase3</code><button id="copy-command" type="button">Copiar</button></div>
+            <p class="setup-hint" id="setup-network-hint"></p>
+          </div>
+          <div class="setup-page" data-step="2" hidden>
+            <p class="overline">Etapa 3 de 5</p><h3>Validar infraestrutura</h3>
+            <p class="setup-copy">O teste verifica rota de rede, permissao do navegador, CORS, versao da API e recursos do computador.</p>
+            <button class="primary-button" id="test-connection" type="button">Testar conexao</button>
+            <div class="connection-diagnostic" id="connection-diagnostic" aria-live="polite">Aguardando teste.</div>
+          </div>
+          <div class="setup-page" data-step="3" hidden>
+            <p class="overline">Etapa 4 de 5</p><h3>Preparar inferencia</h3>
+            <p class="setup-copy">Escolha um modelo ja disponivel. Downloads e treinamentos sempre exigem confirmacao explicita.</p>
+            <label class="setup-field"><span>Modelo</span><select id="setup-model"></select></label>
+            <button class="secondary-button" id="install-setup-model" type="button">Instalar modelo selecionado</button>
+            <div class="connection-diagnostic" id="model-diagnostic">Nenhuma operacao iniciada.</div>
+          </div>
+          <div class="setup-page" data-step="4" hidden>
+            <p class="overline">Etapa 5 de 5</p><h3>Backend pronto</h3>
+            <p class="setup-copy" id="setup-summary">A configuracao ficara somente neste navegador.</p>
+          </div>
+          <div class="setup-actions"><button class="secondary-button" id="setup-back" type="button" disabled>Voltar</button><button class="primary-button" id="setup-next" type="button">Continuar</button></div>
+        </section>
+      </form>
+    </dialog>
+
+    <dialog class="profiles-dialog" id="profiles-dialog" aria-labelledby="profiles-title">
+      <section><div class="dialog-heading"><div><p class="overline">Infraestruturas</p><h2 id="profiles-title">Backends deste navegador</h2></div><button class="icon-button" id="close-profiles" type="button" aria-label="Fechar">x</button></div>
+        <div id="profiles-list"></div>
+        <div class="dialog-actions"><button class="secondary-button" id="new-profile" type="button">Adicionar backend</button><button class="danger-button" id="reset-profiles" type="button">Remover todos</button></div>
+      </section>
+    </dialog>
+
+    <div class="tour-layer" id="tour-layer" hidden><div class="tour-focus" id="tour-focus"></div><aside class="tour-popover" id="tour-popover"><p class="overline" id="tour-progress"></p><h3 id="tour-title"></h3><p id="tour-text"></p><div><button class="secondary-button" id="tour-close" type="button">Encerrar</button><button class="primary-button" id="tour-next" type="button">Proximo</button></div></aside></div>
+
     <footer>
       <span>FIAP AI for Devs</span>
       <span>Uso exclusivamente academico</span>
-      <a href="/docs" target="_blank" rel="noreferrer">API</a>
+      <a href="/docs" id="api-docs-link" target="_blank" rel="noreferrer">API</a>
     </footer>
     <script src="/assets/app.js" defer></script>
   </body>

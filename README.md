@@ -601,6 +601,11 @@ O serviço sempre inicia com o modelo local e abre
 O guia completo de instalação, execução, diagnóstico e testes está em
 [fase3/README.md](fase3/README.md).
 
+A interface da Fase 3 também possui build estático para Cloudflare Pages. Cada
+integrante pode registrar no wizard seu backend em loopback, LAN, VPN ou HTTPS;
+os perfis ficam apenas no navegador e os chats são isolados por backend e
+paciente. O Pages entrega os arquivos estáticos e não atua como proxy clínico.
+
 Para uma consulta isolada pelo terminal, a CLI também usa o modelo local por
 padrão:
 
@@ -630,8 +635,9 @@ substituídas por mensagens de bloqueio. O projeto é
 acadêmico, usa dados fictícios e não deve ser empregado em assistência
 clínica real.
 
-Ao final desta versão, executamos **61 testes automatizados**, incluindo 46
-testes relacionados diretamente à Fase 3 e à sua interface web.
+Ao final desta versão, executamos **74 testes automatizados**, incluindo 59
+testes relacionados diretamente à Fase 3 e à sua interface web, além do teste
+do frontend em navegador simulado.
 
 Detalhes: [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md),
 [docs/arquitetura_fase3.md](docs/arquitetura_fase3.md) e

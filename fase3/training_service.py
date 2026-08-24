@@ -19,11 +19,18 @@ from fase3.llm_backend import (
     PROJECT_ROOT,
     PROMOTED_MODEL_CONFIG_PATH,
 )
+from fase3.model_registry import (
+    get_model,
+    hardware_capabilities,
+    list_models,
+    model_capabilities,
+    model_reference,
+)
 
 DATA_DIR = PROJECT_ROOT / "fase3" / "data"
 FINETUNING_DIR = PROJECT_ROOT / "resultados" / "fase3" / "finetuning"
 CALIBRATION_PATH = PROJECT_ROOT / "resultados" / "fase3" / "calibracao_adapter.json"
-VERSION_PATTERN = re.compile(r"^qwen2\.5-1\.5b-v([1-9][0-9]*)$")
+VERSION_PATTERN = re.compile(r"^(?P<alias>[a-z0-9][a-z0-9._-]{1,63})-v(?P<number>[1-9][0-9]*)$")
 
 
 def _agora() -> str:
@@ -46,11 +53,23 @@ def _relativo(path: Path) -> str:
 
 def resolver_adapter(version: str) -> Path:
     if not VERSION_PATTERN.fullmatch(version):
-        raise ValueError("Versao invalida. Use o formato qwen2.5-1.5b-vN.")
+        raise ValueError("Versao invalida. Use o formato alias-do-modelo-vN.")
     path = (FINETUNING_DIR / version / "lora_adapter").resolve()
     if FINETUNING_DIR.resolve() not in path.parents:
         raise ValueError("Caminho de adapter fora do diretorio permitido.")
     return path
+
+
+def _adapter_metadata(adapter: Path) -> dict[str, Any]:
+    manifest = _ler_json(adapter / "adapter_manifest.json") or {}
+    summary = _ler_json(adapter.parent / "training_summary.json") or {}
+    base_model = manifest.get("base_model") or summary.get("base_model") or DEFAULT_LOCAL_BASE_MODEL
+    return {
+        **summary,
+        **manifest,
+        "base_model": base_model,
+        "model_alias": manifest.get("model_alias") or summary.get("model_alias") or "qwen2.5-1.5b",
+    }
 
 
 class TrainingJobManager:
@@ -74,11 +93,11 @@ class TrainingJobManager:
             snapshot["logs"] = list(self._job["_logs"])
             return snapshot
 
-    def _ambiente(self) -> dict[str, str]:
+    def _ambiente(self, online: bool = False) -> dict[str, str]:
         env = os.environ.copy()
         env["PYTHONPATH"] = str(PROJECT_ROOT)
         env["PYTHONUNBUFFERED"] = "1"
-        env["HF_HUB_OFFLINE"] = "1"
+        env["HF_HUB_OFFLINE"] = "0" if online else "1"
         return env
 
     def _atualizar_progresso(self, linha: str) -> None:
@@ -91,8 +110,14 @@ class TrainingJobManager:
                 total = float(self._job["metadados"]["epochs"])
                 self._job["progresso"] = min(0.98, max(0.02, epoca / total))
                 self._job["etapa"] = f"Treinando epoca {min(epoca, total):g} de {total:g}"
+        elif self._job["tipo"] == "instalacao":
+            match = re.search(r"\b([0-9]{1,3})%", linha)
+            if match:
+                percent = min(100, int(match.group(1)))
+                self._job["progresso"] = min(0.98, max(0.02, percent / 100))
+                self._job["etapa"] = f"Baixando arquivos do modelo: {percent}%"
 
-    def _executar(self, command: list[str]) -> None:
+    def _executar(self, command: list[str], online: bool = False) -> None:
         with self._lock:
             assert self._job is not None
             if self._job["status"] == "cancelando":
@@ -108,7 +133,7 @@ class TrainingJobManager:
                 self._process = subprocess.Popen(
                     command,
                     cwd=PROJECT_ROOT,
-                    env=self._ambiente(),
+                    env=self._ambiente(online=online),
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -153,6 +178,7 @@ class TrainingJobManager:
         titulo: str,
         command: list[str],
         metadados: Optional[dict[str, Any]] = None,
+        online: bool = False,
     ) -> dict[str, Any]:
         with self._lock:
             if self.ativo:
@@ -172,7 +198,7 @@ class TrainingJobManager:
                 "comando": command[1:],
                 "_logs": deque(maxlen=600),
             }
-            thread = threading.Thread(target=self._executar, args=(command,), daemon=True)
+            thread = threading.Thread(target=self._executar, args=(command, online), daemon=True)
             thread.start()
             return self.job() or {}
 
@@ -185,6 +211,14 @@ class TrainingJobManager:
 
     def iniciar_treino(self, config: dict[str, Any]) -> dict[str, Any]:
         version = config["version"]
+        match = VERSION_PATTERN.fullmatch(version)
+        if not match:
+            raise ValueError("Versao invalida. Use o formato alias-do-modelo-vN.")
+        model_alias = config.get("model_alias") or match.group("alias")
+        if match.group("alias") != model_alias:
+            raise ValueError("A versao deve comecar com o alias do modelo selecionado.")
+        model = get_model(model_alias)
+        base_model = model_reference(model)
         adapter = resolver_adapter(version)
         output_dir = adapter.parent
         if output_dir.exists():
@@ -194,7 +228,11 @@ class TrainingJobManager:
             "-m",
             "fase3.finetuning.train_lora",
             "--base-model",
-            DEFAULT_LOCAL_BASE_MODEL,
+            base_model,
+            "--model-alias",
+            model_alias,
+            "--precision",
+            str(config.get("precision", "auto")),
             "--epochs",
             str(config["epochs"]),
             "--batch-size",
@@ -216,17 +254,46 @@ class TrainingJobManager:
             "--output-dir",
             str(output_dir),
         ]
+        if config.get("gradient_checkpointing"):
+            command.append("--gradient-checkpointing")
+        target_modules = config.get("target_modules") or model.get("target_modules") or []
+        if target_modules:
+            command.extend(["--lora-target-modules", ",".join(target_modules)])
+        if model.get("revision"):
+            command.extend(["--model-revision", str(model["revision"])])
+        trust_remote_code = bool(config.get("trust_remote_code") and model.get("trust_remote_code"))
+        if config.get("trust_remote_code") and not trust_remote_code:
+            raise ValueError("trust_remote_code nao foi autorizado no cadastro deste modelo.")
+        if trust_remote_code:
+            command.append("--trust-remote-code")
         return self._iniciar(
             "treino",
             f"Treinar {version}",
             command,
-            {**config, "output_dir": _relativo(output_dir)},
+            {
+                **config,
+                "model_alias": model_alias,
+                "base_model": base_model,
+                "trust_remote_code": trust_remote_code,
+                "output_dir": _relativo(output_dir),
+            },
+        )
+
+    def iniciar_instalacao(self, alias: str) -> dict[str, Any]:
+        model = get_model(alias)
+        return self._iniciar(
+            "instalacao",
+            f"Instalar {model['label']}",
+            [sys.executable, "-m", "fase3.model_manager", "install", "--alias", alias],
+            {"model_alias": alias, "source": model["source"]},
+            online=True,
         )
 
     def iniciar_loss(self, version: str) -> dict[str, Any]:
         adapter = resolver_adapter(version)
         if not (adapter / "adapter_model.safetensors").exists():
             raise FileNotFoundError(f"Adapter {version} nao encontrado.")
+        metadata = _adapter_metadata(adapter)
         return self._iniciar(
             "loss",
             f"Reavaliar loss de {version}",
@@ -236,6 +303,8 @@ class TrainingJobManager:
                 "fase3.finetuning.evaluate_adapter_loss",
                 "--adapter-path",
                 str(adapter),
+                "--base-model",
+                str(metadata["base_model"]),
             ],
             {"version": version, "adapter_path": _relativo(adapter)},
         )
@@ -244,6 +313,7 @@ class TrainingJobManager:
         adapter = resolver_adapter(version)
         if not (adapter / "adapter_model.safetensors").exists():
             raise FileNotFoundError(f"Adapter {version} nao encontrado.")
+        metadata = _adapter_metadata(adapter)
         return self._iniciar(
             "calibracao",
             f"Calibrar e validar {version}",
@@ -253,6 +323,8 @@ class TrainingJobManager:
                 "fase3.calibrate_adapter",
                 "--adapter-path",
                 str(adapter),
+                "--base-model",
+                str(metadata["base_model"]),
                 "--scales",
                 ",".join(str(scale) for scale in scales),
                 "--enforce-gates",
@@ -283,8 +355,13 @@ class TrainingJobManager:
             raise ValueError("A calibracao mais recente nao pertence ao adapter selecionado.")
         if not selecionado.get("aprovado"):
             raise ValueError("O adapter nao atingiu todos os gates e nao pode ser promovido.")
+        metadata = _adapter_metadata(adapter)
         config = {
-            "base_model": DEFAULT_LOCAL_BASE_MODEL,
+            "base_model": metadata["base_model"],
+            "model_alias": metadata["model_alias"],
+            "revision": metadata.get("revision") or metadata.get("model_revision"),
+            "precision": metadata.get("precision", "auto"),
+            "trust_remote_code": bool(metadata.get("trust_remote_code", False)),
             "adapter_path": _relativo(adapter),
             "lora_scale": selecionado["lora_scale"],
             "promovido_em": _agora(),
@@ -317,7 +394,10 @@ class TrainingJobManager:
                 adapters.append(
                     {
                         "version": directory.name,
-                        "numero": int(match.group(1)),
+                        "numero": int(match.group("number")),
+                        "model_alias": match.group("alias"),
+                        "base_model": summary.get("base_model"),
+                        "precision": summary.get("precision", "fp16" if summary.get("fp16") else "fp32"),
                         "adapter_path": _relativo(adapter.parent),
                         "epochs": summary.get("epochs"),
                         "learning_rate": summary.get("learning_rate"),
@@ -328,8 +408,13 @@ class TrainingJobManager:
                         "created_at": datetime.fromtimestamp(adapter.stat().st_mtime, timezone.utc).isoformat(),
                     }
                 )
-        adapters.sort(key=lambda item: item["numero"], reverse=True)
-        next_number = max([item["numero"] for item in adapters] or [0]) + 1
+        adapters.sort(key=lambda item: item["created_at"], reverse=True)
+        next_versions = {}
+        for model in list_models():
+            numbers = [
+                item["numero"] for item in adapters if item["model_alias"] == model["alias"]
+            ]
+            next_versions[model["alias"]] = f"{model['alias']}-v{max(numbers or [0]) + 1}"
         promoted = _ler_json(PROMOTED_MODEL_CONFIG_PATH)
         if not promoted:
             promoted = {
@@ -342,7 +427,10 @@ class TrainingJobManager:
         return {
             "dataset": {"train": contar(train), "validation": contar(val), "ready": train.exists() and val.exists()},
             "adapters": adapters,
-            "next_version": f"qwen2.5-1.5b-v{next_number}",
+            "next_version": next_versions.get("qwen2.5-1.5b", "qwen2.5-1.5b-v1"),
+            "next_versions": next_versions,
+            "models": model_capabilities(),
+            "hardware": hardware_capabilities(),
             "promoted": promoted,
             "latest_calibration": (calibration or {}).get("selecionado"),
             "job": self.job(),

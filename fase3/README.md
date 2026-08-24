@@ -1,164 +1,178 @@
 # Fase 3 - Assistente de Protocolos Clinicos
 
-Esta pasta contem a solucao completa da Fase 3: modelo Qwen2.5-1.5B com
-adapter LoRA, RAG de protocolos internos, prontuario sintetico, LangChain,
-LangGraph, guardrails, auditoria, avaliacao e interface web local.
-
-O backend padrao e sempre `local`. Groq nao e usado implicitamente e nao e
-necessario configurar `GROQ_API_KEY` para executar a solucao principal.
+Solucao academica com modelo local configuravel, adapter LoRA/QLoRA, RAG de
+protocolos, prontuario sintetico, LangChain, LangGraph, guardrails, auditoria,
+avaliacao e interface web. O backend padrao e `local`; Groq somente e usado
+quando escolhido explicitamente.
 
 ## Inicio rapido
 
-No PowerShell, a partir da raiz do repositorio:
+Windows, na raiz do repositorio:
 
 ```powershell
 npm run fase3:setup
 npm run fase3
 ```
 
-O primeiro comando cria ou atualiza `.venv-fase3` e instala as dependencias.
-Ele tambem localiza ou baixa o modelo base Qwen e salva o caminho do cache em
-`.cache/fase3-hf-home.txt`. O segundo comando valida dependencias, adapter e
-modelo base, inicia o modelo local em modo offline e abre
-`http://127.0.0.1:8010`.
+Linux ou macOS:
 
-O modelo e carregado na primeira consulta e permanece na memoria. A primeira
-resposta pode demorar mais; as seguintes reutilizam a mesma instancia.
-
-## Operacoes do modelo pela interface
-
-Na barra superior, abra **Operacoes do modelo** para executar e acompanhar o
-pipeline sem montar comandos no terminal. A tela permite:
-
-1. conferir ou reconstruir os splits de treino e validacao;
-2. configurar e iniciar uma nova versao do adapter LoRA;
-3. acompanhar etapa, progresso e logs atualizados durante a execucao;
-4. cancelar o processo ativo;
-5. reavaliar a loss de um adapter salvo;
-6. calibrar as escalas `0.25`, `0.5`, `0.75` e `1.0` e visualizar os gates;
-7. promover o adapter aprovado para as proximas consultas.
-
-Somente uma operacao pode usar a GPU por vez. Antes de treino ou avaliacao, o
-modelo de consulta e descarregado da memoria; enquanto o job estiver ativo,
-novas consultas ficam temporariamente bloqueadas. Um treino concluido nunca e
-promovido automaticamente: o botao **Promover** so e liberado depois de uma
-calibracao aprovada para aquele mesmo adapter.
-
-Os jobs continuam executando no processo do servico se a aba for atualizada.
-Fechar ou interromper `npm run fase3`, por outro lado, encerra o servico e seus
-jobs. As operacoes administrativas aceitam apenas acesso local e backend
-`local`.
-
-## Execucao sem npm
-
-Os scripts tambem podem ser chamados diretamente:
-
-```powershell
-.\fase3\setup.ps1
-.\fase3\start.ps1
+```bash
+bash fase3/setup.sh
+bash fase3/start.sh
 ```
 
-Depois do setup, tambem e possivel iniciar pelo modulo Python:
+O setup cria `.venv-fase3`, instala as dependencias e prepara o preset
+`qwen2.5-1.5b`. A execucao valida o modelo e o adapter promovido antes de abrir
+`http://127.0.0.1:8010`. O processo de inferencia usa `HF_HUB_OFFLINE=1`, por
+isso uma consulta nunca inicia um download inesperado.
+
+Para instalar apenas o ambiente e escolher o modelo depois pela interface:
 
 ```powershell
-.\.venv-fase3\Scripts\python.exe -m fase3
+./fase3/setup.ps1 -SkipModel
 ```
 
-Para iniciar sem abrir o navegador automaticamente:
+## Frontend e backends da equipe
+
+O frontend pode ser aberto pelo proprio backend ou publicado como site
+estatico. Cada navegador guarda seus perfis em `localStorage` e chama
+diretamente o backend ativo. Cloudflare Pages nao recebe consultas, modelos ou
+dados de treinamento.
+
+Na primeira abertura, o wizard exige uma conexao valida e um modelo disponivel.
+Os perfis podem ser adicionados, editados, testados e removidos pelo botao de
+configuracao. Conversas sao isoladas por `backend_id + paciente_id`.
+
+### Mesma maquina
+
+Use `http://127.0.0.1:8010`. O backend permanece restrito ao loopback:
 
 ```powershell
-.\fase3\start.ps1 -NoBrowser
+./fase3/start.ps1
 ```
 
-Para mudar a porta:
+Chrome e Edge podem solicitar permissao de acesso a rede local quando o
+frontend veio de uma origem HTTPS.
+
+### Outra maquina na LAN ou VPN
+
+Na maquina que possui o modelo:
 
 ```powershell
-.\fase3\start.ps1 -Port 8020
+./fase3/start.ps1 -HostAddress 0.0.0.0 `
+  -AllowedOrigin "https://assistente-protocolos-fase3.pages.dev"
 ```
 
-## Teste pelo terminal
+No wizard, informe `http://192.168.x.x:8010`, um hostname `.local` ou um IP
+privado acessivel por VPN. A porta 8010 precisa estar liberada no firewall. Um
+`localhost` informado no computador de outro integrante continua apontando
+para o computador desse integrante, nunca para a maquina que executa o modelo.
 
-A CLI usa o backend local por padrao; `--backend local` nao e mais necessario:
+Consultas remotas sao permitidas. Operacoes de modelo vindas de outra maquina
+ficam desativadas por padrao. Para habilita-las explicitamente:
 
 ```powershell
-.\.venv-fase3\Scripts\python.exe -m fase3.cli_demo `
-  --paciente-id PAC-0001 `
-  --pergunta "Posso iniciar a quimioterapia hoje?"
+./fase3/start.ps1 -HostAddress 0.0.0.0 `
+  -AllowedOrigin "https://assistente-protocolos-fase3.pages.dev" `
+  -AllowRemoteTraining
 ```
 
-## Verificacao do backend
+Esse modo nao possui autenticacao e exibe um aviso destacado no terminal. Use
+somente em uma rede ou VPN confiavel.
 
-Com o servico iniciado:
+### Servidor HTTPS ou Tunnel
+
+Enderecos publicos precisam usar HTTPS. Cloudflare Tunnel pode publicar o
+backend sem DNS proprio; configure a URL HTTPS resultante no wizard e inclua a
+origem Pages em `FASE3_ALLOWED_ORIGINS`. Sem rota LAN, VPN ou Tunnel, o
+navegador nao consegue acessar uma maquina privada.
+
+## Cloudflare Pages
+
+O build estatico e separado do backend:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8010/api/status
+npm run fase3:web:build
+npm run fase3:web:preview
 ```
 
-O campo `backend` deve ser `local`. O endpoint tambem informa modelo base,
-adapter, escala LoRA e se o modelo ja foi carregado.
+O preview abre em `http://localhost:8788`. Para publicar o projeto
+`assistente-protocolos-fase3`:
+
+```powershell
+npx wrangler login
+npm run fase3:web:create
+npm run fase3:web:deploy
+```
+
+O artefato fica em `fase3/web/dist` e inclui CSP, headers de seguranca e SPA
+fallback. Nao existe Worker proxy nem backend central nesse deploy.
+
+## Modelos e treinamento
+
+Na tela **Operacoes do modelo** e possivel:
+
+1. cadastrar repo ID/revisao do Hugging Face ou diretorio permitido;
+2. instalar e acompanhar o download por job e logs;
+3. escolher CPU/GPU, FP32, FP16, BF16 ou QLoRA NF4 conforme capacidades;
+4. treinar LoRA com versao `{alias}-vN`;
+5. avaliar loss, calibrar escalas, conferir gates e promover o adapter.
+
+Qwen2.5 0.5B e 1.5B sao presets, nao limitacoes. Modelos precisam ser
+compativeis com `AutoModelForCausalLM`, tokenizer e PEFT. Para modelos locais,
+configure raizes com `FASE3_MODEL_ROOTS` separadas pelo delimitador de caminhos
+do sistema. `trust_remote_code` exige opt-in no cadastro e revisao fixa.
+
+NF4 exige GPU CUDA e `bitsandbytes`; a opcao fica indisponivel quando o backend
+nao reporta esse recurso. Nenhum download, treino ou promocao e iniciado pelos
+tours ou pelo wizard sem clique explicito.
+
+## Diagnostico e API
+
+```powershell
+./.venv-fase3/Scripts/python.exe -m fase3.manage doctor
+Invoke-RestMethod http://127.0.0.1:8010/api/capabilities
+```
+
+`/api/capabilities` informa versao da API, CPU, memoria, GPU/VRAM, precisao,
+modelos, adapter promovido, raizes permitidas e permissao de treino remoto.
+O terminal mostra URL loopback, IPs privados, origens CORS e estado remoto.
+
+Variaveis principais:
+
+| Variavel | Funcao |
+| --- | --- |
+| `FASE3_ALLOWED_ORIGINS` | Origens CORS separadas por virgula |
+| `FASE3_ALLOW_REMOTE_TRAINING=1` | Libera operacoes remotas sem autenticacao |
+| `FASE3_MODEL_ROOTS` | Raizes aceitas para modelos locais |
+| `FASE3_HF_HOME` ou `HF_HOME` | Cache do Hugging Face |
+| `FASE3_PYTHON` | Interpretador alternativo com CUDA/dependencias |
+| `FASE3_INSTANCE_NAME` | Nome exibido no seletor de backend |
+
+O backend responde preflight CORS e Private Network Access com
+`Access-Control-Allow-Private-Network: true` quando solicitado. Nao use
+`no-cors`: respostas opacas nao permitem validar a API.
 
 ## Testes
 
 ```powershell
-.\.venv-fase3\Scripts\python.exe -m unittest tests.test_fase3 -v
-.\.venv-fase3\Scripts\python.exe -m unittest tests.test_fase3_web -v
+./.venv-fase3/Scripts/python.exe -m unittest discover -s tests -v
 npm run fase3:test-ui
+npm run fase3:web:build
 ```
 
-## Configuracao local
-
-| Item | Padrao |
-| --- | --- |
-| Backend | `local` |
-| Modelo | `Qwen/Qwen2.5-1.5B-Instruct` |
-| Adapter inicial | `resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter` |
-| Registro promovido | `.cache/fase3-promoted-model.json` |
-| Escala LoRA inicial | `0.75` |
-| Porta web | `8010` |
-| Auditoria | `resultados/fase3/auditoria.jsonl` |
-
-O download do modelo base, quando necessario, ocorre em `npm run fase3:setup`,
-nunca durante uma pergunta na interface. `FASE3_HF_HOME` ou `HF_HOME` podem ser
-usados antes do setup para escolher o local do cache. O comando
-`npm run fase3` ativa `HF_HUB_OFFLINE=1` automaticamente.
-
-`FASE3_PYTHON` pode apontar para outro interpretador com todas as dependencias
-instaladas. Isso e util para reutilizar um ambiente CUDA existente:
-
-```powershell
-$env:FASE3_PYTHON = "E:\caminho\do\ambiente\Scripts\python.exe"
-npm run fase3
-```
-
-## Backends alternativos
-
-Os backends abaixo existem apenas para testes ou comparacao explicita:
-
-```powershell
-# Resposta deterministica, sem carregar modelo
-.\.venv-fase3\Scripts\python.exe -m fase3 --backend fake
-
-# Provedor remoto; exige GROQ_API_KEY
-.\.venv-fase3\Scripts\python.exe -m fase3 --backend groq
-```
-
-Passar `--backend` explicitamente tem prioridade sobre qualquer variavel de
-ambiente. O comando `npm run fase3` sempre passa `--backend local` e, portanto,
-nao pode trocar silenciosamente para Groq.
-
-## Estrutura principal
+## Estrutura
 
 | Caminho | Responsabilidade |
 | --- | --- |
-| `llm_backend.py` | Modelo local, Groq e fake |
+| `web_app.py` | API, CORS/PNA, capacidades e ciclo de vida do modelo |
+| `model_registry.py` | Presets e modelos customizados |
+| `model_manager.py`, `manage.py` | Instalacao e diagnostico portatil |
+| `training_service.py` | Jobs, logs, avaliacao e promocao |
+| `finetuning/train_lora.py` | LoRA/QLoRA generico e manifesto do adapter |
+| `web/` | Frontend, wizard, perfis, tours e build Pages |
+| `clinical_flow_graph.py` | Rotas e alertas LangGraph |
 | `assistant_chain.py` | Prompt, RAG, grounding e resposta final |
-| `clinical_flow_graph.py` | Decisoes e alertas do LangGraph |
-| `ehr_tools.py` | Prontuario SQLite sintetico |
-| `web_app.py` | API e ciclo de vida do modelo |
-| `training_service.py` | Jobs controlados de dados, treino, avaliacao e promocao |
-| `web/` | Interface no navegador |
-| `evaluate_assistant.py` | Avaliacao e gates de qualidade |
-| `finetuning/` | Treinamento e avaliacao do adapter |
 
-Esta e uma solucao academica com dados sinteticos. Nenhuma resposta substitui
-avaliacao, prescricao ou decisao de um profissional de saude.
+Os prontuarios e dados sao sinteticos. Nenhuma resposta substitui avaliacao,
+prescricao ou decisao de um profissional de saude.

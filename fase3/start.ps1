@@ -1,5 +1,8 @@
 param(
     [int]$Port = 8010,
+    [string]$HostAddress = "127.0.0.1",
+    [string[]]$AllowedOrigin = @(),
+    [switch]$AllowRemoteTraining,
     [switch]$NoBrowser
 )
 
@@ -7,56 +10,10 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $DefaultPython = Join-Path $ProjectRoot ".venv-fase3\Scripts\python.exe"
 $PythonPath = if ($env:FASE3_PYTHON) { $env:FASE3_PYTHON } else { $DefaultPython }
-$FinetuningRoot = Join-Path $ProjectRoot "resultados\fase3\finetuning"
-$PromotedConfig = Join-Path $ProjectRoot ".cache\fase3-promoted-model.json"
-$AdapterDirectory = Join-Path $FinetuningRoot "qwen2.5-1.5b-v4\lora_adapter"
 $CachePointer = Join-Path $ProjectRoot ".cache\fase3-hf-home.txt"
-$ModelRelativePath = "hub\models--Qwen--Qwen2.5-1.5B-Instruct\snapshots"
 
 if (-not (Test-Path -LiteralPath $PythonPath)) {
     throw "Ambiente da Fase 3 nao encontrado. Execute 'npm run fase3:setup' primeiro."
-}
-if (Test-Path -LiteralPath $PromotedConfig) {
-    try {
-        $Config = Get-Content -LiteralPath $PromotedConfig -Raw | ConvertFrom-Json
-        $ConfiguredAdapter = [string]$Config.adapter_path
-        if ([IO.Path]::IsPathRooted($ConfiguredAdapter)) {
-            $AdapterDirectory = [IO.Path]::GetFullPath($ConfiguredAdapter)
-        } else {
-            $AdapterDirectory = [IO.Path]::GetFullPath((Join-Path $ProjectRoot $ConfiguredAdapter))
-        }
-    } catch {
-        throw "Registro do adapter promovido e invalido: $PromotedConfig"
-    }
-}
-$AllowedRoot = [IO.Path]::GetFullPath($FinetuningRoot).TrimEnd('\') + '\'
-$ResolvedAdapter = [IO.Path]::GetFullPath($AdapterDirectory).TrimEnd('\') + '\'
-if (-not $ResolvedAdapter.StartsWith($AllowedRoot, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Adapter promovido fora do diretorio permitido: $AdapterDirectory"
-}
-$Adapter = Join-Path $AdapterDirectory "adapter_model.safetensors"
-if (-not (Test-Path -LiteralPath $Adapter)) {
-    throw "Adapter LoRA promovido nao encontrado em: $Adapter"
-}
-
-$HfHome = if ($env:FASE3_HF_HOME) {
-    $env:FASE3_HF_HOME
-} elseif ($env:HF_HOME) {
-    $env:HF_HOME
-} elseif (Test-Path -LiteralPath $CachePointer) {
-    (Get-Content -LiteralPath $CachePointer -Raw).Trim()
-} else {
-    $null
-}
-if (-not $HfHome) {
-    throw "Cache do modelo nao configurado. Execute 'npm run fase3:setup' primeiro."
-}
-$Snapshots = Join-Path $HfHome $ModelRelativePath
-$ModelFile = Get-ChildItem -LiteralPath $Snapshots -Recurse -Filter "model.safetensors" -ErrorAction SilentlyContinue |
-    Where-Object { Test-Path -LiteralPath $_.FullName } |
-    Select-Object -First 1
-if (-not $ModelFile) {
-    throw "Modelo Qwen ausente no cache '$HfHome'. Execute 'npm run fase3:setup'; o download deve acontecer no setup, nunca durante uma consulta."
 }
 
 & $PythonPath -c "import fastapi, langgraph, peft, torch, transformers"
@@ -66,14 +23,22 @@ if ($LASTEXITCODE -ne 0) {
 
 $env:PYTHONPATH = $ProjectRoot
 $env:FASE3_LLM_BACKEND = "local"
-$env:HF_HOME = $HfHome
 $env:HF_HUB_OFFLINE = "1"
-$LaunchArgs = @("-m", "fase3", "--backend", "local", "--port", $Port)
-if ($NoBrowser) { $LaunchArgs += "--no-open-browser" }
+if ((-not $env:HF_HOME) -and (Test-Path -LiteralPath $CachePointer)) {
+    $env:HF_HOME = (Get-Content -LiteralPath $CachePointer -Raw).Trim()
+}
 
-Write-Host "Iniciando Fase 3 com modelo local em http://127.0.0.1:$Port"
-Write-Host "Cache Hugging Face: $HfHome (offline durante a execucao)"
-Write-Host "Adapter promovido: $AdapterDirectory"
+& $PythonPath -m fase3.manage doctor --require-runtime
+if ($LASTEXITCODE -ne 0) { throw "Modelo ou adapter promovido indisponivel." }
+
+$LaunchArgs = @("-m", "fase3", "--backend", "local", "--host", $HostAddress, "--port", $Port)
+foreach ($Origin in $AllowedOrigin) { $LaunchArgs += @("--allowed-origin", $Origin) }
+if ($AllowRemoteTraining) { $LaunchArgs += "--allow-remote-training" }
+if ($NoBrowser -or $HostAddress -eq "0.0.0.0") { $LaunchArgs += "--no-open-browser" }
+
+Write-Host "Iniciando backend da Fase 3 em http://127.0.0.1:$Port"
+if ($HostAddress -eq "0.0.0.0") { Write-Host "Acesso pela rede local habilitado; confira os IPs exibidos abaixo." }
+if ($AllowRemoteTraining) { Write-Warning "Treinamento remoto sem autenticacao esta ATIVADO." }
 Write-Host "Pressione Ctrl+C para encerrar."
 & $PythonPath @LaunchArgs
 exit $LASTEXITCODE

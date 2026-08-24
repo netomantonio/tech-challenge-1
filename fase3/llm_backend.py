@@ -92,10 +92,9 @@ def _resolver_local_adapter_path(base_model: str, adapter_path: Optional[str]) -
     adapter_resolvido = adapter_path or os.getenv("FASE3_LOCAL_ADAPTER_PATH")
     if adapter_resolvido:
         return adapter_resolvido
-    if base_model == DEFAULT_LOCAL_BASE_MODEL:
-        promovido = get_promoted_local_config()
-        if Path(promovido["adapter_path"]).exists():
-            return str(promovido["adapter_path"])
+    promovido = get_promoted_local_config()
+    if base_model == promovido.get("base_model") and Path(promovido["adapter_path"]).exists():
+        return str(promovido["adapter_path"])
     if base_model == "distilgpt2" and LEGACY_DISTILGPT2_ADAPTER_PATH.exists():
         return str(LEGACY_DISTILGPT2_ADAPTER_PATH)
     return None
@@ -280,7 +279,10 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
             f"(erro original: {exc})"
         ) from exc
 
-    base_model = base_model or os.getenv("FASE3_LOCAL_BASE_MODEL", DEFAULT_LOCAL_BASE_MODEL)
+    promovido = get_promoted_local_config()
+    base_model = base_model or os.getenv("FASE3_LOCAL_BASE_MODEL") or promovido.get("base_model") or DEFAULT_LOCAL_BASE_MODEL
+    revision = kwargs.get("revision") or promovido.get("revision")
+    trust_remote_code = bool(kwargs.get("trust_remote_code", promovido.get("trust_remote_code", False)))
     use_adapter = bool(kwargs.get("use_adapter", True))
     adapter_path = _resolver_local_adapter_path(base_model, adapter_path) if use_adapter else None
     if use_adapter and not adapter_path:
@@ -289,17 +291,18 @@ def _criar_llm_local(base_model: Optional[str], adapter_path: Optional[str], **k
             "`python -m fase3.finetuning.train_lora` ou informe `adapter_path`."
         )
 
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
+    load_options = {"revision": revision, "trust_remote_code": trust_remote_code}
+    tokenizer = AutoTokenizer.from_pretrained(base_model, **load_options)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     usar_cuda = torch.cuda.is_available()
-    model_kwargs = {"dtype": torch.float16} if usar_cuda else {}
+    model_kwargs = {**load_options, **({"dtype": torch.float16} if usar_cuda else {})}
     modelo = AutoModelForCausalLM.from_pretrained(base_model, **model_kwargs)
     if use_adapter:
         modelo = PeftModel.from_pretrained(modelo, adapter_path)
     escala_padrao = (
-        get_promoted_local_config()["lora_scale"]
-        if use_adapter and base_model == DEFAULT_LOCAL_BASE_MODEL
+        promovido["lora_scale"]
+        if use_adapter and base_model == promovido.get("base_model")
         else DEFAULT_LOCAL_LORA_SCALE
     )
     escala_informada = kwargs.get("lora_scale")

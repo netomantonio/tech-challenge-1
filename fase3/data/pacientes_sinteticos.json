@@ -48,7 +48,7 @@
     "idade": 39,
     "sexo": "F",
     "diagnostico": "Suspeita de recidiva pos-mastectomia, em investigacao",
-    "estagio": "a_definir",
+    "estagio": "Nao definido",
     "exames_pendentes": ["tomografia_torax_abdome"],
     "exames_realizados": ["hemograma_completo"],
     "alertas_ativos": ["Febre de 38.6C registrada ha 2 horas, associada a taquicardia (110 bpm)"],
