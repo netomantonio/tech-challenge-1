@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from fase3.data.build_finetuning_dataset import detectar_pii
+from fase3.data.build_finetuning_dataset import anonimizar_texto, detectar_pii
 
 DISCLAIMER = (
     "Esta resposta foi gerada por um assistente automatizado com base em "
@@ -32,6 +32,12 @@ MENSAGEM_PII_BLOQUEADA = (
     "pelo tratamento de dados."
 )
 
+MENSAGEM_ENTRADA_PII_BLOQUEADA = (
+    "A consulta foi bloqueada antes do processamento porque continha informacao "
+    "pessoal identificavel. Remova nome, CPF, telefone ou e-mail e envie a "
+    "pergunta novamente com apenas o codigo interno do paciente."
+)
+
 # Verbo de acao de prescricao + algo que pareca dose/via/medicamento por perto.
 _PRESCRICAO_DIRETA_RE = re.compile(
     r"(?i)\b(tome|toma|administre|aplique|prescrevo|prescreva|receite)\b"
@@ -46,8 +52,33 @@ class ResultadoGuardrail:
     motivo: str | None
 
 
+@dataclass
+class ResultadoGuardrailEntrada:
+    texto_redigido: str
+    resposta: str | None
+    bloqueado: bool
+    motivo: str | None
+
+
 def contem_prescricao_direta(texto: str) -> bool:
     return bool(_PRESCRICAO_DIRETA_RE.search(texto))
+
+
+def aplicar_guardrails_entrada(texto: str) -> ResultadoGuardrailEntrada:
+    """Bloqueia PII antes de retrieval, LLM e auditoria e devolve texto redigido."""
+    if detectar_pii(texto):
+        return ResultadoGuardrailEntrada(
+            texto_redigido=anonimizar_texto(texto),
+            resposta=MENSAGEM_ENTRADA_PII_BLOQUEADA,
+            bloqueado=True,
+            motivo="pii_detectada_na_entrada",
+        )
+    return ResultadoGuardrailEntrada(
+        texto_redigido=texto,
+        resposta=None,
+        bloqueado=False,
+        motivo=None,
+    )
 
 
 def aplicar_guardrails(resposta_llm: str) -> ResultadoGuardrail:

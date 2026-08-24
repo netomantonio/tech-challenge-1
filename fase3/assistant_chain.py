@@ -22,7 +22,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import Runnable
 
 from fase3.ehr_tools import get_paciente
-from fase3.guardrails import aplicar_guardrails
+from fase3.guardrails import aplicar_guardrails, aplicar_guardrails_entrada
 from fase3.llm_backend import get_llm
 from fase3.logging_utils import registrar_interacao
 from fase3.prompting import USER_PROMPT_TEMPLATE, formatar_protocolos_prompt
@@ -329,6 +329,37 @@ def responder_pergunta_clinica(
     aplicados), ``fontes`` (para explainability), ``bloqueado`` e o motivo do
     bloqueio quando aplicavel.
     """
+    entrada = aplicar_guardrails_entrada(pergunta)
+    if entrada.bloqueado:
+        registrar_interacao(
+            "entrada_assistente_bloqueada",
+            prompt_version=PROMPT_VERSION,
+            paciente_id=paciente_id,
+            pergunta=entrada.texto_redigido,
+            fontes=[],
+            grounding_fallback=False,
+            grounding_citation_repair=False,
+            modo_resposta="bloqueada",
+            motivos_grounding=[],
+            bloqueado=True,
+            motivo_bloqueio=entrada.motivo,
+        )
+        retorno = {
+            "resposta": entrada.resposta,
+            "fontes": [],
+            "bloqueado": True,
+            "motivo_bloqueio": entrada.motivo,
+            "paciente_id": paciente_id,
+            "grounding_fallback": False,
+            "grounding_citation_repair": False,
+            "motivos_grounding": [],
+            "modo_resposta": "bloqueada",
+        }
+        if incluir_diagnostico:
+            retorno["resposta_llm_bruta"] = ""
+        return retorno
+
+    pergunta = entrada.texto_redigido
     llm = llm or get_llm()
     retriever = retriever or construir_retriever(k=top_k)
 

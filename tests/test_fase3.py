@@ -27,7 +27,7 @@ from fase3.data.build_finetuning_dataset import (
 )
 from fase3.evaluate_assistant import CASES_PATH, avaliar_resposta, carregar_casos
 from fase3.finetuning.train_lora import _formatar_instrucao, _tokenizar_exemplo_resposta
-from fase3.guardrails import DISCLAIMER, aplicar_guardrails
+from fase3.guardrails import DISCLAIMER, aplicar_guardrails, aplicar_guardrails_entrada
 from fase3.llm_backend import (
     DEFAULT_LLM_BACKEND,
     DEFAULT_LOCAL_BASE_MODEL,
@@ -99,6 +99,15 @@ class CuradoriaDatasetTests(unittest.TestCase):
 
 
 class GuardrailsTests(unittest.TestCase):
+    def test_pii_na_entrada_e_bloqueada_e_redigida(self) -> None:
+        resultado = aplicar_guardrails_entrada(
+            "Meu e-mail e joao@example.com e meu CPF e 123.456.789-00."
+        )
+        self.assertTrue(resultado.bloqueado)
+        self.assertEqual(resultado.motivo, "pii_detectada_na_entrada")
+        self.assertNotIn("joao@example.com", resultado.texto_redigido)
+        self.assertNotIn("123.456.789-00", resultado.texto_redigido)
+
     def test_resposta_segura_recebe_disclaimer(self) -> None:
         resultado = aplicar_guardrails("O protocolo indica reavaliacao periodica.")
         self.assertFalse(resultado.bloqueado)
@@ -328,6 +337,31 @@ class EhrToolsTests(unittest.TestCase):
 
 
 class AssistantChainTests(unittest.TestCase):
+    def test_pii_na_pergunta_nao_chega_ao_llm_e_e_redigida_na_auditoria(self) -> None:
+        llm = get_llm(
+            "fake",
+            respostas=["Esta resposta nao deve ser gerada. Fonte: [PROT-012]."],
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            audit_path = Path(tmpdir) / "auditoria.jsonl"
+            with unittest.mock.patch.dict(
+                os.environ,
+                {"FASE3_AUDIT_LOG_PATH": str(audit_path)},
+            ):
+                resultado = responder_pergunta_clinica(
+                    "Meu e-mail e joao@example.com. Qual conduta seguir?",
+                    paciente_id="PAC-0002",
+                    llm=llm,
+                )
+
+            registro = json.loads(audit_path.read_text(encoding="utf-8").splitlines()[-1])
+
+        self.assertTrue(resultado["bloqueado"])
+        self.assertEqual(resultado["motivo_bloqueio"], "pii_detectada_na_entrada")
+        self.assertEqual(llm.prompts_recebidos, [])
+        self.assertNotIn("joao@example.com", registro["pergunta"])
+        self.assertIn("[EMAIL_REDIGIDO]", registro["pergunta"])
+
     def test_contexto_do_ehr_enriquece_retrieval_para_pergunta_generica(self) -> None:
         llm = get_llm("fake", respostas=["Acione a equipe medica imediatamente."])
         resultado = responder_pergunta_clinica(
@@ -440,6 +474,18 @@ class ClinicalFlowGraphTests(unittest.TestCase):
         self.assertEqual(estado["rota_exames"], "com_pendencias")
         self.assertIn("ecocardiograma_basal", estado["exames_pendentes"])
         self.assertTrue(any("Exames pendentes" in a for a in estado["alertas"]))
+        self.assertEqual(
+            estado["etapas_executadas"],
+            [
+                "buscar_paciente",
+                "verificar_exames_pendentes",
+                "alertar_exames_pendentes",
+                "sugerir_tratamento",
+                "checar_seguranca",
+                "emitir_alertas",
+                "registrar_auditoria",
+            ],
+        )
 
     def test_fluxo_sem_pendencias_segue_rota_direta(self) -> None:
         llm = get_llm("fake", respostas=["Consulte a equipe medica."])
@@ -453,6 +499,10 @@ class ClinicalFlowGraphTests(unittest.TestCase):
         estado = executar_fluxo_clinico("PAC-0000", "Qual conduta?", llm=llm)
         self.assertFalse(estado["paciente_encontrado"])
         self.assertNotIn("sugestao", estado)
+        self.assertEqual(
+            estado["etapas_executadas"],
+            ["buscar_paciente", "registrar_auditoria"],
+        )
 
     def test_fluxo_escala_alerta_quando_guardrail_bloqueia(self) -> None:
         llm = get_llm("fake", respostas=["Tome 500mg de dipirona agora mesmo."])
