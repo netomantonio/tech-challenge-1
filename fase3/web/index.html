@@ -273,9 +273,23 @@
           </div>
           <div class="setup-page" data-step="1" hidden>
             <p class="overline">Etapa 2 de 5</p><h3>Endereco do backend</h3>
-            <label class="setup-field"><span>Nome deste perfil</span><input id="setup-name" value="Backend local" maxlength="60" /></label>
-            <label class="setup-field"><span>URL-base</span><input id="setup-url" value="http://127.0.0.1:8010" inputmode="url" /></label>
+            <div class="setup-address-grid">
+              <label class="setup-field"><span>Nome deste perfil</span><input id="setup-name" value="Backend local" maxlength="60" /></label>
+              <label class="setup-field"><span>URL-base</span><input id="setup-url" value="http://127.0.0.1:8010" inputmode="url" /></label>
+            </div>
+            <fieldset class="startup-options">
+              <legend>Opcoes de inicializacao</legend>
+              <div class="startup-grid">
+                <label class="setup-field"><span>Nome exibido pelo backend</span><input id="setup-instance-name" value="Backend local" maxlength="60" /></label>
+                <label class="setup-field"><span>Escuta de rede</span><select id="setup-bind-host"><option value="127.0.0.1">Somente nesta maquina</option><option value="0.0.0.0">Rede local / VPN</option></select></label>
+                <label class="setup-field"><span>Porta do servico</span><input id="setup-port" type="number" min="1" max="65535" value="8010" /></label>
+              </div>
+              <label class="setup-check"><input id="setup-remote-training" type="checkbox" /><span><strong>Permitir treinamento por outras maquinas</strong><small>Libera operacoes de modelo sem autenticacao para clientes com acesso ao backend.</small></span></label>
+              <label class="setup-check"><input id="setup-open-browser" type="checkbox" /><span><strong>Abrir interface local ao iniciar</strong><small>Desmarcado quando o frontend hospedado ja sera usado.</small></span></label>
+            </fieldset>
             <div class="command-box"><code id="setup-command">npm run fase3</code><button id="copy-command" type="button">Copiar</button></div>
+            <p class="setup-command-note">Execute na raiz do repositorio, com o ambiente Python ativado.</p>
+            <p class="setup-warning" id="setup-command-warning" hidden></p>
             <p class="setup-hint" id="setup-network-hint"></p>
           </div>
           <div class="setup-page" data-step="2" hidden>

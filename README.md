@@ -605,6 +605,7 @@ A interface da Fase 3 também possui build estático para Cloudflare Pages. Cada
 integrante pode registrar no wizard seu backend em loopback, LAN, VPN ou HTTPS;
 os perfis ficam apenas no navegador e os chats são isolados por backend e
 paciente. O Pages entrega os arquivos estáticos e não atua como proxy clínico.
+Produção: <https://assistente-protocolos-fase3.pages.dev>.
 
 Para uma consulta isolada pelo terminal, a CLI também usa o modelo local por
 padrão:

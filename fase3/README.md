@@ -43,6 +43,12 @@ Na primeira abertura, o wizard exige uma conexao valida e um modelo disponivel.
 Os perfis podem ser adicionados, editados, testados e removidos pelo botao de
 configuracao. Conversas sao isoladas por `backend_id + paciente_id`.
 
+Na etapa **Endereco**, o wizard monta o comando `python -m fase3` em tempo real.
+E possivel definir nome da instancia, endereco de escuta, porta, abertura da
+interface local e permissao de treinamento por outras maquinas. O comando ja
+inclui a origem do frontend e mostra um alerta quando a configuracao expoe o
+backend ou as operacoes de modelo na rede.
+
 ### Mesma maquina
 
 Use `http://127.0.0.1:8010`. O backend permanece restrito ao loopback:
@@ -107,6 +113,11 @@ npm run fase3:web:deploy
 
 O artefato fica em `fase3/web/dist` e inclui CSP, headers de seguranca e SPA
 fallback. Nao existe Worker proxy nem backend central nesse deploy.
+
+Frontend publicado: <https://assistente-protocolos-fase3.pages.dev>. Os scripts
+`start.ps1` e `start.sh` ja autorizam essa origem por padrao. Para substituir
+ou acrescentar origens, use `-AllowedOrigin` no PowerShell ou
+`FASE3_ALLOWED_ORIGINS` no ambiente.
 
 ## Modelos e treinamento
 

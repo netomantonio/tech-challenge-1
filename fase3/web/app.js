@@ -86,7 +86,13 @@ const elements = {
   setupNext: $("#setup-next"),
   setupName: $("#setup-name"),
   setupUrl: $("#setup-url"),
+  setupInstanceName: $("#setup-instance-name"),
+  setupBindHost: $("#setup-bind-host"),
+  setupPort: $("#setup-port"),
+  setupRemoteTraining: $("#setup-remote-training"),
+  setupOpenBrowser: $("#setup-open-browser"),
   setupCommand: $("#setup-command"),
+  setupCommandWarning: $("#setup-command-warning"),
   setupNetworkHint: $("#setup-network-hint"),
   setupSteps: [...document.querySelectorAll("#setup-steps li")],
   setupPages: [...document.querySelectorAll(".setup-page")],
@@ -797,18 +803,82 @@ function selectedTopology() {
   return elements.setupForm.querySelector('input[name="topology"]:checked')?.value || "loopback";
 }
 
-function configureTopologyFields() {
+function startupConfigFromForm() {
+  return {
+    instanceName: elements.setupInstanceName.value.trim() || elements.setupName.value.trim() || "Backend Fase 3",
+    bindHost: elements.setupBindHost.value,
+    port: Math.min(65535, Math.max(1, Number(elements.setupPort.value) || 8010)),
+    allowRemoteTraining: elements.setupRemoteTraining.checked,
+    openBrowser: elements.setupOpenBrowser.checked,
+  };
+}
+
+function quoteCommandArgument(value) {
+  if (/^[a-zA-Z0-9._:/-]+$/.test(value)) return value;
+  return JSON.stringify(value);
+}
+
+function buildSetupCommand() {
+  const config = startupConfigFromForm();
+  const args = ["python", "-m", "fase3"];
+  if (config.bindHost !== "127.0.0.1") args.push("--host", config.bindHost);
+  if (config.port !== 8010) args.push("--port", String(config.port));
+  if (location.origin.startsWith("http")) args.push("--allowed-origin", location.origin);
+  if (config.allowRemoteTraining) args.push("--allow-remote-training");
+  if (config.instanceName) args.push("--instance-name", config.instanceName);
+  if (!config.openBrowser) args.push("--no-open-browser");
+  return args.map(quoteCommandArgument).join(" ");
+}
+
+window.fase3BuildStartCommand = buildSetupCommand;
+
+function updateSetupCommand() {
+  elements.setupCommand.textContent = buildSetupCommand();
+  const networkExposed = elements.setupBindHost.value === "0.0.0.0";
+  const remoteTraining = elements.setupRemoteTraining.checked;
+  elements.setupCommandWarning.hidden = !networkExposed && !remoteTraining;
+  elements.setupCommandWarning.textContent = remoteTraining
+    ? "Atencao: outras maquinas com acesso a este backend poderao iniciar downloads, treinamentos e promocoes sem autenticacao."
+    : networkExposed
+      ? "O backend aceitara conexoes da rede. Mantenha o treinamento remoto desativado se ele nao for necessario."
+      : "";
+}
+
+function syncDirectUrlPort() {
+  if (selectedTopology() === "public") return;
+  try {
+    const url = new URL(elements.setupUrl.value.trim());
+    url.port = String(startupConfigFromForm().port);
+    elements.setupUrl.value = url.origin;
+  } catch { /* A validacao da URL informa o erro ao avancar. */ }
+}
+
+function syncPortFromDirectUrl() {
+  if (selectedTopology() === "public") return;
+  try {
+    const url = new URL(elements.setupUrl.value.trim());
+    elements.setupPort.value = url.port || (url.protocol === "https:" ? "443" : "80");
+  } catch { return; }
+  updateSetupCommand();
+}
+
+function configureTopologyFields(resetValues = true) {
   const topology = selectedTopology();
   const defaults = {
     loopback: ["Backend local", "http://127.0.0.1:8010"],
     private: ["Backend da rede", "http://192.168.1.10:8010"],
     public: ["Backend remoto", "https://backend.exemplo.com"],
   };
-  [elements.setupName.value, elements.setupUrl.value] = defaults[topology];
-  const originArg = location.origin.startsWith("http") ? ` --allowed-origin ${location.origin}` : "";
-  elements.setupCommand.textContent = topology === "private"
-    ? `python -m fase3 --host 0.0.0.0${originArg}`
-    : `python -m fase3${originArg}`;
+  if (resetValues) {
+    [elements.setupName.value, elements.setupUrl.value] = defaults[topology];
+    elements.setupInstanceName.value = defaults[topology][0];
+    elements.setupInstanceName.dataset.edited = "";
+    elements.setupBindHost.value = topology === "private" ? "0.0.0.0" : "127.0.0.1";
+    elements.setupPort.value = "8010";
+    elements.setupRemoteTraining.checked = false;
+    elements.setupOpenBrowser.checked = false;
+  }
+  updateSetupCommand();
   elements.setupNetworkHint.textContent = topology === "loopback"
     ? "O navegador pode solicitar permissao para acessar esta maquina."
     : topology === "private"
@@ -824,7 +894,7 @@ function renderSetupStep() {
   });
   elements.setupBack.disabled = state.setupStep === 0;
   elements.setupNext.textContent = state.setupStep === 4 ? "Abrir consulta" : "Continuar";
-  if (state.setupStep === 1) configureTopologyFields();
+  if (state.setupStep === 1) updateSetupCommand();
   if (state.setupStep === 4 && state.setupValidated) {
     elements.setupSummary.textContent = `${state.setupValidated.capabilities.instance_name} em ${state.setupValidated.profile.baseUrl}. O perfil e os chats ficam isolados neste navegador.`;
   }
@@ -838,11 +908,21 @@ function openSetup(profile = null) {
     const radio = elements.setupForm.querySelector(`input[name="topology"][value="${profile.networkType}"]`);
     if (radio) radio.checked = true;
   }
-  renderSetupStep();
   if (profile) {
     elements.setupName.value = profile.name;
     elements.setupUrl.value = profile.baseUrl;
+    const startup = profile.startup || {};
+    elements.setupInstanceName.value = startup.instanceName || profile.name;
+    elements.setupInstanceName.dataset.edited = "true";
+    elements.setupBindHost.value = startup.bindHost || (profile.networkType === "private" ? "0.0.0.0" : "127.0.0.1");
+    elements.setupPort.value = String(startup.port || 8010);
+    elements.setupRemoteTraining.checked = Boolean(startup.allowRemoteTraining);
+    elements.setupOpenBrowser.checked = Boolean(startup.openBrowser);
+    configureTopologyFields(false);
+  } else {
+    configureTopologyFields(true);
   }
+  renderSetupStep();
   if (!elements.setupDialog.open) elements.setupDialog.showModal();
 }
 
@@ -866,6 +946,7 @@ async function testSetupConnection() {
     name: elements.setupName.value.trim() || "Backend",
     baseUrl: classification.url,
     networkType: classification.type,
+    startup: startupConfigFromForm(),
   };
   elements.connectionDiagnostic.className = "connection-diagnostic running";
   elements.connectionDiagnostic.textContent = "Testando rota, CORS e versao da API...";
@@ -879,7 +960,12 @@ async function testSetupConnection() {
     state.setupValidated = { profile: temporaryProfile, capabilities };
     elements.connectionDiagnostic.className = "connection-diagnostic success";
     const hardware = capabilities.hardware || {};
-    elements.connectionDiagnostic.textContent = `Conectado a ${capabilities.instance_name}. ${hardware.device_name || "CPU"}; API ${capabilities.api_version}; treinamento remoto ${capabilities.features?.remote_training ? "habilitado" : "desabilitado"}.`;
+    const trainingAccess = capabilities.features?.remote_training
+      ? "controle de treinamento remoto habilitado"
+      : temporaryProfile.networkType === "loopback"
+        ? "treinamento nesta maquina disponivel; controle remoto desabilitado"
+        : "controle de treinamento remoto desabilitado";
+    elements.connectionDiagnostic.textContent = `Conectado a ${capabilities.instance_name}. ${hardware.device_name || "CPU"}; API ${capabilities.api_version}; ${trainingAccess}.`;
     elements.setupModel.replaceChildren();
     (capabilities.models || []).forEach((model) => {
       const option = document.createElement("option");
@@ -1048,6 +1134,27 @@ elements.resetProfiles.addEventListener("click", () => {
   openSetup();
 });
 elements.helpButton.addEventListener("click", () => startTour(elements.trainingView.hidden ? "clinical" : "training"));
+elements.setupForm.querySelectorAll('input[name="topology"]').forEach((radio) => {
+  radio.addEventListener("change", () => configureTopologyFields(true));
+});
+[elements.setupName, elements.setupUrl, elements.setupInstanceName].forEach((input) => {
+  input.addEventListener("input", () => {
+    if (input === elements.setupName && !elements.setupInstanceName.dataset.edited) {
+      elements.setupInstanceName.value = elements.setupName.value;
+    }
+    if (input === elements.setupInstanceName) elements.setupInstanceName.dataset.edited = "true";
+    state.setupValidated = null;
+    updateSetupCommand();
+  });
+});
+elements.setupUrl.addEventListener("change", syncPortFromDirectUrl);
+[elements.setupBindHost, elements.setupPort, elements.setupRemoteTraining, elements.setupOpenBrowser].forEach((control) => {
+  control.addEventListener("change", () => {
+    if (control === elements.setupPort) syncDirectUrlPort();
+    state.setupValidated = null;
+    updateSetupCommand();
+  });
+});
 elements.setupNext.addEventListener("click", setupNext);
 elements.setupBack.addEventListener("click", () => { if (state.setupStep > 0) { state.setupStep -= 1; renderSetupStep(); } });
 elements.testConnection.addEventListener("click", testSetupConnection);

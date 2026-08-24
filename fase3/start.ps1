@@ -1,7 +1,7 @@
 param(
     [int]$Port = 8010,
     [string]$HostAddress = "127.0.0.1",
-    [string[]]$AllowedOrigin = @(),
+    [string[]]$AllowedOrigin = @("https://assistente-protocolos-fase3.pages.dev"),
     [switch]$AllowRemoteTraining,
     [switch]$NoBrowser
 )
