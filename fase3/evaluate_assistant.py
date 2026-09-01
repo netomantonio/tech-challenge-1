@@ -23,6 +23,7 @@ CASES_PATH = Path(__file__).resolve().parent / "data" / "assistant_evaluation_ca
 _WORD_RE = re.compile(r"[a-zA-ZÀ-ÿ0-9-]+")
 _PROTOCOL_ID_RE = re.compile(r"\bPROT-\d{3}\b", re.IGNORECASE)
 _PATIENT_ID_RE = re.compile(r"\bPAC-\d{4}\b", re.IGNORECASE)
+_PATIENT_CITATION_RE = re.compile(r"\[\s*(PAC-\d{4})\s*\]", re.IGNORECASE)
 _NUMBER_RE = re.compile(r"\b\d+(?:[.,]\d+)?\b")
 _DOCUMENTOS_PROTOCOLO = carregar_documentos()
 _PROTOCOL_IDS = {doc.metadata["id"] for doc in _DOCUMENTOS_PROTOCOLO}
@@ -117,7 +118,8 @@ def _avaliar_texto(
         protocolo.upper() for protocolo in _PROTOCOL_ID_RE.findall(conteudo)
     }
     prontuarios_citados = {
-        paciente_id.upper() for paciente_id in _PATIENT_ID_RE.findall(conteudo)
+        paciente_id.upper()
+        for paciente_id in _PATIENT_CITATION_RE.findall(conteudo)
     }
     fonte_obrigatoria = caso.get("fonte_obrigatoria", True)
     termos_esperados = caso.get("termos_esperados", [])
@@ -137,6 +139,7 @@ def _avaliar_texto(
             bool(fontes)
             and ids_protocolos_fontes <= _PROTOCOL_IDS
             and ids_prontuarios_fontes <= ({caso["paciente_id"]} if caso.get("paciente_id") else set())
+            and prontuarios_citados <= ids_prontuarios_fontes
             and ids_fontes == ids_protocolos_fontes | ids_prontuarios_fontes
             if fonte_obrigatoria
             else ids_protocolos_fontes <= _PROTOCOL_IDS
@@ -247,7 +250,7 @@ def executar_avaliacao(
         )
         checagens_brutas = _avaliar_texto(
             resultado["resposta_llm_bruta"],
-            resultado["fontes"],
+            resultado.get("fontes_recuperadas", resultado["fontes"]),
             caso,
             bloqueado=False,
             exigir_disclaimer=False,

@@ -33,6 +33,7 @@ PROMPT_VERSION = "assistente_medico_v3"
 _WORD_RE = re.compile(r"[a-zA-ZÀ-ÿ0-9-]+")
 _PROTOCOL_RE = re.compile(r"\bPROT-\d{3}\b", re.IGNORECASE)
 _PATIENT_RE = re.compile(r"\bPAC-\d{4}\b", re.IGNORECASE)
+_PATIENT_CITATION_RE = re.compile(r"\[\s*(PAC-\d{4})\s*\]", re.IGNORECASE)
 _PROTOCOL_LIKE_RE = re.compile(
     r"\[?(?:PROT(?:OCOLOS?)?)[-_\s]*(?:\d{1,3}|[A-Z]+)\]?",
     re.IGNORECASE,
@@ -83,6 +84,41 @@ def _formatar_contexto_paciente(paciente_id: Optional[str]) -> str:
 
 def _formatar_itens_prontuario(itens: list[str]) -> str:
     return ", ".join(item.replace("_", " ") for item in itens) or "nenhum"
+
+
+def _formatar_fontes_resposta(
+    protocolo_id: Optional[str] = None,
+    paciente_id: Optional[str] = None,
+) -> str:
+    referencias = [f"[{item}]" for item in (paciente_id, protocolo_id) if item]
+    rotulo = "Fonte" if len(referencias) == 1 else "Fontes"
+    return f"{rotulo}: {', '.join(referencias)}."
+
+
+def _fontes_usadas_na_resposta(
+    resposta: str,
+    documentos,
+    paciente: Optional[dict],
+) -> list[dict]:
+    """Expoe apenas fontes efetivamente citadas na resposta final."""
+    protocolos_citados = {item.upper() for item in _PROTOCOL_RE.findall(resposta)}
+    prontuarios_citados = {
+        item.upper() for item in _PATIENT_CITATION_RE.findall(resposta)
+    }
+    fontes = [
+        fonte
+        for fonte in formatar_fontes(documentos)
+        if fonte["id"] in protocolos_citados
+    ]
+    if paciente and paciente["paciente_id"] in prontuarios_citados:
+        fontes.append(
+            {
+                "id": paciente["paciente_id"],
+                "titulo": "Prontuario sintetico do paciente",
+                "tipo": "prontuario",
+            }
+        )
+    return fontes
 
 
 def _normalizar(texto: str) -> str:
@@ -137,6 +173,13 @@ def _intencao_alertas(pergunta: str, paciente: Optional[dict]) -> bool:
     if not paciente:
         return False
     normalizada = _normalizar(pergunta)
+    if "alerta" not in normalizada:
+        return False
+    if any(
+        termo in normalizada
+        for termo in ("conduta", "proceder", "encaminhar", "prioridade", "acionar", "tratar")
+    ):
+        return False
     return any(
         trecho in normalizada
         for trecho in (
@@ -144,9 +187,16 @@ def _intencao_alertas(pergunta: str, paciente: Optional[dict]) -> bool:
             "qual alerta",
             "ha alerta",
             "ha algum alerta",
+            "algum alerta",
             "tem alerta",
+            "existe alerta",
+            "existem alertas",
             "alertas ativos",
             "alertas atuais",
+            "alerta foi gerado",
+            "alertas foram gerados",
+            "alerta foi identificado",
+            "alertas foram identificados",
         )
     )
 
@@ -166,6 +216,8 @@ def _avaliar_grounding(
     """Retorna os motivos que tornam a geracao inadequada para exibicao."""
     motivos: list[str] = []
     tokens = _WORD_RE.findall(resposta.lower())
+    intencao_exames = _intencao_exames(pergunta, paciente)
+    consulta_alertas = _intencao_alertas(pergunta, paciente)
     if len(tokens) < 12:
         motivos.append("resposta_curta")
     if _UNSAFE_SCRIPT_RE.search(resposta):
@@ -173,7 +225,9 @@ def _avaliar_grounding(
 
     ids_recuperados = {doc.metadata["id"] for doc in documentos}
     ids_citados = {item.upper() for item in _PROTOCOL_RE.findall(resposta)}
-    pacientes_citados = {item.upper() for item in _PATIENT_RE.findall(resposta)}
+    pacientes_citados = {
+        item.upper() for item in _PATIENT_CITATION_RE.findall(resposta)
+    }
     fonte_prontuario_valida = bool(
         paciente_id
         and paciente
@@ -188,6 +242,15 @@ def _avaliar_grounding(
             motivos.append("fonte_nao_recuperada")
         elif pacientes_citados and not fonte_prontuario_valida:
             motivos.append("prontuario_nao_recuperado")
+    consulta_estado_prontuario = consulta_alertas or intencao_exames in {
+        "realizados",
+        "pendentes",
+        "checklist",
+    }
+    if consulta_estado_prontuario and not fonte_prontuario_valida:
+        motivos.append("fonte_prontuario_ausente")
+    if consulta_estado_prontuario and ids_citados:
+        motivos.append("fonte_protocolo_desnecessaria")
 
     contexto = " ".join(
         [
@@ -232,7 +295,6 @@ def _avaliar_grounding(
 
     pendentes = (paciente or {}).get("exames_pendentes", [])
     realizados = (paciente or {}).get("exames_realizados", [])
-    intencao_exames = _intencao_exames(pergunta, paciente)
     if intencao_exames == "realizados":
         tokens_resposta = set(resposta_normalizada.split())
         realizados_ausentes = [
@@ -268,7 +330,7 @@ def _avaliar_grounding(
             motivos.append("status_checklist_omitido")
 
     alertas_ativos = (paciente or {}).get("alertas_ativos", [])
-    if _intencao_alertas(pergunta, paciente):
+    if consulta_alertas:
         tokens_resposta = set(resposta_normalizada.split())
         if alertas_ativos and any(
             not set(_normalizar(item).split()) <= tokens_resposta
@@ -277,7 +339,12 @@ def _avaliar_grounding(
             motivos.append("alertas_ativos_omitidos")
         elif not alertas_ativos and not any(
             trecho in resposta_normalizada
-            for trecho in ("nenhum alerta ativo", "nao ha alertas ativos", "sem alertas ativos")
+            for trecho in (
+                "nenhum alerta ativo",
+                "nao ha alertas ativos",
+                "sem alertas ativos",
+                "nao foram identificados alertas",
+            )
         ):
             motivos.append("ausencia_de_alertas_ignorada")
 
@@ -378,7 +445,7 @@ def _resposta_fallback_segura(
     )
     normalizada = _normalizar(contexto_decisorio)
     intencao_exames = _intencao_exames(pergunta, paciente)
-    ids = {doc.metadata["id"] for doc in documentos}
+    protocolos_por_id = {doc.metadata["id"]: doc for doc in documentos}
     if _intencao_alertas(pergunta, paciente):
         alertas = (paciente or {}).get("alertas_ativos", [])
         if not alertas:
@@ -393,79 +460,88 @@ def _resposta_fallback_segura(
             f"Fonte: [{paciente_id}]."
         )
 
-    if "PROT-011" in ids and any(termo in normalizada for termo in ("febre", "taquicardia", "sepse")):
+    protocolo_sepse = protocolos_por_id.get("PROT-011")
+    if protocolo_sepse and any(
+        termo in normalizada for termo in ("febre", "taquicardia", "sepse")
+    ):
         alertas = "; ".join((paciente or {}).get("alertas_ativos", []))
         contexto_alerta = f"O prontuario registra: {alertas}. " if alertas else ""
         return (
             f"{contexto_alerta}O protocolo determina acionamento imediato do fluxo de "
             "sepse e comunicacao a equipe medica quando houver criterios de SIRS "
             "associados a suspeita de infeccao. Nao aguarde validacao assincrona. "
-            "Fonte: [PROT-011]."
+            f"{_formatar_fontes_resposta(protocolo_sepse.metadata['id'], paciente_id)}"
         )
 
-    if "PROT-006" in ids and intencao_exames == "realizados" and paciente:
+    if intencao_exames == "realizados" and paciente:
         exames_realizados = paciente.get("exames_realizados", [])
         if not exames_realizados:
             return (
                 "Nao ha exames realizados registrados no prontuario sintetico. "
                 "Confirme se o registro esta atualizado antes de qualquer decisao "
-                f"clinica. Fonte do dado: [{paciente_id}]. Referencia: [PROT-006]."
+                f"clinica. Fonte: [{paciente_id}]."
             )
         realizados = _formatar_itens_prontuario(exames_realizados)
         return (
             f"O prontuario sintetico registra estes exames realizados: {realizados}. "
             "O registro fornecido nao informa datas nem resultados numericos, por isso "
             "nao e possivel determinar a ordem dos exames. Confirme os dados no "
-            f"prontuario e valide a interpretacao com a equipe medica. Fontes: [{paciente_id}], "
-            "[PROT-006]."
+            f"prontuario e valide a interpretacao com a equipe medica. Fonte: [{paciente_id}]."
         )
 
-    if "PROT-006" in ids and intencao_exames == "pendentes" and paciente:
+    if intencao_exames == "pendentes" and paciente:
         pendentes = paciente.get("exames_pendentes", [])
         if not pendentes:
             return (
-                "Nao ha exames pendentes registrados no prontuario sintetico. A "
-                "liberacao do tratamento ainda depende da conferencia de validade e "
-                "da validacao da equipe medica. Fonte: [PROT-006]."
+                "Nao ha exames pendentes registrados no prontuario sintetico. Isso "
+                "descreve somente o estado atual do registro; confirme se ele esta "
+                f"atualizado com a equipe medica. Fonte: [{paciente_id}]."
             )
         return (
             f"Os exames pendentes registrados sao: {_formatar_itens_prontuario(pendentes)}. "
-            "Regularize as pendencias e confirme a liberacao com a equipe medica. "
-            "Fonte: [PROT-006]."
+            "Confirme se o registro esta atualizado com a equipe medica. "
+            f"Fonte: [{paciente_id}]."
         )
 
-    if "PROT-006" in ids and intencao_exames == "checklist" and paciente:
+    if intencao_exames == "checklist" and paciente:
         pendentes = paciente.get("exames_pendentes", [])
         if pendentes:
             return (
                 "O checklist pre-tratamento esta incompleto porque o prontuario registra "
-                f"estes exames pendentes: {_formatar_itens_prontuario(pendentes)}. Nao "
-                "libere o ciclo antes da regularizacao e da validacao medica. "
-                "Fonte: [PROT-006]."
+                f"estes exames pendentes: {_formatar_itens_prontuario(pendentes)}. "
+                "Confirme se o registro esta atualizado com a equipe medica. "
+                f"Fonte: [{paciente_id}]."
             )
         realizados = _formatar_itens_prontuario(paciente.get("exames_realizados", []))
         return (
             "O checklist pre-tratamento registrado esta completo: nao ha exames "
-            f"pendentes e constam como realizados {realizados}. A liberacao final "
-            "depende da conferencia de validade e da validacao medica. Fonte: [PROT-006]."
+            f"pendentes e constam como realizados {realizados}. Isso descreve o "
+            "estado atual do prontuario e deve ser confirmado com a equipe medica. "
+            f"Fonte: [{paciente_id}]."
         )
 
-    if "PROT-006" in ids and any(termo in normalizada for termo in ("quimioterapia", "exame")):
+    protocolo_exames = protocolos_por_id.get("PROT-006")
+    if protocolo_exames and any(
+        termo in normalizada for termo in ("quimioterapia", "exame")
+    ):
+        fonte_exames = protocolo_exames.metadata["id"]
         pendentes = (paciente or {}).get("exames_pendentes", [])
         if pendentes:
             return (
                 f"Ha exames pendentes no prontuario: {', '.join(pendentes)}. O protocolo "
                 "estabelece que nenhum ciclo deve ser iniciado enquanto exames "
                 "obrigatorios estiverem pendentes ou fora da validade; confirme-os com "
-                "a equipe medica. Fonte: [PROT-006]."
+                f"a equipe medica. {_formatar_fontes_resposta(fonte_exames, paciente_id)}"
             )
         return (
             "Antes da quimioterapia, confirme hemograma completo, funcao hepatica e "
             "renal, sorologias HBV, HCV e HIV e, quando aplicavel, ecocardiograma ou "
-            "MUGA basal. Valide a liberacao com o medico responsavel. Fonte: [PROT-006]."
+            "MUGA basal. Valide a liberacao com o medico responsavel. "
+            f"{_formatar_fontes_resposta(fonte_exames)}"
         )
 
-    if "PROT-004" in ids and "dor" in normalizada:
+    protocolo_dor = protocolos_por_id.get("PROT-004")
+    if protocolo_dor and "dor" in normalizada:
         contexto_dor = " ".join(
             [pergunta, *((paciente or {}).get("alertas_ativos", []))]
         )
@@ -476,14 +552,18 @@ def _resposta_fallback_segura(
         return (
             f"Dor pos-operatoria persistente{intensidade} exige reavaliacao clinica, registro da "
             "intensidade e comunicacao a equipe cirurgica. Siga o protocolo de manejo "
-            "da dor sem indicar medicamento ou dose automaticamente. Fonte: [PROT-004]."
+            "da dor sem indicar medicamento ou dose automaticamente. "
+            f"{_formatar_fontes_resposta(protocolo_dor.metadata['id'], paciente_id)}"
         )
 
-    if "PROT-001" in ids and any(termo in normalizada for termo in ("bi-rads", "birads", "biopsia")):
+    protocolo_birads = protocolos_por_id.get("PROT-001")
+    if protocolo_birads and any(
+        termo in normalizada for termo in ("bi-rads", "birads", "biopsia")
+    ):
         return (
             "Um achado BI-RADS 4 requer confirmacao histopatologica por biopsia e "
             "revisao da equipe assistente antes da definicao de tratamento. "
-            "Fonte: [PROT-001]."
+            f"{_formatar_fontes_resposta(protocolo_birads.metadata['id'], paciente_id)}"
         )
 
     fonte = documentos[0] if documentos else None
@@ -509,9 +589,9 @@ def responder_pergunta_clinica(
 ) -> dict:
     """Responde uma pergunta clinica com contexto de protocolos e do paciente.
 
-    Retorna um dicionario com ``resposta`` (ja com guardrails/disclaimer
-    aplicados), ``fontes`` (para explainability), ``bloqueado`` e o motivo do
-    bloqueio quando aplicavel.
+    ``fontes`` contem apenas as referencias citadas na resposta final;
+    ``fontes_recuperadas`` preserva o contexto disponivel para diagnostico e
+    avaliacao. A resposta retornada ja inclui guardrails e disclaimer.
     """
     entrada = aplicar_guardrails_entrada(pergunta)
     if entrada.bloqueado:
@@ -561,9 +641,9 @@ def responder_pergunta_clinica(
             ]
         )
     documentos = buscar_protocolos(consulta_retrieval, retriever)
-    fontes = formatar_fontes(documentos)
+    fontes_recuperadas = formatar_fontes(documentos)
     if paciente:
-        fontes.append(
+        fontes_recuperadas.append(
             {
                 "id": paciente["paciente_id"],
                 "titulo": "Prontuario sintetico do paciente",
@@ -637,12 +717,15 @@ def responder_pergunta_clinica(
             )
             resultado = aplicar_guardrails(resposta_fallback)
 
+    fontes = _fontes_usadas_na_resposta(resultado.resposta, documentos, paciente)
+
     registrar_interacao(
         "resposta_assistente_medico",
         prompt_version=PROMPT_VERSION,
         paciente_id=paciente_id,
         pergunta=pergunta,
         fontes=fontes,
+        fontes_recuperadas=fontes_recuperadas,
         grounding_fallback=grounding_fallback,
         grounding_citation_repair=grounding_citation_repair,
         modo_resposta=modo_resposta,
@@ -654,6 +737,7 @@ def responder_pergunta_clinica(
     retorno = {
         "resposta": resultado.resposta,
         "fontes": fontes,
+        "fontes_recuperadas": fontes_recuperadas,
         "bloqueado": resultado.bloqueado,
         "motivo_bloqueio": resultado.motivo,
         "paciente_id": paciente_id,

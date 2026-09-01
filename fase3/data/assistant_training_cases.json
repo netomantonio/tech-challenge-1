@@ -3,8 +3,8 @@
     "family": "quimioterapia_pendente",
     "contexto_paciente": "Paciente PAC-0001 com ecocardiograma_basal e sorologia_hbv_hcv_hiv pendentes antes do primeiro ciclo.",
     "protocol_ids": ["PROT-006"],
-    "plano_factual": "Ha exames obrigatorios pendentes. Nenhum ciclo deve ser iniciado antes da regularizacao e da validacao da equipe medica. Fonte: [PROT-006].",
-    "expected_answer": "Ha exames obrigatorios pendentes no prontuario. Nao inicie o ciclo antes da regularizacao e da validacao da equipe medica. Fonte: [PROT-006].",
+    "plano_factual": "Ha exames obrigatorios pendentes. Nenhum ciclo deve ser iniciado antes da regularizacao e da validacao da equipe medica. Fontes: [PAC-0001], [PROT-006].",
+    "expected_answer": "Ha exames obrigatorios pendentes no prontuario. Nao inicie o ciclo antes da regularizacao e da validacao da equipe medica. Fontes: [PAC-0001], [PROT-006].",
     "questions": [
       "O primeiro ciclo de quimioterapia pode ser iniciado hoje?",
       "As pendencias permitem liberar a quimioterapia neoadjuvante?",
@@ -27,20 +27,20 @@
       {
         "question": "Quais exames ja foram registrados para esta paciente?",
         "contexto_paciente": "Paciente PAC-0002. Exames realizados: hemograma completo, funcao hepatica renal, ecocardiograma basal, sorologia HBV HCV HIV. Exames pendentes: nenhum.",
-        "plano_factual": "O prontuario registra hemograma completo, funcao hepatica e renal, ecocardiograma basal e sorologias HBV, HCV e HIV como realizados. Nao ha datas nem resultados numericos no contexto. Fonte: [PROT-006].",
-        "expected_answer": "Constam como realizados hemograma completo, funcao hepatica e renal, ecocardiograma basal e sorologias HBV, HCV e HIV. O contexto nao informa datas nem resultados numericos. Confirme os registros com a equipe medica. Fonte: [PROT-006]."
+        "plano_factual": "O prontuario registra hemograma completo, funcao hepatica e renal, ecocardiograma basal e sorologias HBV, HCV e HIV como realizados. Nao ha datas nem resultados numericos no contexto. Fonte: [PAC-0002].",
+        "expected_answer": "Constam como realizados hemograma completo, funcao hepatica e renal, ecocardiograma basal e sorologias HBV, HCV e HIV. O contexto nao informa datas nem resultados numericos. Confirme os registros com a equipe medica. Fonte: [PAC-0002]."
       },
       {
         "question": "O checklist cadastrado desta paciente esta completo?",
         "contexto_paciente": "Paciente PAC-0002. Exames realizados: hemograma completo, funcao hepatica renal, ecocardiograma basal, sorologia HBV HCV HIV. Exames pendentes: nenhum.",
-        "plano_factual": "O checklist registrado esta completo: os exames pre-tratamento constam como realizados e nao ha pendencias. A liberacao final exige conferencia de validade e validacao medica. Fonte: [PROT-006].",
-        "expected_answer": "O checklist registrado esta completo e nao ha exames pendentes. Confirme a validade dos exames e a liberacao final com a equipe medica. Fonte: [PROT-006]."
+        "plano_factual": "O checklist registrado esta completo: os exames pre-tratamento constam como realizados e nao ha pendencias. O estado atual deve ser confirmado com a equipe medica. Fonte: [PAC-0002].",
+        "expected_answer": "O checklist registrado esta completo e nao ha exames pendentes. Confirme se o registro esta atualizado com a equipe medica. Fonte: [PAC-0002]."
       },
       {
         "question": "Quais pendencias de exame ainda constam para esta paciente?",
         "contexto_paciente": "Paciente PAC-0001. Exames realizados: hemograma completo, funcao hepatica renal. Exames pendentes: ecocardiograma basal, sorologia HBV HCV HIV.",
-        "plano_factual": "O prontuario registra ecocardiograma basal e sorologias HBV, HCV e HIV como pendentes. Regularizar antes do primeiro ciclo e validar com a equipe medica. Fonte: [PROT-006].",
-        "expected_answer": "Estao pendentes o ecocardiograma basal e as sorologias HBV, HCV e HIV. Regularize-os antes do primeiro ciclo e valide com a equipe medica. Fonte: [PROT-006]."
+        "plano_factual": "O prontuario registra ecocardiograma basal e sorologias HBV, HCV e HIV como pendentes. O estado atual deve ser confirmado com a equipe medica. Fonte: [PAC-0001].",
+        "expected_answer": "Estao pendentes o ecocardiograma basal e as sorologias HBV, HCV e HIV. Confirme se o registro esta atualizado com a equipe medica. Fonte: [PAC-0001]."
       },
       {
         "question": "Que exames o protocolo exige antes da quimioterapia?"
@@ -48,8 +48,8 @@
       {
         "question": "Como diferenciar os exames do prontuario das exigencias gerais do protocolo?",
         "contexto_paciente": "Paciente PAC-0001. Exames realizados: hemograma completo, funcao hepatica renal. Exames pendentes: ecocardiograma basal, sorologia HBV HCV HIV.",
-        "plano_factual": "No prontuario, hemograma completo e funcao hepatica e renal constam como realizados; ecocardiograma basal e sorologias HBV, HCV e HIV constam como pendentes. O protocolo define o checklist geral. Fonte: [PROT-006].",
-        "expected_answer": "O prontuario registra hemograma completo e funcao hepatica e renal como realizados, com ecocardiograma basal e sorologias HBV, HCV e HIV pendentes. O protocolo define o checklist geral; valide a situacao atual com a equipe medica. Fonte: [PROT-006]."
+        "plano_factual": "No prontuario, hemograma completo e funcao hepatica e renal constam como realizados; ecocardiograma basal e sorologias HBV, HCV e HIV constam como pendentes. O protocolo define o checklist geral. Fontes: [PAC-0001], [PROT-006].",
+        "expected_answer": "O prontuario registra hemograma completo e funcao hepatica e renal como realizados, com ecocardiograma basal e sorologias HBV, HCV e HIV pendentes. O protocolo define o checklist geral; valide a situacao atual com a equipe medica. Fontes: [PAC-0001], [PROT-006]."
       }
     ]
   },
@@ -57,8 +57,8 @@
     "family": "birads_biopsia",
     "contexto_paciente": "Paciente PAC-0003 com achado BI-RADS 4 e biopsia_confirmatoria pendente.",
     "protocol_ids": ["PROT-001"],
-    "plano_factual": "BI-RADS 4 exige confirmacao histopatologica por biopsia e revisao da equipe assistente antes de definir tratamento. Fonte: [PROT-001].",
-    "expected_answer": "O achado BI-RADS 4 requer confirmacao histopatologica por biopsia. Aguarde a revisao da equipe assistente antes de definir tratamento. Fonte: [PROT-001].",
+    "plano_factual": "BI-RADS 4 exige confirmacao histopatologica por biopsia e revisao da equipe assistente antes de definir tratamento. Fontes: [PAC-0003], [PROT-001].",
+    "expected_answer": "O achado BI-RADS 4 requer confirmacao histopatologica por biopsia. Aguarde a revisao da equipe assistente antes de definir tratamento. Fontes: [PAC-0003], [PROT-001].",
     "questions": [
       "Como encaminhar um BI-RADS 4 com biopsia pendente?",
       "Qual o proximo passo para o achado mamario ainda sem histologia?",
@@ -72,8 +72,8 @@
     "family": "sepse",
     "contexto_paciente": "Paciente PAC-0005 com febre de 38.6C registrada ha 2 horas e taquicardia de 110 bpm.",
     "protocol_ids": ["PROT-011"],
-    "plano_factual": "Os achados atendem a criterios de SIRS associados a suspeita de infeccao. Acionar imediatamente o fluxo de sepse e comunicar a equipe medica, sem aguardar validacao assincrona. Fonte: [PROT-011].",
-    "expected_answer": "Os achados exigem acionamento imediato do fluxo de sepse e comunicacao a equipe medica. Nao aguarde validacao assincrona. Fonte: [PROT-011].",
+    "plano_factual": "Os achados atendem a criterios de SIRS associados a suspeita de infeccao. Acionar imediatamente o fluxo de sepse e comunicar a equipe medica, sem aguardar validacao assincrona. Fontes: [PAC-0005], [PROT-011].",
+    "expected_answer": "Os achados exigem acionamento imediato do fluxo de sepse e comunicacao a equipe medica. Nao aguarde validacao assincrona. Fontes: [PAC-0005], [PROT-011].",
     "questions": [
       "Febre e taquicardia permitem aguardar a proxima avaliacao?",
       "Qual fluxo deve ser acionado diante desses alertas?",
@@ -87,8 +87,8 @@
     "family": "dor_pos_operatoria",
     "contexto_paciente": "Paciente PAC-0006 no pos-operatorio com dor persistente registrada em 7/10 apos analgesico prescrito.",
     "protocol_ids": ["PROT-004"],
-    "plano_factual": "Dor pos-operatoria persistente em 7/10 exige reavaliacao clinica e comunicacao a equipe cirurgica. Nao alterar medicamento ou dose automaticamente. Fonte: [PROT-004].",
-    "expected_answer": "A dor persistente em 7/10 exige reavaliacao clinica e comunicacao a equipe cirurgica. Nao altere medicamento ou dose automaticamente. Fonte: [PROT-004].",
+    "plano_factual": "Dor pos-operatoria persistente em 7/10 exige reavaliacao clinica e comunicacao a equipe cirurgica. Nao alterar medicamento ou dose automaticamente. Fontes: [PAC-0006], [PROT-004].",
+    "expected_answer": "A dor persistente em 7/10 exige reavaliacao clinica e comunicacao a equipe cirurgica. Nao altere medicamento ou dose automaticamente. Fontes: [PAC-0006], [PROT-004].",
     "questions": [
       "Como encaminhar a dor que permanece em 7/10 no pos-operatorio?",
       "A analgesia pode ser ajustada automaticamente diante dessa dor?",

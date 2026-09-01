@@ -390,12 +390,15 @@ class AssistantChainTests(unittest.TestCase):
         self.assertIn("exames_realizados_omitidos", resultado["motivos_grounding"])
         self.assertIn("ecocardiograma basal", resultado["resposta"])
         self.assertIn("nao informa datas", resultado["resposta"])
+        self.assertIn("[PAC-0002]", resultado["resposta"])
+        self.assertNotIn("[PROT-006]", resultado["resposta"])
+        self.assertEqual([fonte["id"] for fonte in resultado["fontes"]], ["PAC-0002"])
         self.assertIn("Exames realizados:", llm.prompts_recebidos[0])
 
     def test_status_do_checklist_reflete_pendencias_do_prontuario(self) -> None:
         paciente_sem_pendencias = ehr_tools.get_paciente("PAC-0002")
         paciente_com_pendencias = ehr_tools.get_paciente("PAC-0001")
-        documentos = buscar_protocolos("checklist exames quimioterapia", construir_retriever(k=3))
+        documentos = []
 
         completo = _resposta_fallback_segura(
             "O checklist pre-tratamento esta completo?",
@@ -412,8 +415,12 @@ class AssistantChainTests(unittest.TestCase):
 
         self.assertIn("esta completo", completo)
         self.assertIn("nao ha exames pendentes", completo)
+        self.assertIn("[PAC-0002]", completo)
+        self.assertNotIn("[PROT-006]", completo)
         self.assertIn("esta incompleto", incompleto)
         self.assertIn("ecocardiograma basal", incompleto)
+        self.assertIn("[PAC-0001]", incompleto)
+        self.assertNotIn("[PROT-006]", incompleto)
 
     def test_ausencia_de_exames_realizados_recebe_resposta_objetiva(self) -> None:
         paciente = {**ehr_tools.get_paciente("PAC-0002"), "exames_realizados": []}
@@ -428,24 +435,50 @@ class AssistantChainTests(unittest.TestCase):
 
         self.assertIn("Nao ha exames realizados registrados", resposta)
         self.assertIn("[PAC-0002]", resposta)
+        self.assertNotIn("[PROT-006]", resposta)
         self.assertNotIn("nao informa datas", resposta)
 
     def test_ausencia_de_alertas_ativos_nao_retorna_protocolo_generico(self) -> None:
         llm = get_llm(
             "fake",
-            respostas=["Siga o protocolo institucional. Fonte: [PROT-006]."],
+            respostas=[
+                "Nao foram identificados alertas ativos. O paciente PAC-0002 esta "
+                "apto a iniciar tratamento conforme decisao da equipe. Fonte: [PROT-006]."
+            ],
         )
 
         resultado = responder_pergunta_clinica(
-            "Ha algum alerta ativo para esta paciente?",
+            "Algum alerta foi gerado?",
             paciente_id="PAC-0002",
             llm=llm,
         )
 
         self.assertTrue(resultado["grounding_fallback"])
-        self.assertIn("ausencia_de_alertas_ignorada", resultado["motivos_grounding"])
+        self.assertIn("fonte_prontuario_ausente", resultado["motivos_grounding"])
         self.assertIn("Nao ha alertas ativos registrados", resultado["resposta"])
+        self.assertIn("[PAC-0002]", resultado["resposta"])
+        self.assertNotIn("[PROT-006]", resultado["resposta"])
         self.assertTrue(any(fonte["id"] == "PAC-0002" for fonte in resultado["fontes"]))
+        self.assertFalse(any(fonte["id"] == "PROT-006" for fonte in resultado["fontes"]))
+
+    def test_alerta_ativo_e_obtido_do_prontuario_do_paciente(self) -> None:
+        llm = get_llm(
+            "fake",
+            respostas=["Consulte o checklist geral. Fonte: [PROT-006]."],
+        )
+
+        resultado = responder_pergunta_clinica(
+            "Quais alertas foram gerados?",
+            paciente_id="PAC-0005",
+            llm=llm,
+        )
+
+        self.assertTrue(resultado["grounding_fallback"])
+        self.assertIn("Febre de 38.6C", resultado["resposta"])
+        self.assertIn("taquicardia (110 bpm)", resultado["resposta"])
+        self.assertIn("[PAC-0005]", resultado["resposta"])
+        self.assertNotIn("[PROT-006]", resultado["resposta"])
+        self.assertEqual([fonte["id"] for fonte in resultado["fontes"]], ["PAC-0005"])
 
     def test_plano_de_dor_preserva_intensidade_do_ehr(self) -> None:
         paciente = ehr_tools.get_paciente("PAC-0006")
