@@ -26,6 +26,38 @@ O setup cria `.venv-fase3`, instala as dependencias e prepara o preset
 `http://127.0.0.1:8010`. O processo de inferencia usa `HF_HUB_OFFLINE=1`, por
 isso uma consulta nunca inicia um download inesperado.
 
+### Atualizacao e reinicio no Linux
+
+Servidores Linux podem manter sua configuracao em um arquivo local e executar
+todo o ciclo de atualizacao com um comando:
+
+```bash
+cp fase3/service.env.example fase3/service.env
+# Edite fase3/service.env uma unica vez.
+bash fase3/update_restart.sh
+```
+
+O script valida se o repositorio esta limpo, busca a branch configurada, encerra
+somente o PID registrado em `.logs/fase3-backend.pid`, executa
+`git pull --ff-only`, inicia o backend com `nohup` e aguarda
+`/api/capabilities`. O terminal fica livre depois da inicializacao; logs e PID
+ficam em `.logs/`. Se os arquivos de requisitos mudarem entre as revisoes, as
+dependencias sao atualizadas automaticamente com o mesmo Python do servico.
+
+Para o backend Lightning usado pelo grupo, os principais valores sao:
+
+```dotenv
+FASE3_GIT_BRANCH=main
+FASE3_HOST=0.0.0.0
+FASE3_PORT=8000
+FASE3_ALLOWED_ORIGINS=https://assistente-protocolos-fase3.pages.dev
+FASE3_ALLOW_REMOTE_TRAINING=1
+FASE3_INSTANCE_NAME="Backend Lightning"
+```
+
+Se o Studio nao possuir `.venv-fase3`, o script detecta o Python ativo. Tambem
+e possivel fixa-lo em `FASE3_PYTHON` dentro de `service.env`.
+
 Para instalar apenas o ambiente e escolher o modelo depois pela interface:
 
 ```powershell

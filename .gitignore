@@ -140,6 +140,7 @@ fase3/data/finetuning_val.jsonl
 !.env.example
 .env.local
 .env.*.local
+fase3/service.env
 .dev.vars
 .dev.vars.*
 !.dev.vars.example
