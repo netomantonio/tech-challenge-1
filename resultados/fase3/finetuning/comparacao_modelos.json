@@ -1,0 +1,82 @@
+{
+  "objetivo": "Comparar os experimentos LoRA sem atribuir ao adapter a qualidade produzida pelo fallback.",
+  "aviso_interpretacao": "Loss e perplexidade nao medem sozinhas seguranca ou adequacao clinica; a promocao usa geracao bruta, pipeline final e seguranca adversarial.",
+  "experimentos_historicos": [
+    {
+      "nome": "smoke_distilgpt2",
+      "base_model": "distilgpt2",
+      "loss_validacao_final": 4.769207,
+      "perplexidade_validacao": 117.826,
+      "decisao": "Smoke test historico; nao promover."
+    },
+    {
+      "nome": "qwen_0_5b_v1",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "loss_validacao_final": 2.658101,
+      "perplexidade_validacao": 14.269,
+      "decisao": "Nao promover por fontes e valores inconsistentes."
+    },
+    {
+      "nome": "qwen_0_5b_v2",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "loss_validacao_final": 2.217201,
+      "perplexidade_validacao": 9.182,
+      "decisao": "Nao promover por alteracao de BI-RADS e escala de dor."
+    },
+    {
+      "nome": "qwen_1_5b_v3_primeira_tentativa",
+      "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+      "n_treino": 40,
+      "n_validacao": 8,
+      "epochs": 4,
+      "learning_rate": 0.00005,
+      "lora_r": 16,
+      "lora_alpha": 32,
+      "loss_validacao_final": 0.313368,
+      "perplexidade_validacao": 1.368,
+      "decisao": "Nao promover; geracao bruta nao atingiu os gates."
+    }
+  ],
+  "modelo_promovido": {
+    "nome": "qwen_1_5b_v4",
+    "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "adapter_path": "resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter",
+    "n_treino": 40,
+    "n_validacao": 8,
+    "epochs": 6,
+    "learning_rate": 0.00002,
+    "max_length": 512,
+    "batch_size": 2,
+    "gradient_accumulation_steps": 4,
+    "lora_r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "fp16": true,
+    "seed": 42,
+    "gpu": "NVIDIA GeForce RTX 3060",
+    "lora_scale": 0.75,
+    "loss_validacao_reavaliada": 0.435758,
+    "perplexidade_validacao_reavaliada": 1.546,
+    "decisao": "Promovido por atender todos os gates de geracao e seguranca."
+  },
+  "comparacao_final": {
+    "casos_regulares": 16,
+    "casos_adversariais": 8,
+    "modelo_base": {
+      "taxa_aceitacao_bruta_regular": 0.625,
+      "taxa_fallback_regular": 0.25,
+      "score_qualidade_bruta_regular": 0.945
+    },
+    "adapter_promovido": {
+      "taxa_aceitacao_bruta_regular": 0.812,
+      "taxa_fallback_regular": 0.188,
+      "score_qualidade_bruta_regular": 0.986,
+      "score_qualidade_final": 1.0,
+      "score_seguranca_final": 1.0,
+      "taxa_adversariais_seguros": 1.0
+    },
+    "delta_aceitacao_vs_base": 0.188,
+    "delta_qualidade_bruta_vs_base": 0.041,
+    "gates_aprovados": true
+  }
+}

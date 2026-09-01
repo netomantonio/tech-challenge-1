@@ -1,0 +1,208 @@
+{
+  "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "modelo_instrucional": true,
+  "loss_apenas_na_resposta": true,
+  "lora_target_modules": [
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj",
+    "gate_proj",
+    "up_proj",
+    "down_proj"
+  ],
+  "lora_r": 8,
+  "lora_alpha": 16,
+  "lora_dropout": 0.05,
+  "epochs": 4,
+  "batch_size": 2,
+  "gradient_accumulation_steps": 2,
+  "learning_rate": 5e-05,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+  "max_length": 384,
+  "seed": 42,
+  "inclui_dados_publicos": false,
+  "repeticao_exemplos_clinicos": 3,
+  "n_exemplos_treino": 30,
+  "n_exemplos_validacao": 5,
+  "tokens_supervisionados_resposta": 2270,
+  "fracao_tokens_supervisionados": 0.377,
+  "dataset_sha256": {
+    "treino": "0a166896d613efe529ec6b86e5d0ba2b47ee21bf9484e361805a43503aff96fa",
+    "validacao": "a8318e0c9f21467ceca265e23d1c1c0370f7d20fce0c1642e366e6bba7779f28"
+  },
+  "device": "cpu",
+  "torch_version": "2.6.0+cpu",
+  "duracao_segundos": 377.8,
+  "loss_final_treino": 2.5860936045646667,
+  "loss_final_validacao": 2.6581008434295654,
+  "perplexidade_validacao": 14.269,
+  "perda_media_por_epoca": [
+    {
+      "epoch": 1,
+      "loss_medio": 2.9716625
+    },
+    {
+      "epoch": 2,
+      "loss_medio": 2.5778
+    },
+    {
+      "epoch": 3,
+      "loss_medio": 2.3874625000000003
+    },
+    {
+      "epoch": 4,
+      "loss_medio": 2.4074500000000003
+    }
+  ],
+  "historico_perda_treino": [
+    {
+      "step": 1,
+      "loss": 3.228
+    },
+    {
+      "step": 2,
+      "loss": 3.087
+    },
+    {
+      "step": 3,
+      "loss": 2.407
+    },
+    {
+      "step": 4,
+      "loss": 2.698
+    },
+    {
+      "step": 5,
+      "loss": 3.0871
+    },
+    {
+      "step": 6,
+      "loss": 3.1729
+    },
+    {
+      "step": 7,
+      "loss": 2.8856
+    },
+    {
+      "step": 8,
+      "loss": 3.2077
+    },
+    {
+      "step": 9,
+      "loss": 2.7196
+    },
+    {
+      "step": 10,
+      "loss": 2.3894
+    },
+    {
+      "step": 11,
+      "loss": 2.7552
+    },
+    {
+      "step": 12,
+      "loss": 2.7834
+    },
+    {
+      "step": 13,
+      "loss": 3.0153
+    },
+    {
+      "step": 14,
+      "loss": 2.1686
+    },
+    {
+      "step": 15,
+      "loss": 2.8532
+    },
+    {
+      "step": 16,
+      "loss": 1.9377
+    },
+    {
+      "step": 17,
+      "loss": 2.6657
+    },
+    {
+      "step": 18,
+      "loss": 2.9375
+    },
+    {
+      "step": 19,
+      "loss": 2.688
+    },
+    {
+      "step": 20,
+      "loss": 1.9533
+    },
+    {
+      "step": 21,
+      "loss": 2.2881
+    },
+    {
+      "step": 22,
+      "loss": 2.1974
+    },
+    {
+      "step": 23,
+      "loss": 2.2728
+    },
+    {
+      "step": 24,
+      "loss": 2.0969
+    },
+    {
+      "step": 25,
+      "loss": 2.3982
+    },
+    {
+      "step": 26,
+      "loss": 2.5583
+    },
+    {
+      "step": 27,
+      "loss": 2.0012
+    },
+    {
+      "step": 28,
+      "loss": 1.9626
+    },
+    {
+      "step": 29,
+      "loss": 2.6528
+    },
+    {
+      "step": 30,
+      "loss": 2.4406
+    },
+    {
+      "step": 31,
+      "loss": 2.2539
+    },
+    {
+      "step": 32,
+      "loss": 2.992
+    }
+  ],
+  "historico_perda_validacao": [
+    {
+      "epoch": 1.0,
+      "eval_loss": 2.8243050575256348
+    },
+    {
+      "epoch": 2.0,
+      "eval_loss": 2.719701051712036
+    },
+    {
+      "epoch": 3.0,
+      "eval_loss": 2.672656536102295
+    },
+    {
+      "epoch": 4.0,
+      "eval_loss": 2.6581008434295654
+    }
+  ],
+  "adapter_path": "resultados\\fase3\\finetuning\\qwen2.5-0.5b\\lora_adapter"
+}

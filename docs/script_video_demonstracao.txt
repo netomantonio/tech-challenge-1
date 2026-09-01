@@ -1,0 +1,275 @@
+SCRIPT - VIDEO DE DEMONSTRACAO
+Tech Challenge Fase 2 - Projeto 1: Otimizacao de Modelos de Diagnostico
+Duracao estimada: ~13 minutos
+
+================================================================================
+CENA 1 - ABERTURA (1 min)
+[Tela: slide com titulo do projeto ou README aberto no GitHub]
+================================================================================
+
+"Ola! Neste video vamos apresentar a entrega da Fase 2 do Tech Challenge da
+pos-graduacao AI for Devs da FIAP.
+
+O projeto e uma continuacao da Fase 1, onde desenvolvemos modelos de machine
+learning para diagnostico de cancer de mama usando o dataset Wisconsin. Naquela
+fase, treinamos tres classificadores - Regressao Logistica, KNN e Arvore de
+Decisao - e o melhor resultado foi da Regressao Logistica, com recall de 97,6%
+na classe maligna, ou seja, apenas um falso negativo no conjunto de teste.
+
+Nesta Fase 2, temos dois objetivos principais: primeiro, usar algoritmos
+geneticos para otimizar os hiperparametros desses modelos. Segundo, integrar
+uma LLM para gerar explicacoes em linguagem natural dos diagnosticos para
+profissionais de saude.
+
+Vamos mostrar tudo isso funcionando."
+
+
+================================================================================
+CENA 2 - ESTRUTURA DO PROJETO (1 min)
+[Tela: explorador de arquivos ou terminal com tree da pasta raiz]
+================================================================================
+
+"A solucao esta organizada assim:
+
+Em src/ temos os modulos principais: o algoritmo genetico em
+genetic_optimization.py, a integracao com LLM em llm_interpretation.py,
+e a API em api.py.
+
+Em notebooks/ temos tres notebooks executaveis - o notebook 01 e da Fase 1,
+e os notebooks 02 e 03 documentam, respectivamente, a otimizacao genetica
+e a integracao com LLM.
+
+Em resultados/fase2/ ficam todos os artefatos gerados: logs de treinamento,
+CSVs com os experimentos, graficos e o modelo serializado.
+
+E em deploy/k8s/ ficam os manifestos Kubernetes para escalabilidade
+automatica."
+
+
+================================================================================
+CENA 3 - ALGORITMO GENETICO: EXPLICACAO (2 min 30 s)
+[Tela: src/genetic_optimization.py aberto, mostrando GENE_SPACES e GAConfig]
+================================================================================
+
+"Vamos comecar pelo algoritmo genetico. A ideia central e representar cada
+configuracao de hiperparametros como um cromossomo - uma tupla de indices que
+aponta para valores permitidos em um espaco discreto.
+
+Por exemplo, para a Regressao Logistica, os genes sao: o parametro C, a
+penalidade - L1 ou L2 - e o class_weight. Para o KNN, sao o numero de
+vizinhos, o tipo de peso e a metrica de distancia. Para a Arvore de Decisao,
+sao cinco genes, incluindo profundidade maxima e criterio de divisao.
+
+Essa representacao discreta tem uma vantagem importante: ela impede que o
+algoritmo gere combinacoes invalidas de hiperparametros."
+
+[Rolar o arquivo ate GeneticOptimizer, mostrar tournament_selection,
+crossover, mutate]
+
+"Os operadores implementados sao: selecao por torneio com tres individuos,
+cruzamento uniforme gene a gene, e mutacao aleatoria independente por gene.
+Tambem implementamos elitismo - o melhor individuo de cada geracao e
+automaticamente preservado.
+
+A funcao fitness prioriza o risco clinico: ela da peso 65% para o recall
+da classe maligna - que e o que nos preocupa mais, pois falso negativo pode
+atrasar um diagnostico -, 25% para o F1 maligno e 10% para a acuracia geral.
+
+E para evitar vazamento de dados, a fitness e calculada apenas na particao
+de treino, com validacao cruzada estratificada de 5 folds. O conjunto de
+teste nunca orienta a busca genetica - ele so e usado depois, na comparacao
+final."
+
+
+================================================================================
+CENA 4 - ALGORITMO GENETICO: EXPERIMENTOS E RESULTADOS (2 min)
+[Tela: notebook 02_otimizacao_genetica_cancer_mama.ipynb aberto,
+mostrando a tabela de experimentos e o grafico de evolucao]
+================================================================================
+
+"Realizamos tres experimentos com configuracoes distintas, aplicados aos
+tres modelos - sao nove buscas no total.
+
+O Experimento 1 usa populacao pequena e mutacao baixa: 8 individuos,
+6 geracoes, mutacao de 8%. O Experimento 2 e balanceado: 12 individuos,
+8 geracoes, mutacao de 15%. E o Experimento 3 e exploratorio: 16 individuos,
+10 geracoes, mutacao de 30%.
+
+Aqui estao os resultados da comparacao final com os modelos originais
+da Fase 1."
+
+[Mostrar a tabela comparacao_baseline_otimizados.csv ou a tabela do notebook]
+
+"Um resultado interessante: o algoritmo genetico encontrou configuracoes com
+fitness maior na validacao cruzada, mas isso nao se converteu em melhora no
+teste reservado. O melhor resultado continua sendo a Regressao Logistica
+original, com recall de 97,6% e apenas um falso negativo.
+
+Isso e perfeitamente valido - o AG funcionou como metodo de busca, e a
+comparacao honesta mostrou que o baseline ja era muito forte. Por isso,
+a API serve o modelo original como artefato de producao. O modelo otimizado
+com os parametros encontrados pelo AG fica registrado nos artefatos para
+referencia."
+
+[Mostrar evolucao_fitness.png e comparacao_recall_maligno.png]
+
+"Este grafico mostra a evolucao do fitness ao longo das geracoes em cada
+experimento. E este segundo mostra a comparacao do recall maligno entre
+os modelos originais e otimizados."
+
+
+================================================================================
+CENA 5 - API EM EXECUCAO: /predict (1 min 30 s)
+[Tela: terminal com a API rodando + Swagger UI no browser]
+================================================================================
+
+"Agora vamos ver o sistema em execucao. A API esta rodando localmente com
+uvicorn. Ela expoe cinco endpoints: predict, interpret, health, health/ready
+e metrics.
+
+Vamos fazer uma chamada de predicao com os dados da primeira linha do
+dataset."
+
+[Mostrar curl ou Swagger UI executando POST /predict]
+
+    curl -X POST http://localhost:8000/predict \
+      -H "Content-Type: application/json" \
+      --data @requisicao.json
+
+"A resposta traz a classificacao - Maligno ou Benigno - e as probabilidades
+associadas. No nosso caso, o modelo Regressao Logistica classificou esse
+caso com alta probabilidade de malignidade."
+
+[Mostrar a resposta JSON no terminal]
+
+
+================================================================================
+CENA 6 - API EM EXECUCAO: /interpret COM LLM (3 min)
+[Tela: terminal ou Swagger UI, mostrando POST /interpret]
+================================================================================
+
+"Agora a parte mais interessante da Fase 2: a integracao com LLM para
+interpretacao dos resultados.
+
+O endpoint /interpret faz mais do que apenas classificar. Ele calcula as
+cinco features que mais contribuiram para a decisao do modelo - usando
+contribuicoes locais da Regressao Logistica -, monta um prompt estruturado
+com esses dados e chama a API do Groq, que usa o llm openai/gpt-oss-120b."
+
+[Mostrar src/llm_interpretation.py, rolar ate SYSTEM_INSTRUCTIONS]
+
+"O prompt que enviamos a LLM tem regras rigidas de seguranca clinica. Ela
+deve produzir exatamente quatro secoes: Resumo do Resultado, Evidencias do
+Modelo, Insights Acionaveis para Medicos, e Limitacoes e Seguranca.
+
+As regras impedem que a LLM declare um diagnostico confirmado, prescreva
+tratamento, ou use linguagem alarmista. Tambem exigem que ela mencione que
+o modelo e academico e nao validado externamente. Sao regras de prompt
+engineering versionadas - esta e a versao tres, que acrescentou regras de
+sensibilidade de genero e privacidade da paciente."
+
+[Executar POST /interpret e mostrar a resposta]
+
+"Vejam a resposta. A LLM gerou uma explicacao que cita a probabilidade de
+malignidade, descreve as features que mais pesaram - como raio e area piores -
+e sugere proximos passos como agendamento de exames complementares e
+encaminhamento para mastologista. Em nenhum momento ela afirma um diagnostico
+ou prescreve tratamento."
+
+[Mostrar o campo quality_checks da resposta]
+
+"A resposta tambem inclui os quality checks automaticos: dez criterios
+verificados, incluindo se mencionou o resultado esperado, se incluiu as
+secoes obrigatorias, se declarou limitacoes, se orientou revisao profissional,
+e se nao prescreveu tratamento. Score final: 1.0 - todos os criterios
+aprovados."
+
+
+================================================================================
+CENA 7 - MONITORAMENTO E OBSERVABILIDADE (1 min)
+[Tela: browser mostrando GET /metrics]
+================================================================================
+
+"O sistema tambem oferece observabilidade completa. O endpoint /metrics
+expoe sete metricas no formato Prometheus: volume de requisicoes, distribuicao
+das classes previstas, latencia de inferencia, disponibilidade do modelo,
+sucessos e falhas de interpretacao, latencia da chamada a LLM, e pontuacao
+media da rubrica de qualidade.
+
+Os logs de cada predicao sao estruturados em JSON e nunca registram os dados
+do paciente - apenas a classe prevista, a probabilidade maligna e o
+identificador do modelo."
+
+[Mostrar GET /health/ready retornando status OK]
+
+
+================================================================================
+CENA 8 - ARQUITETURA DE ESCALABILIDADE (1 min 30 s)
+[Tela: docs/arquitetura_fase2.md com o diagrama Mermaid de deploy,
+ou o arquivo deploy/k8s/hpa.yaml]
+================================================================================
+
+"Para atender ao requisito de escalabilidade automatica, preparamos os
+manifestos Kubernetes.
+
+O Deployment mantem no minimo duas replicas da API com os recursos de CPU
+e memoria configurados. O HorizontalPodAutoscaler monitora o uso de CPU:
+quando ultrapassa 60%, ele escala automaticamente ate 10 replicas. A reducao
+e estabilizada por 300 segundos para evitar oscilacao de replicas em picos
+curtos.
+
+Os health checks garantem que o Kubernetes nunca roteia trafego para um pod
+que ainda nao carregou o modelo. E a Cloudflare Workers fornece uma camada
+alternativa de inferencia na borda, usando um manifesto JSON portavel do
+modelo - sem depender de scikit-learn ou joblib."
+
+
+================================================================================
+CENA 9 - TESTES AUTOMATIZADOS (30 s)
+[Tela: terminal rodando os testes]
+================================================================================
+
+"O projeto inclui testes automatizados em tests/test_fase2.py. Eles cobrem
+o algoritmo genetico, a API e a integracao com LLM usando um cliente
+simulado - sem precisar de chave de API real. Vamos rodar rapidamente."
+
+[Executar: python -m pytest tests/ -v e mostrar os testes passando]
+
+
+================================================================================
+CENA 10 - ENCERRAMENTO (30 s)
+[Tela: README ou slide de conclusao]
+================================================================================
+
+"Resumindo o que entregamos nesta Fase 2: algoritmo genetico implementado
+do zero com tres experimentos, comparacao honesta com os modelos da Fase 1,
+integracao com LLM usando prompt engineering clinico versionado, avaliacao
+automatica de qualidade das interpretacoes, API com metricas Prometheus,
+health checks, e arquitetura escalavel com Kubernetes e Cloudflare.
+
+O codigo, notebooks, relatorio tecnico e diagramas de arquitetura estao
+disponiveis no repositorio. Obrigado!"
+
+
+================================================================================
+CHECKLIST DE GRAVACAO
+================================================================================
+
+Antes de gravar, prepare:
+
+[ ] API rodando localmente (uvicorn src.api:app --port 8000)
+    com GROQ_API_KEY configurada no .env
+
+[ ] Arquivo requisicao.json gerado com a primeira linha do dataset:
+    python -c "import json,pandas as pd; \
+      d=pd.read_csv('data/cancer_mama.csv').drop(columns=['id','diagnosis']); \
+      print(json.dumps({'features': d.iloc[0].to_dict()}))" > requisicao.json
+
+[ ] Notebook 02 com outputs ja executados (tabelas e graficos visiveis)
+
+[ ] docs/arquitetura_fase2.md aberto num preview que renderize Mermaid
+    (GitHub, VS Code com extensao, ou Obsidian)
+
+[ ] Terminal limpo, fonte grande (minimo 16pt), resolucao 1080p
+
+[ ] Cenas 5 e 6: execute as chamadas ao vivo, nao cole resposta pronta

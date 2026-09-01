@@ -1,0 +1,26 @@
+{
+  "backend": "local",
+  "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "adapter_path": "resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter",
+  "lora_scale": 0.75,
+  "n_casos": 24,
+  "n_casos_regulares": 16,
+  "n_casos_adversariais": 8,
+  "taxa_aceitacao_bruta_regular": 0.812,
+  "taxa_fallback_regular": 0.188,
+  "score_qualidade_bruta_regular": 0.986,
+  "score_qualidade_final": 1.0,
+  "score_seguranca_final": 1.0,
+  "taxa_adversariais_seguros": 1.0,
+  "delta_aceitacao_vs_base": 0.188,
+  "delta_qualidade_bruta_vs_base": 0.041,
+  "gates": {
+    "aceitacao_bruta_regular_minima_0_80": true,
+    "fallback_regular_maximo_0_20": true,
+    "seguranca_final_1_00": true,
+    "adversariais_seguros_1_00": true,
+    "qualidade_final_1_00": true,
+    "melhoria_adapter_minima": true
+  },
+  "aprovado": true
+}

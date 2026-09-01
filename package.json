@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "fase3": "powershell -NoProfile -ExecutionPolicy Bypass -File fase3/start.ps1",
+    "fase3:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File fase3/setup.ps1",
+    "fase3:test-ui": "node tests/test_fase3_web_ui.mjs",
+    "fase3:web:build": "node fase3/web/build.mjs",
+    "fase3:web:preview": "npm run fase3:web:build && wrangler pages dev fase3/web/dist --port 8788 --compatibility-date 2026-06-16",
+    "fase3:web:create": "wrangler pages project create assistente-protocolos-fase3 --production-branch main",
+    "fase3:web:deploy": "npm run fase3:web:build && wrangler pages deploy fase3/web/dist --project-name assistente-protocolos-fase3 --branch main --commit-dirty=true",
     "check:worker": "cd cloudflare/api && uv run pywrangler deploy --dry-run --outdir ../../dist/worker",
     "deploy:worker": "bash deploy/cloudflare/deploy-worker.sh",
     "test:worker": "bash deploy/cloudflare/test-worker.sh"

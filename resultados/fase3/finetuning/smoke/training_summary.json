@@ -1,0 +1,153 @@
+{
+  "base_model": "distilgpt2",
+  "lora_target_modules": [
+    "c_attn"
+  ],
+  "lora_r": 8,
+  "lora_alpha": 16,
+  "epochs": 3,
+  "learning_rate": 0.0005,
+  "n_exemplos_treino": 33,
+  "n_exemplos_validacao": 6,
+  "duracao_segundos": 43.76,
+  "loss_final_treino": 4.601435590673376,
+  "perda_media_por_epoca": [
+    {
+      "epoch": 1,
+      "loss_medio": 4.799033333333333
+    },
+    {
+      "epoch": 2,
+      "loss_medio": 4.571122222222224
+    },
+    {
+      "epoch": 3,
+      "loss_medio": 4.434155555555556
+    }
+  ],
+  "historico_perda_treino": [
+    {
+      "step": 1,
+      "loss": 4.4563
+    },
+    {
+      "step": 2,
+      "loss": 5.4003
+    },
+    {
+      "step": 3,
+      "loss": 4.2008
+    },
+    {
+      "step": 4,
+      "loss": 4.7956
+    },
+    {
+      "step": 5,
+      "loss": 4.9589
+    },
+    {
+      "step": 6,
+      "loss": 5.0447
+    },
+    {
+      "step": 7,
+      "loss": 4.0972
+    },
+    {
+      "step": 8,
+      "loss": 4.6189
+    },
+    {
+      "step": 9,
+      "loss": 5.6186
+    },
+    {
+      "step": 10,
+      "loss": 5.4944
+    },
+    {
+      "step": 11,
+      "loss": 4.7949
+    },
+    {
+      "step": 12,
+      "loss": 5.2652
+    },
+    {
+      "step": 13,
+      "loss": 5.2139
+    },
+    {
+      "step": 14,
+      "loss": 3.8257
+    },
+    {
+      "step": 15,
+      "loss": 5.3808
+    },
+    {
+      "step": 16,
+      "loss": 4.0304
+    },
+    {
+      "step": 17,
+      "loss": 4.075
+    },
+    {
+      "step": 18,
+      "loss": 3.0598
+    },
+    {
+      "step": 19,
+      "loss": 4.9636
+    },
+    {
+      "step": 20,
+      "loss": 4.0223
+    },
+    {
+      "step": 21,
+      "loss": 3.7347
+    },
+    {
+      "step": 22,
+      "loss": 5.2384
+    },
+    {
+      "step": 23,
+      "loss": 3.8244
+    },
+    {
+      "step": 24,
+      "loss": 5.7055
+    },
+    {
+      "step": 25,
+      "loss": 3.8944
+    },
+    {
+      "step": 26,
+      "loss": 5.266
+    },
+    {
+      "step": 27,
+      "loss": 3.2581
+    }
+  ],
+  "historico_perda_validacao": [
+    {
+      "epoch": 1.0,
+      "eval_loss": 4.840524196624756
+    },
+    {
+      "epoch": 2.0,
+      "eval_loss": 4.79036283493042
+    },
+    {
+      "epoch": 3.0,
+      "eval_loss": 4.769207000732422
+    }
+  ],
+  "adapter_path": "resultados\\fase3\\finetuning\\smoke\\lora_adapter"
+}

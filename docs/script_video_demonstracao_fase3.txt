@@ -1,0 +1,124 @@
+SCRIPT - VIDEO DE DEMONSTRACAO
+Tech Challenge Fase 3 - Assistente Virtual Medico
+Duracao estimada: 12 a 14 minutos
+
+===============================================================================
+CENA 1 - ABERTURA (1 min)
+===============================================================================
+
+"Nesta Fase 3 apresentamos um assistente virtual medico treinado com dados
+internos ficticios. A solucao usa fine-tuning LoRA, LangChain, LangGraph,
+consulta a prontuario estruturado, RAG, guardrails e auditoria. O projeto e
+academico e nenhuma resposta substitui a decisao de um medico responsavel."
+
+===============================================================================
+CENA 2 - DADOS E CURADORIA (2 min)
+===============================================================================
+
+[Tela: fase3/data/assistant_training_cases.json e build_finetuning_dataset.py]
+
+"O dataset possui 48 casos clinicos revisados, seis para cada uma das oito
+familias: quimioterapia com pendencias, checklist pre-tratamento, BI-RADS e
+biopsia, sepse, dor pos-operatoria, paciente ausente, tentativa de prescricao
+e consultas a protocolos.
+
+O builder aplica anonimizacao, curadoria e split deterministico: 40 casos de
+treino e 8 de validacao, um por familia. MedQuAD e PubMedQA ficam apenas como
+referencia historica e nao entram no adapter promovido. A avaliacao final usa
+outros 24 casos: 16 regulares e 8 adversariais, sem vazamento do treino."
+
+[Terminal]
+python -m fase3.data.build_finetuning_dataset
+
+===============================================================================
+CENA 3 - TREINAMENTO E PROMOCAO (2 min 30 s)
+===============================================================================
+
+[Tela: fase3/prompting.py e fase3/finetuning/train_lora.py]
+
+"Treino e inferencia compartilham exatamente o mesmo prompt. A LLM recebe o
+contexto do paciente, as fontes autorizadas, a pergunta e um plano factual; sua
+funcao e redigir sem alterar fatos, numeros ou IDs.
+
+O modelo promovido e Qwen2.5-1.5B-Instruct com LoRA r 16, alpha 32, dropout
+0,05, seis epocas, learning rate 2e-5, sequencia 512, batch 2, acumulacao 4,
+FP16 e seed 42. O treino foi executado em uma RTX 3060 de 12 GB.
+
+As escalas 0,25, 0,5, 0,75 e 1,0 foram comparadas. A escala 0,75 foi promovida
+pelos gates de geracao e seguranca. Os experimentos anteriores continuam
+versionados para mostrar por que loss isolada nao basta."
+
+[Terminal]
+python -m fase3.calibrate_adapter --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter --scales 0.25,0.5,0.75,1.0 --enforce-gates
+
+===============================================================================
+CENA 4 - LANGCHAIN, RAG E EXPLAINABILITY (2 min)
+===============================================================================
+
+[Tela: assistant_chain.py, retrieval.py e ehr_tools.py]
+
+"O assistente consulta primeiro o EHR sintetico. A busca BM25 combina pergunta,
+diagnostico, exames pendentes, observacoes e alertas. Com essas fontes ele gera
+um plano factual e executa a chain prompt, LLM e parser.
+
+Depois, o grounding verifica citacoes, numeros e adequacao clinica. O retorno
+registra um de quatro modos: llm, citacao reparada, fallback ou bloqueada. Toda
+resposta final mostra fontes validas e exige validacao medica."
+
+[Terminal]
+python -m fase3.cli_demo --paciente-id PAC-0001 --pergunta "Posso iniciar a quimioterapia hoje?" --backend local
+
+===============================================================================
+CENA 5 - GUARDRAILS (1 min 30 s)
+===============================================================================
+
+[Tela: guardrails.py e casos ADV-001/ADV-005]
+
+"Pedidos de dose ou prescricao direta sao recusados ou bloqueados. CPF,
+telefone, e-mail e identificacao pessoal tambem sao interceptados. Os oito
+casos adversariais precisam ser seguros; uma unica falha reprova a promocao."
+
+===============================================================================
+CENA 6 - LANGGRAPH (2 min)
+===============================================================================
+
+[Tela: clinical_flow_graph.py e docs/arquitetura_fase3.md]
+
+"O LangGraph busca o paciente e encerra sem chamar a LLM quando o identificador
+nao existe. Para pacientes encontrados, o no de exames preenche a lista de
+pendencias, o booleano tem_exames_pendentes e a rota escolhida.
+
+Sem pendencias o fluxo segue direto para a sugestao. Com pendencias, passa por
+um no de alerta antes da sugestao contextualizada. O evento final registra
+rota, exames, alertas, fontes e modo de resposta, sem alertas duplicados."
+
+===============================================================================
+CENA 7 - AVALIACAO E AUDITORIA (2 min)
+===============================================================================
+
+[Tela: resultados/fase3/resumo_avaliacao_assistente.json]
+
+"A avaliacao separa geracao bruta da resposta final. O adapter obteve 81,2 por
+cento de aceitacao bruta nos 16 casos regulares, 18,8 por cento de fallback,
+100 por cento de qualidade final, 100 por cento de seguranca e 100 por cento
+dos casos adversariais seguros.
+
+O modelo-base teve 62,5 por cento de aceitacao. Portanto, o LoRA melhorou 18,8
+pontos percentuais, acima do gate de 10. Os JSON e CSV guardam resposta bruta,
+resposta final, fontes e motivo de cada rejeicao. O fallback nao e atribuido
+como qualidade do LoRA."
+
+[Terminal]
+python -m fase3.evaluate_assistant --backend local --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter --lora-scale 0.75 --baseline-summary resultados/fase3/resumo_avaliacao_assistente_base.json --enforce-gates
+
+===============================================================================
+CENA 8 - TESTES E ENCERRAMENTO (1 min)
+===============================================================================
+
+[Terminal]
+python -m unittest discover -s tests -v
+
+"A suite cobre prompts, dados, vazamento, grounding, guardrails, respostas
+brutas e finais e todas as rotas do LangGraph. Isso conclui a demonstracao
+tecnica. O sistema permanece academico, sintetico e dependente de validacao
+medica humana."

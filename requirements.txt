@@ -14,3 +14,13 @@ uvicorn[standard]>=0.30.0,<1.0.0
 prometheus-client>=0.20.0,<1.0.0
 anthropic>=0.50.0,<2.0.0
 groq>=0.9.0,<1.0.0
+
+# Fase 3 - assistente medico (LangChain/LangGraph). As dependencias pesadas
+# de fine-tuning (torch/transformers/peft/datasets) ficam em
+# requirements-fase3.txt, ja que nao sao necessarias para rodar os testes
+# nem o assistente com o backend "groq".
+langchain>=0.3,<0.4
+langchain-core>=0.3,<0.4
+langchain-community>=0.3,<0.4
+langgraph>=0.2,<0.3
+rank_bm25>=0.2,<1.0

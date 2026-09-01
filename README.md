@@ -102,8 +102,27 @@ deploy/k8s/
   service.yaml
 docs/
   arquitetura_fase2.md
+  arquitetura_fase3.md
   cloudflare-deploy.md  # infraestrutura de nuvem e procedimentos de deploy
   frontend.md           # documentação do frontend
+  script_video_demonstracao_fase3.txt
+fase3/                  # assistente medico virtual (fine-tuning + LangChain + LangGraph)
+  data/                  # protocolos, prontuarios sinteticos e amostra MedQuAD/PubMedQA
+  finetuning/            # pipeline de fine-tuning LoRA/PEFT
+  assistant_chain.py     # pipeline LangChain (retrieval + LLM + guardrails)
+  calibrate_adapter.py   # calibração de escala e gates de promoção
+  clinical_flow_graph.py # fluxo de decisao LangGraph
+  ehr_tools.py           # mock de EHR estruturado (SQLite)
+  evaluate_assistant.py
+  guardrails.py
+  llm_backend.py
+  logging_utils.py
+  training_service.py     # orquestra jobs locais de treino e avaliacao
+  prompting.py           # prompt compartilhado entre treino e inferência
+  retrieval.py
+  cli_demo.py
+  web_app.py              # API e interface web local da Fase 3
+  web/                    # interface clínica e operações do modelo
 frontend/               # aplicação React (Cloudflare Pages)
   functions/[[path]].ts # Pages Function: proxy via Service Binding
   public/               # _headers (CSP) e _routes.json
@@ -113,6 +132,7 @@ notebooks/
   01_cancer_mama.ipynb
   02_otimizacao_genetica_cancer_mama.ipynb
   03_interpretacao_llm_cancer_mama.ipynb
+  04_assistente_medico_fase3.ipynb
 resultados/fase2/
   comparacao_baseline_otimizados.csv
   experimentos_ga.csv
@@ -123,6 +143,13 @@ resultados/fase2/
   avaliacao_interpretacoes_llm.csv  # gerado com GROQ_API_KEY
   interpretacoes_llm.json           # gerado com GROQ_API_KEY
   resumo_avaliacao_llm.json         # gerado com GROQ_API_KEY
+resultados/fase3/
+  finetuning/smoke/      # histórico do smoke test DistilGPT-2
+  finetuning/qwen2.5-1.5b-v4/ # adapter promovido + training_summary.json
+  finetuning/comparacao_modelos.json
+  avaliacao_assistente.csv
+  avaliacao_assistente.json
+  resumo_avaliacao_assistente.json
 scripts/
   export_serving_model.py # exporta o manifesto JSON servido na borda
 src/
@@ -137,12 +164,15 @@ src/
   worker.py               # entrypoint do Python Worker (ASGI + segurança)
 tests/
   test_fase2.py
+  test_fase3.py
   test_cloudflare.py      # equivalência do manifesto e validação do Turnstile
 Dockerfile
 requirements.txt
+requirements-fase3.txt
 relatorio_tecnico_01_cancer_mama.md
 relatorio_tecnico_01_cancer_mama.pdf
 relatorio_tecnico_fase2.md
+relatorio_tecnico_fase3.md
 ```
 
 ### Experimentos Genéticos
@@ -499,6 +529,123 @@ Este projeto é acadêmico. O dataset possui apenas 569 amostras, não houve
 validação externa, e a API não deve ser usada como diagnóstico clínico
 autônomo.
 
+## Fase 3 - Assistente Médico Virtual
+
+Na Fase 3, desenvolvemos um assistente clínico acadêmico com fine-tuning
+LoRA, LangChain, consulta a prontuário sintético, RAG de protocolos
+internos, guardrails e um fluxo decisório em LangGraph. Mantivemos o módulo
+isolado em `fase3/` para preservar o funcionamento das Fases 1 e 2.
+
+### Cobertura técnica
+
+| Requisito | Implementação |
+| --- | --- |
+| Dados internos, anonimização e curadoria | `fase3/data/build_finetuning_dataset.py` |
+| Fine-tuning LoRA/PEFT | `fase3/finetuning/train_lora.py` |
+| Prompt idêntico no treino e inferência | `fase3/prompting.py` |
+| LangChain e LLM customizada | `fase3/assistant_chain.py`, `fase3/llm_backend.py` |
+| Prontuário estruturado | `fase3/ehr_tools.py` (SQLite sintético) |
+| RAG e explainability | `fase3/retrieval.py`, fontes em toda resposta final |
+| Fluxo LangGraph com bifurcação de exames | `fase3/clinical_flow_graph.py` |
+| Segurança e validação humana | `fase3/guardrails.py` (entrada e saída) |
+| Auditoria | `fase3/logging_utils.py` |
+| Avaliação bruta, final e adversarial | `fase3/evaluate_assistant.py`, `fase3/calibrate_adapter.py` |
+
+### Dados e treinamento
+
+Construímos um dataset clínico com **48 exemplos sintéticos**, organizados
+em oito famílias com seis variações cada. Utilizamos um split determinístico com **40 exemplos de
+treino e 8 de validação**, mantendo um caso de validação por família. As
+amostras do MedQuAD e do PubMedQA foram preservadas como referência
+histórica, mas não participaram do treinamento do adapter promovido.
+
+Para avaliar o modelo sem reutilizar as perguntas de treinamento, criamos
+um conjunto independente com **16 casos clínicos regulares e 8 casos
+adversariais**. Todos os registros utilizados são sintéticos ou
+anonimizados.
+
+Após comparar os experimentos, promovemos o
+`Qwen/Qwen2.5-1.5B-Instruct` com LoRA `r=16`, `alpha=32`, dropout `0.05`,
+seis épocas, LR `2e-5`, sequência 512, batch 2, acumulação 4, FP16 e seed
+42. O adapter está em
+`resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter` e usa escala
+calibrada `0.75`.
+
+### Resultado final
+
+| Métrica | Resultado |
+| --- | ---: |
+| Aceitação bruta nos 16 casos regulares | **81,2%** |
+| Fallback nos casos regulares | **18,8%** |
+| Qualidade final | **100%** |
+| Segurança final | **100%** |
+| Casos adversariais seguros | **100%** |
+| Melhora de aceitação sobre o modelo-base | **18,8 p.p.** |
+
+Registramos as respostas brutas, as respostas finais, as fontes e os
+motivos de rejeição em
+`resultados/fase3/avaliacao_assistente.json` e `.csv`. A comparação de
+escalas e baseline fica em `resultados/fase3/calibracao_adapter.json`.
+
+### Execução
+
+Na primeira execução:
+
+```powershell
+npm run fase3:setup
+npm run fase3
+```
+
+O serviço sempre inicia com o modelo local e abre
+`http://127.0.0.1:8010`. Groq só é usado quando solicitado explicitamente.
+O guia completo de instalação, execução, diagnóstico e testes está em
+[fase3/README.md](fase3/README.md).
+
+A interface da Fase 3 também possui build estático para Cloudflare Pages. Cada
+integrante pode registrar no wizard seu backend em loopback, LAN, VPN ou HTTPS;
+os perfis ficam apenas no navegador e os chats são isolados por backend e
+paciente. O Pages entrega os arquivos estáticos e não atua como proxy clínico.
+Produção: <https://assistente-protocolos-fase3.pages.dev>.
+
+Para uma consulta isolada pelo terminal, a CLI também usa o modelo local por
+padrão:
+
+```powershell
+.\.venv-fase3\Scripts\python.exe -m fase3.cli_demo `
+  --paciente-id PAC-0001 `
+  --pergunta "Posso iniciar a quimioterapia hoje?"
+```
+
+Para reexecutar a avaliação formal:
+
+```powershell
+.\.venv-fase3\Scripts\python.exe -m fase3.evaluate_assistant --backend local `
+  --adapter-path resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter `
+  --lora-scale 0.75 --baseline-summary resultados/fase3/resumo_avaliacao_assistente_base.json `
+  --enforce-gates
+
+.\.venv-fase3\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+A documentação dos endpoints fica em `http://127.0.0.1:8010/docs`.
+
+As perguntas com PII são bloqueadas antes do retrieval e da LLM e aparecem
+redigidas na auditoria. As respostas aprovadas são fundamentadas em fontes
+válidas e recebem aviso de validação médica; respostas inseguras são
+substituídas por mensagens de bloqueio. O projeto é
+acadêmico, usa dados fictícios e não deve ser empregado em assistência
+clínica real.
+
+Ao final desta versão, executamos **74 testes automatizados**, incluindo 59
+testes relacionados diretamente à Fase 3 e à sua interface web, além do teste
+do frontend em navegador simulado.
+
+Detalhes: [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md),
+[docs/arquitetura_fase3.md](docs/arquitetura_fase3.md) e
+`fase3/relatorio_aderencia_final.md`. O roteiro do vídeo está em
+`docs/script_video_demonstracao_fase3.txt`. A gravação e a publicação do
+vídeo ainda serão realizadas pela equipe antes da entrega final.
+
 ## Autores
 
-Antonio Miranda, Elaine, Marcos Mol, Lucas da Costa, Ricardo Loureiro - AI for Devs (9IADT)
+Antonio Miranda, Elaine, Marcos Mol, Lucas da Costa, Ricardo Loureiro - AI for Devs (8IADT)
