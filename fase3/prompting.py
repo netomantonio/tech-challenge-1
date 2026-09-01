@@ -11,15 +11,21 @@ SYSTEM_PROMPT_CLINICO = (
     "medicamentos, doses ou tratamentos diretamente. Toda conduta deve depender "
     "de validacao de um medico responsavel. Quando faltar informacao, declare a "
     "limitacao sem completar dados por conta propria. Preserve exatamente valores "
-    "clinicos e identificadores de protocolos."
+    "clinicos e identificadores de protocolos. Responda exatamente a pergunta "
+    "atual e diferencie dados registrados no prontuario de requisitos gerais "
+    "descritos nos protocolos."
 )
 
 USER_PROMPT_TEMPLATE = (
     "Redija uma resposta curta em portugues obedecendo a estas regras.\n"
     "- Nao acrescente, remova ou substitua fatos e valores clinicos.\n"
     "- Cite somente protocolos presentes nas fontes autorizadas.\n"
+    "- Ao relatar dados do prontuario, cite o codigo PAC informado no contexto.\n"
     "- Nao indique medicamento ou dose.\n"
     "- Condicione a conduta a validacao da equipe medica.\n"
+    "- Responda somente ao que foi perguntado na pergunta atual.\n"
+    "- Diferencie exames realizados, exames pendentes e checklist do protocolo.\n"
+    "- Nao substitua dados do prontuario por uma lista generica do protocolo.\n"
     "- Retorne apenas a resposta destinada ao profissional de saude.\n\n"
     "<contexto_paciente>\n{contexto_paciente}\n</contexto_paciente>\n\n"
     "<fontes_autorizadas>\n{protocolos}\n</fontes_autorizadas>\n\n"

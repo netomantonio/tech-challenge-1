@@ -371,6 +371,82 @@ class AssistantChainTests(unittest.TestCase):
         )
         self.assertEqual(resultado["fontes"][0]["id"], "PROT-011")
 
+    def test_pergunta_sobre_exames_realizados_nao_retorna_checklist_generico(self) -> None:
+        llm = get_llm(
+            "fake",
+            respostas=[
+                "Antes da quimioterapia, confirme hemograma completo, funcao hepatica "
+                "e renal e sorologias. Fonte: [PROT-006]."
+            ],
+        )
+        resultado = responder_pergunta_clinica(
+            "Quais sao os ultimos exames da paciente?",
+            paciente_id="PAC-0002",
+            llm=llm,
+        )
+
+        self.assertTrue(resultado["grounding_fallback"])
+        self.assertEqual(resultado["modo_resposta"], "fallback")
+        self.assertIn("exames_realizados_omitidos", resultado["motivos_grounding"])
+        self.assertIn("ecocardiograma basal", resultado["resposta"])
+        self.assertIn("nao informa datas", resultado["resposta"])
+        self.assertIn("Exames realizados:", llm.prompts_recebidos[0])
+
+    def test_status_do_checklist_reflete_pendencias_do_prontuario(self) -> None:
+        paciente_sem_pendencias = ehr_tools.get_paciente("PAC-0002")
+        paciente_com_pendencias = ehr_tools.get_paciente("PAC-0001")
+        documentos = buscar_protocolos("checklist exames quimioterapia", construir_retriever(k=3))
+
+        completo = _resposta_fallback_segura(
+            "O checklist pre-tratamento esta completo?",
+            "PAC-0002",
+            paciente_sem_pendencias,
+            documentos,
+        )
+        incompleto = _resposta_fallback_segura(
+            "O checklist pre-tratamento esta completo?",
+            "PAC-0001",
+            paciente_com_pendencias,
+            documentos,
+        )
+
+        self.assertIn("esta completo", completo)
+        self.assertIn("nao ha exames pendentes", completo)
+        self.assertIn("esta incompleto", incompleto)
+        self.assertIn("ecocardiograma basal", incompleto)
+
+    def test_ausencia_de_exames_realizados_recebe_resposta_objetiva(self) -> None:
+        paciente = {**ehr_tools.get_paciente("PAC-0002"), "exames_realizados": []}
+        documentos = buscar_protocolos("exames realizados", construir_retriever(k=3))
+
+        resposta = _resposta_fallback_segura(
+            "Quais exames foram realizados pela paciente?",
+            "PAC-0002",
+            paciente,
+            documentos,
+        )
+
+        self.assertIn("Nao ha exames realizados registrados", resposta)
+        self.assertIn("[PAC-0002]", resposta)
+        self.assertNotIn("nao informa datas", resposta)
+
+    def test_ausencia_de_alertas_ativos_nao_retorna_protocolo_generico(self) -> None:
+        llm = get_llm(
+            "fake",
+            respostas=["Siga o protocolo institucional. Fonte: [PROT-006]."],
+        )
+
+        resultado = responder_pergunta_clinica(
+            "Ha algum alerta ativo para esta paciente?",
+            paciente_id="PAC-0002",
+            llm=llm,
+        )
+
+        self.assertTrue(resultado["grounding_fallback"])
+        self.assertIn("ausencia_de_alertas_ignorada", resultado["motivos_grounding"])
+        self.assertIn("Nao ha alertas ativos registrados", resultado["resposta"])
+        self.assertTrue(any(fonte["id"] == "PAC-0002" for fonte in resultado["fontes"]))
+
     def test_plano_de_dor_preserva_intensidade_do_ehr(self) -> None:
         paciente = ehr_tools.get_paciente("PAC-0006")
         documentos = buscar_protocolos("dor pos-operatoria", construir_retriever(k=3))

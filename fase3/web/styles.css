@@ -229,6 +229,7 @@ footer a { margin-left: auto; color: var(--teal-dark); font-weight: 700; text-de
 .parameter-grid label > span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; font-weight: 700; }
 .parameter-grid input, .parameter-grid select { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--ink); background: var(--surface); outline: none; }
 .parameter-grid input:focus, .parameter-grid select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-soft); }
+.parameter-grid .precision-note { margin-top: 5px; color: var(--muted); font-size: 9px; line-height: 1.35; }
 .parameter-grid .check-field { min-height: 38px; display: flex; align-items: center; gap: 8px; align-self: end; }
 .parameter-grid .check-field input { width: 16px; height: 16px; margin: 0; accent-color: var(--teal); }
 .parameter-grid .check-field span { margin: 0; }

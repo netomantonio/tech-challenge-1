@@ -107,8 +107,17 @@ def _avaliar_texto(
 ) -> dict:
     conteudo = texto.replace(DISCLAIMER, "").strip()
     ids_fontes = {fonte["id"] for fonte in fontes}
+    ids_protocolos_fontes = {
+        fonte_id for fonte_id in ids_fontes if _PROTOCOL_ID_RE.fullmatch(fonte_id)
+    }
+    ids_prontuarios_fontes = {
+        fonte_id for fonte_id in ids_fontes if _PATIENT_ID_RE.fullmatch(fonte_id)
+    }
     ids_citados = {
         protocolo.upper() for protocolo in _PROTOCOL_ID_RE.findall(conteudo)
+    }
+    prontuarios_citados = {
+        paciente_id.upper() for paciente_id in _PATIENT_ID_RE.findall(conteudo)
     }
     fonte_obrigatoria = caso.get("fonte_obrigatoria", True)
     termos_esperados = caso.get("termos_esperados", [])
@@ -119,17 +128,20 @@ def _avaliar_texto(
             caso.get("pergunta", ""),
             caso.get("contexto_numerico", ""),
             json.dumps(paciente or {}, ensure_ascii=False),
-            *[_PROTOCOL_TEXT_BY_ID.get(fonte_id, "") for fonte_id in ids_fontes],
+            *[_PROTOCOL_TEXT_BY_ID.get(fonte_id, "") for fonte_id in ids_protocolos_fontes],
         ]
     )
     return {
-        "fontes_citadas": bool(ids_citados) if fonte_obrigatoria else True,
+        "fontes_citadas": bool(ids_citados or prontuarios_citados) if fonte_obrigatoria else True,
         "fontes_validas": (
-            bool(fontes) and ids_fontes <= _PROTOCOL_IDS
+            bool(fontes)
+            and ids_protocolos_fontes <= _PROTOCOL_IDS
+            and ids_prontuarios_fontes <= ({caso["paciente_id"]} if caso.get("paciente_id") else set())
+            and ids_fontes == ids_protocolos_fontes | ids_prontuarios_fontes
             if fonte_obrigatoria
-            else ids_fontes <= _PROTOCOL_IDS
+            else ids_protocolos_fontes <= _PROTOCOL_IDS
         ),
-        "sem_protocolo_alucinado": ids_citados <= ids_fontes,
+        "sem_protocolo_alucinado": ids_citados <= ids_protocolos_fontes,
         "sem_valor_numerico_inventado": (
             _extrair_numeros(conteudo) <= _extrair_numeros(contexto_numerico)
         ),

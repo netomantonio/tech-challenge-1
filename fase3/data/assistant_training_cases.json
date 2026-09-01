@@ -20,13 +20,37 @@
     "protocol_ids": ["PROT-006"],
     "plano_factual": "Antes da quimioterapia, confirmar hemograma completo, funcao hepatica e renal, sorologias HBV, HCV e HIV e avaliacao cardiaca quando aplicavel. A liberacao exige validacao medica. Fonte: [PROT-006].",
     "expected_answer": "Confirme hemograma completo, funcao hepatica e renal, sorologias HBV, HCV e HIV e avaliacao cardiaca quando aplicavel. Valide a liberacao com a equipe medica. Fonte: [PROT-006].",
-    "questions": [
-      "Qual checklist deve ser conferido antes da quimioterapia sistemica?",
-      "Quais exames laboratoriais antecedem o tratamento oncologico?",
-      "O que precisa estar valido antes de liberar um ciclo?",
-      "Quais avaliacoes pre-tratamento devem ser confirmadas?",
-      "Que exames o protocolo exige antes da quimioterapia?",
-      "Liste as verificacoes obrigatorias para iniciar tratamento sistemico."
+    "variants": [
+      {
+        "question": "Qual checklist deve ser conferido antes da quimioterapia sistemica?"
+      },
+      {
+        "question": "Quais exames ja foram registrados para esta paciente?",
+        "contexto_paciente": "Paciente PAC-0002. Exames realizados: hemograma completo, funcao hepatica renal, ecocardiograma basal, sorologia HBV HCV HIV. Exames pendentes: nenhum.",
+        "plano_factual": "O prontuario registra hemograma completo, funcao hepatica e renal, ecocardiograma basal e sorologias HBV, HCV e HIV como realizados. Nao ha datas nem resultados numericos no contexto. Fonte: [PROT-006].",
+        "expected_answer": "Constam como realizados hemograma completo, funcao hepatica e renal, ecocardiograma basal e sorologias HBV, HCV e HIV. O contexto nao informa datas nem resultados numericos. Confirme os registros com a equipe medica. Fonte: [PROT-006]."
+      },
+      {
+        "question": "O checklist cadastrado desta paciente esta completo?",
+        "contexto_paciente": "Paciente PAC-0002. Exames realizados: hemograma completo, funcao hepatica renal, ecocardiograma basal, sorologia HBV HCV HIV. Exames pendentes: nenhum.",
+        "plano_factual": "O checklist registrado esta completo: os exames pre-tratamento constam como realizados e nao ha pendencias. A liberacao final exige conferencia de validade e validacao medica. Fonte: [PROT-006].",
+        "expected_answer": "O checklist registrado esta completo e nao ha exames pendentes. Confirme a validade dos exames e a liberacao final com a equipe medica. Fonte: [PROT-006]."
+      },
+      {
+        "question": "Quais pendencias de exame ainda constam para esta paciente?",
+        "contexto_paciente": "Paciente PAC-0001. Exames realizados: hemograma completo, funcao hepatica renal. Exames pendentes: ecocardiograma basal, sorologia HBV HCV HIV.",
+        "plano_factual": "O prontuario registra ecocardiograma basal e sorologias HBV, HCV e HIV como pendentes. Regularizar antes do primeiro ciclo e validar com a equipe medica. Fonte: [PROT-006].",
+        "expected_answer": "Estao pendentes o ecocardiograma basal e as sorologias HBV, HCV e HIV. Regularize-os antes do primeiro ciclo e valide com a equipe medica. Fonte: [PROT-006]."
+      },
+      {
+        "question": "Que exames o protocolo exige antes da quimioterapia?"
+      },
+      {
+        "question": "Como diferenciar os exames do prontuario das exigencias gerais do protocolo?",
+        "contexto_paciente": "Paciente PAC-0001. Exames realizados: hemograma completo, funcao hepatica renal. Exames pendentes: ecocardiograma basal, sorologia HBV HCV HIV.",
+        "plano_factual": "No prontuario, hemograma completo e funcao hepatica e renal constam como realizados; ecocardiograma basal e sorologias HBV, HCV e HIV constam como pendentes. O protocolo define o checklist geral. Fonte: [PROT-006].",
+        "expected_answer": "O prontuario registra hemograma completo e funcao hepatica e renal como realizados, com ecocardiograma basal e sorologias HBV, HCV e HIV pendentes. O protocolo define o checklist geral; valide a situacao atual com a equipe medica. Fonte: [PROT-006]."
+      }
     ]
   },
   {

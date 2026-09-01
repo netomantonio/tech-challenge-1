@@ -139,8 +139,10 @@ compativeis com `AutoModelForCausalLM`, tokenizer e PEFT. Para modelos locais,
 configure raizes com `FASE3_MODEL_ROOTS` separadas pelo delimitador de caminhos
 do sistema. `trust_remote_code` exige opt-in no cadastro e revisao fixa.
 
-NF4 exige GPU CUDA e `bitsandbytes`; a opcao fica indisponivel quando o backend
-nao reporta esse recurso. Nenhum download, treino ou promocao e iniciado pelos
+NF4 exige GPU CUDA e `bitsandbytes`, instalado por `setup.ps1`/`setup.sh` a
+partir de `requirements-fase3.txt`; a opcao fica indisponivel quando o backend
+nao reporta esse recurso. Depois de atualizar as dependencias, reinicie o
+backend para atualizar as capacidades. Nenhum download, treino ou promocao e iniciado pelos
 tours ou pelo wizard sem clique explicito.
 
 ## Diagnostico e API

@@ -166,7 +166,7 @@
           <form id="training-form">
             <div class="parameter-grid">
               <label class="wide-field"><span>Modelo-base</span><select id="train-model" name="model_alias" data-tour="models"></select></label>
-              <label><span>Precisao</span><select id="train-precision" name="precision"><option value="auto">Automatica</option><option value="fp32">FP32</option><option value="fp16">FP16</option><option value="bf16">BF16</option><option value="nf4">QLoRA NF4</option></select></label>
+              <label><span>Precisao</span><select id="train-precision" name="precision"><option value="auto">Automatica</option><option value="fp32">FP32</option><option value="fp16">FP16</option><option value="bf16">BF16</option><option value="nf4">QLoRA NF4</option></select><small class="precision-note" id="train-precision-note" hidden></small></label>
               <label class="wide-field"><span>Versao de saida</span><input id="train-version" name="version" required pattern="[a-z0-9][a-z0-9._-]{1,63}-v[1-9][0-9]*" /></label>
               <label><span>Epocas</span><input id="train-epochs" name="epochs" type="number" min="1" max="12" value="6" required /></label>
               <label><span>Learning rate</span><input id="train-lr" name="learning_rate" type="number" min="0.000001" max="0.001" step="0.000001" value="0.00002" required /></label>

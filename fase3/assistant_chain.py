@@ -28,7 +28,7 @@ from fase3.logging_utils import registrar_interacao
 from fase3.prompting import USER_PROMPT_TEMPLATE, formatar_protocolos_prompt
 from fase3.retrieval import DEFAULT_TOP_K, BM25Retriever, buscar_protocolos, construir_retriever, formatar_fontes
 
-PROMPT_VERSION = "assistente_medico_v2"
+PROMPT_VERSION = "assistente_medico_v3"
 
 _WORD_RE = re.compile(r"[a-zA-ZÀ-ÿ0-9-]+")
 _PROTOCOL_RE = re.compile(r"\bPROT-\d{3}\b", re.IGNORECASE)
@@ -74,9 +74,15 @@ def _formatar_contexto_paciente(paciente_id: Optional[str]) -> str:
     return (
         f"Paciente {paciente['paciente_id']} ({paciente['idade']} anos, {paciente['sexo']}). "
         f"Diagnostico: {paciente['diagnostico']}. Estagio: {paciente['estagio']}. "
-        f"Exames pendentes: {', '.join(paciente['exames_pendentes']) or 'nenhum'}. "
-        f"Alertas ativos: {', '.join(paciente['alertas_ativos']) or 'nenhum'}."
+        f"Exames realizados: {_formatar_itens_prontuario(paciente['exames_realizados'])}. "
+        f"Exames pendentes: {_formatar_itens_prontuario(paciente['exames_pendentes'])}. "
+        f"Alertas ativos: {_formatar_itens_prontuario(paciente['alertas_ativos'])}. "
+        f"Observacoes: {paciente['observacoes']}"
     )
+
+
+def _formatar_itens_prontuario(itens: list[str]) -> str:
+    return ", ".join(item.replace("_", " ") for item in itens) or "nenhum"
 
 
 def _normalizar(texto: str) -> str:
@@ -86,6 +92,63 @@ def _normalizar(texto: str) -> str:
         if not unicodedata.combining(char)
     ).lower()
     return " ".join(_WORD_RE.findall(sem_acentos))
+
+
+def _intencao_exames(pergunta: str, paciente: Optional[dict]) -> Optional[str]:
+    """Classifica consultas de exame sem inferir a intencao pelas observacoes do EHR."""
+    normalizada = _normalizar(pergunta)
+    if "exame" not in normalizada and "checklist" not in normalizada:
+        return None
+    if "checklist" in normalizada or any(
+        trecho in normalizada
+        for trecho in ("esta completo", "esta completa", "foi concluido", "foi concluida")
+    ):
+        return "checklist"
+    if any(
+        trecho in normalizada
+        for trecho in ("pendente", "pendencia", "ainda falta", "faltam", "falta concluir")
+    ):
+        return "pendentes"
+    if paciente and any(
+        trecho in normalizada
+        for trecho in (
+            "ultimo exame",
+            "ultimos exames",
+            "exame realizado",
+            "exames realizados",
+            "exame foi realizado",
+            "exames foram realizados",
+            "exame feito",
+            "exames feitos",
+            "exame foi feito",
+            "exames foram feitos",
+            "ja fez",
+            "consta no prontuario",
+            "constam no prontuario",
+            "exames da paciente",
+            "exames do paciente",
+        )
+    ):
+        return "realizados"
+    return "protocolo"
+
+
+def _intencao_alertas(pergunta: str, paciente: Optional[dict]) -> bool:
+    if not paciente:
+        return False
+    normalizada = _normalizar(pergunta)
+    return any(
+        trecho in normalizada
+        for trecho in (
+            "quais alertas",
+            "qual alerta",
+            "ha alerta",
+            "ha algum alerta",
+            "tem alerta",
+            "alertas ativos",
+            "alertas atuais",
+        )
+    )
 
 
 def _extrair_numeros(texto: str) -> set[str]:
@@ -110,12 +173,21 @@ def _avaliar_grounding(
 
     ids_recuperados = {doc.metadata["id"] for doc in documentos}
     ids_citados = {item.upper() for item in _PROTOCOL_RE.findall(resposta)}
+    pacientes_citados = {item.upper() for item in _PATIENT_RE.findall(resposta)}
+    fonte_prontuario_valida = bool(
+        paciente_id
+        and paciente
+        and paciente_id.upper() in pacientes_citados
+        and pacientes_citados == {paciente_id.upper()}
+    )
     fonte_obrigatoria = not (paciente_id and paciente is None)
     if fonte_obrigatoria:
-        if not ids_citados:
+        if not ids_citados and not fonte_prontuario_valida:
             motivos.append("fonte_ausente")
         elif not ids_citados <= ids_recuperados:
             motivos.append("fonte_nao_recuperada")
+        elif pacientes_citados and not fonte_prontuario_valida:
+            motivos.append("prontuario_nao_recuperado")
 
     contexto = " ".join(
         [
@@ -159,6 +231,56 @@ def _avaliar_grounding(
         motivos.append("paciente_nao_encontrado_ignorado")
 
     pendentes = (paciente or {}).get("exames_pendentes", [])
+    realizados = (paciente or {}).get("exames_realizados", [])
+    intencao_exames = _intencao_exames(pergunta, paciente)
+    if intencao_exames == "realizados":
+        tokens_resposta = set(resposta_normalizada.split())
+        realizados_ausentes = [
+            item
+            for item in realizados
+            if not set(_normalizar(item.replace("_", " ")).split()) <= tokens_resposta
+        ]
+        if realizados_ausentes:
+            motivos.append("exames_realizados_omitidos")
+        elif not realizados and not any(
+            trecho in resposta_normalizada
+            for trecho in ("nenhum exame realizado", "nao ha exames realizados", "sem exames realizados")
+        ):
+            motivos.append("ausencia_de_exames_realizados_ignorada")
+    elif intencao_exames == "pendentes":
+        tokens_resposta = set(resposta_normalizada.split())
+        if pendentes and any(
+            not set(_normalizar(item.replace("_", " ")).split()) <= tokens_resposta
+            for item in pendentes
+        ):
+            motivos.append("exames_pendentes_omitidos")
+        elif not pendentes and not any(
+            trecho in resposta_normalizada
+            for trecho in ("nenhum exame pendente", "nao ha exames pendentes", "sem exames pendentes")
+        ):
+            motivos.append("ausencia_de_pendencias_ignorada")
+    elif intencao_exames == "checklist":
+        if pendentes and not any(
+            termo in resposta_normalizada for termo in ("incompleto", "pendente", "nao esta completo")
+        ):
+            motivos.append("status_checklist_incorreto")
+        elif not pendentes and "completo" not in resposta_normalizada:
+            motivos.append("status_checklist_omitido")
+
+    alertas_ativos = (paciente or {}).get("alertas_ativos", [])
+    if _intencao_alertas(pergunta, paciente):
+        tokens_resposta = set(resposta_normalizada.split())
+        if alertas_ativos and any(
+            not set(_normalizar(item).split()) <= tokens_resposta
+            for item in alertas_ativos
+        ):
+            motivos.append("alertas_ativos_omitidos")
+        elif not alertas_ativos and not any(
+            trecho in resposta_normalizada
+            for trecho in ("nenhum alerta ativo", "nao ha alertas ativos", "sem alertas ativos")
+        ):
+            motivos.append("ausencia_de_alertas_ignorada")
+
     consulta_pre_tratamento = "quimioterapia" in pergunta_normalizada or (
         bool(pendentes)
         and any(
@@ -255,7 +377,22 @@ def _resposta_fallback_segura(
         ]
     )
     normalizada = _normalizar(contexto_decisorio)
+    intencao_exames = _intencao_exames(pergunta, paciente)
     ids = {doc.metadata["id"] for doc in documentos}
+    if _intencao_alertas(pergunta, paciente):
+        alertas = (paciente or {}).get("alertas_ativos", [])
+        if not alertas:
+            return (
+                "Nao ha alertas ativos registrados no prontuario sintetico. Isso "
+                "descreve somente o estado atual do registro e nao substitui a "
+                f"avaliacao clinica. Fonte: [{paciente_id}]."
+            )
+        return (
+            f"Os alertas ativos registrados sao: {_formatar_itens_prontuario(alertas)}. "
+            "Confirme o estado atual e o encaminhamento com a equipe medica. "
+            f"Fonte: [{paciente_id}]."
+        )
+
     if "PROT-011" in ids and any(termo in normalizada for termo in ("febre", "taquicardia", "sepse")):
         alertas = "; ".join((paciente or {}).get("alertas_ativos", []))
         contexto_alerta = f"O prontuario registra: {alertas}. " if alertas else ""
@@ -264,6 +401,53 @@ def _resposta_fallback_segura(
             "sepse e comunicacao a equipe medica quando houver criterios de SIRS "
             "associados a suspeita de infeccao. Nao aguarde validacao assincrona. "
             "Fonte: [PROT-011]."
+        )
+
+    if "PROT-006" in ids and intencao_exames == "realizados" and paciente:
+        exames_realizados = paciente.get("exames_realizados", [])
+        if not exames_realizados:
+            return (
+                "Nao ha exames realizados registrados no prontuario sintetico. "
+                "Confirme se o registro esta atualizado antes de qualquer decisao "
+                f"clinica. Fonte do dado: [{paciente_id}]. Referencia: [PROT-006]."
+            )
+        realizados = _formatar_itens_prontuario(exames_realizados)
+        return (
+            f"O prontuario sintetico registra estes exames realizados: {realizados}. "
+            "O registro fornecido nao informa datas nem resultados numericos, por isso "
+            "nao e possivel determinar a ordem dos exames. Confirme os dados no "
+            f"prontuario e valide a interpretacao com a equipe medica. Fontes: [{paciente_id}], "
+            "[PROT-006]."
+        )
+
+    if "PROT-006" in ids and intencao_exames == "pendentes" and paciente:
+        pendentes = paciente.get("exames_pendentes", [])
+        if not pendentes:
+            return (
+                "Nao ha exames pendentes registrados no prontuario sintetico. A "
+                "liberacao do tratamento ainda depende da conferencia de validade e "
+                "da validacao da equipe medica. Fonte: [PROT-006]."
+            )
+        return (
+            f"Os exames pendentes registrados sao: {_formatar_itens_prontuario(pendentes)}. "
+            "Regularize as pendencias e confirme a liberacao com a equipe medica. "
+            "Fonte: [PROT-006]."
+        )
+
+    if "PROT-006" in ids and intencao_exames == "checklist" and paciente:
+        pendentes = paciente.get("exames_pendentes", [])
+        if pendentes:
+            return (
+                "O checklist pre-tratamento esta incompleto porque o prontuario registra "
+                f"estes exames pendentes: {_formatar_itens_prontuario(pendentes)}. Nao "
+                "libere o ciclo antes da regularizacao e da validacao medica. "
+                "Fonte: [PROT-006]."
+            )
+        realizados = _formatar_itens_prontuario(paciente.get("exames_realizados", []))
+        return (
+            "O checklist pre-tratamento registrado esta completo: nao ha exames "
+            f"pendentes e constam como realizados {realizados}. A liberacao final "
+            "depende da conferencia de validade e da validacao medica. Fonte: [PROT-006]."
         )
 
     if "PROT-006" in ids and any(termo in normalizada for termo in ("quimioterapia", "exame")):
@@ -371,12 +555,21 @@ def responder_pergunta_clinica(
                 pergunta,
                 paciente.get("diagnostico", ""),
                 paciente.get("observacoes", ""),
+                *paciente.get("exames_realizados", []),
                 *paciente.get("exames_pendentes", []),
                 *paciente.get("alertas_ativos", []),
             ]
         )
     documentos = buscar_protocolos(consulta_retrieval, retriever)
     fontes = formatar_fontes(documentos)
+    if paciente:
+        fontes.append(
+            {
+                "id": paciente["paciente_id"],
+                "titulo": "Prontuario sintetico do paciente",
+                "tipo": "prontuario",
+            }
+        )
 
     chain = construir_chain(llm)
     resposta_bruta = chain.invoke(

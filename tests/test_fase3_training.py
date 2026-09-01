@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from fase3 import training_service
+from fase3.evaluation_contract import current_evaluation_contract
 from fase3.training_service import TrainingJobManager, resolver_adapter
 
 
@@ -102,6 +103,7 @@ class TrainingServiceTests(unittest.TestCase):
             calibration.write_text(
                 json.dumps(
                     {
+                        "evaluation_contract": current_evaluation_contract(),
                         "selecionado": {
                             "adapter_path": str(adapter),
                             "lora_scale": 0.75,
@@ -121,6 +123,34 @@ class TrainingServiceTests(unittest.TestCase):
 
             self.assertEqual(config["lora_scale"], 0.75)
             self.assertTrue(promoted.exists())
+
+    def test_promocao_rejeita_calibracao_de_contrato_antigo(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            finetuning = root / "finetuning"
+            adapter = finetuning / "qwen2.5-1.5b-v1" / "lora_adapter"
+            adapter.mkdir(parents=True)
+            (adapter / "adapter_model.safetensors").write_bytes(b"adapter")
+            calibration = root / "calibracao.json"
+            calibration.write_text(
+                json.dumps(
+                    {
+                        "selecionado": {
+                            "adapter_path": str(adapter),
+                            "lora_scale": 0.75,
+                            "aprovado": True,
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with (
+                patch.object(training_service, "FINETUNING_DIR", finetuning),
+                patch.object(training_service, "CALIBRATION_PATH", calibration),
+            ):
+                with self.assertRaisesRegex(ValueError, "calibracao esta desatualizada"):
+                    TrainingJobManager().promover("qwen2.5-1.5b-v1")
 
 
 if __name__ == "__main__":

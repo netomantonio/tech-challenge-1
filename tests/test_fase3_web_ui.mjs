@@ -29,7 +29,13 @@ const overview = {
   next_version: "qwen2.5-1.5b-v5",
   next_versions: { "qwen2.5-1.5b": "qwen2.5-1.5b-v5" },
   models: [{ alias: "qwen2.5-1.5b", label: "Qwen2.5 1.5B", source: "Qwen/Qwen2.5-1.5B-Instruct", installed: true, builtin: true }],
-  hardware: { device: "cuda", device_name: "RTX Test", memory_bytes: 12884901888, quantization: ["auto", "fp32", "fp16", "nf4"] },
+  hardware: {
+    device: "cuda",
+    device_name: "RTX Test",
+    memory_bytes: 12884901888,
+    quantization: ["auto", "fp32", "fp16"],
+    quantization_unavailable_reasons: { nf4: "GPU detectada, mas bitsandbytes nao esta instalado." },
+  },
   promoted: {
     adapter_path: "resultados/fase3/finetuning/qwen2.5-1.5b-v4/lora_adapter",
     lora_scale: 0.75,
@@ -121,6 +127,8 @@ assert.equal(dom.window.document.querySelector("#train-version").value, "qwen2.5
 assert.equal(dom.window.document.querySelector("#promoted-version").textContent, "qwen2.5-1.5b-v4");
 assert.equal(dom.window.document.querySelector("#metric-acceptance").textContent, "81.2%");
 assert.equal(dom.window.document.querySelector("#promote-adapter").disabled, false);
+assert.equal(dom.window.document.querySelector('#train-precision option[value="nf4"]').disabled, true);
+assert.match(dom.window.document.querySelector("#train-precision-note").textContent, /bitsandbytes nao esta instalado/i);
 const fieldHelpButtons = [...dom.window.document.querySelectorAll(".field-help-button")];
 assert.equal(fieldHelpButtons.length, 21);
 assert.equal(fieldHelpButtons.every((button) => button.getAttribute("aria-expanded") === "false"), true);

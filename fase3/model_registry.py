@@ -166,6 +166,11 @@ def hardware_capabilities() -> dict[str, Any]:
         "cuda_available": False,
         "bf16_supported": False,
         "quantization": ["auto", "fp32"],
+        "quantization_unavailable_reasons": {
+            "fp16": "FP16 exige uma GPU CUDA.",
+            "bf16": "BF16 exige uma GPU CUDA compativel.",
+            "nf4": "QLoRA NF4 exige uma GPU CUDA e o pacote bitsandbytes.",
+        },
         "cpu_count": os.cpu_count(),
         "platform": platform.platform(),
     }
@@ -197,12 +202,19 @@ def hardware_capabilities() -> dict[str, Any]:
                     "gpu_memory_bytes": int(torch.cuda.get_device_properties(0).total_memory),
                 }
             )
+            result["quantization_unavailable_reasons"].pop("fp16", None)
+            if result["bf16_supported"]:
+                result["quantization_unavailable_reasons"].pop("bf16", None)
             try:
                 import bitsandbytes  # noqa: F401
 
                 result["quantization"].append("nf4")
+                result["quantization_unavailable_reasons"].pop("nf4", None)
             except ImportError:
-                pass
+                result["quantization_unavailable_reasons"]["nf4"] = (
+                    "GPU CUDA detectada, mas bitsandbytes nao esta instalado. "
+                    "Execute novamente o setup da Fase 3."
+                )
     except ImportError:
         result["torch_version"] = None
     return result

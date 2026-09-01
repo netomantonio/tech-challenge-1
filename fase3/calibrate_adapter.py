@@ -8,6 +8,7 @@ import json
 import re
 from pathlib import Path
 
+from fase3.evaluation_contract import current_evaluation_contract
 from fase3.evaluate_assistant import carregar_casos, executar_avaliacao, salvar_resultados
 from fase3.llm_backend import DEFAULT_LOCAL_BASE_MODEL
 
@@ -129,6 +130,7 @@ def calibrar(
     calibracao = {
         "base_model": base_model,
         "adapter_path": adapter_path,
+        "evaluation_contract": current_evaluation_contract(),
         "calibracao_baseline": resumo_base,
         "calibracao_candidatos": [resumo for resumo, _ in candidatos],
         "avaliacao_final_baseline": resumo_base_final,

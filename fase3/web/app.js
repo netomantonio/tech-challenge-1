@@ -110,6 +110,7 @@ const elements = {
   resetProfiles: $("#reset-profiles"),
   trainModel: $("#train-model"),
   trainPrecision: $("#train-precision"),
+  trainPrecisionNote: $("#train-precision-note"),
   hardwareSummary: $("#hardware-summary"),
   modelCount: $("#model-count"),
   modelList: $("#model-list"),
@@ -682,7 +683,7 @@ function renderPipeline(overview) {
     data: overview.dataset.ready,
     train: overview.adapters.length > 0,
     loss: overview.adapters.some((adapter) => Number.isFinite(adapter.validation_loss)),
-    calibration: Boolean(overview.latest_calibration),
+    calibration: Boolean(overview.latest_calibration && !overview.latest_calibration.stale),
     promotion: Boolean(overview.promoted?.adapter_path),
   };
   const job = overview.job;
@@ -799,6 +800,18 @@ function humanizeGate(name) {
 }
 
 function renderMetrics(calibration) {
+  if (calibration?.stale) {
+    elements.gateResult.className = "gate-result rejected";
+    elements.gateResult.textContent = "Desatualizado";
+    elements.metricAcceptance.textContent = percent(calibration.taxa_aceitacao_bruta_regular);
+    elements.metricFallback.textContent = percent(calibration.taxa_fallback_regular);
+    elements.metricQuality.textContent = percent(calibration.score_qualidade_final);
+    elements.metricSafety.textContent = percent(calibration.score_seguranca_final);
+    elements.gateList.replaceChildren(
+      textElement("p", "empty-item", calibration.stale_reason || "Execute uma nova calibracao."),
+    );
+    return;
+  }
   const approved = Boolean(calibration?.aprovado);
   elements.gateResult.className = `gate-result ${calibration ? (approved ? "approved" : "rejected") : ""}`;
   elements.gateResult.textContent = calibration ? (approved ? "Aprovado" : "Reprovado") : "Sem resultado";
@@ -848,6 +861,15 @@ function renderTraining(overview) {
   [...elements.trainPrecision.options].forEach((option) => {
     option.disabled = !(hardware.quantization || ["auto", "fp32"]).includes(option.value);
   });
+  if (elements.trainPrecision.selectedOptions[0]?.disabled) {
+    elements.trainPrecision.value = "auto";
+  }
+  const precisionReasons = hardware.quantization_unavailable_reasons || {};
+  const unavailablePrecisions = [...elements.trainPrecision.options]
+    .filter((option) => option.disabled)
+    .map((option) => precisionReasons[option.value] || `${option.textContent} nao e suportado por este backend.`);
+  elements.trainPrecisionNote.hidden = unavailablePrecisions.length === 0;
+  elements.trainPrecisionNote.textContent = unavailablePrecisions.join(" ");
   renderModelCatalog(overview.models || []);
   renderPipeline(overview);
   renderJob(overview.job);

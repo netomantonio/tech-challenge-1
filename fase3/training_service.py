@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from fase3.evaluation_contract import evaluation_contract_matches
 from fase3.llm_backend import (
     DEFAULT_LOCAL_BASE_MODEL,
     PROJECT_ROOT,
@@ -347,6 +348,11 @@ class TrainingJobManager:
             raise RuntimeError("Aguarde a operacao atual terminar antes de promover.")
         adapter = resolver_adapter(version)
         calibracao = _ler_json(CALIBRATION_PATH)
+        if not evaluation_contract_matches(calibracao):
+            raise ValueError(
+                "A calibracao esta desatualizada para o prompt ou os casos atuais. "
+                "Execute Calibrar e validar novamente."
+            )
         selecionado = (calibracao or {}).get("selecionado", {})
         caminho_calibrado = Path(str(selecionado.get("adapter_path", "")))
         if not caminho_calibrado.is_absolute():
@@ -424,6 +430,17 @@ class TrainingJobManager:
                 "promovido_em": None,
             }
         calibration = _ler_json(CALIBRATION_PATH)
+        latest_calibration = (calibration or {}).get("selecionado")
+        if latest_calibration and not evaluation_contract_matches(calibration):
+            latest_calibration = {
+                **latest_calibration,
+                "aprovado": False,
+                "stale": True,
+                "stale_reason": (
+                    "O prompt, o split de validacao ou os casos finais mudaram. "
+                    "Execute uma nova calibracao."
+                ),
+            }
         return {
             "dataset": {"train": contar(train), "validation": contar(val), "ready": train.exists() and val.exists()},
             "adapters": adapters,
@@ -432,6 +449,6 @@ class TrainingJobManager:
             "models": model_capabilities(),
             "hardware": hardware_capabilities(),
             "promoted": promoted,
-            "latest_calibration": (calibration or {}).get("selecionado"),
+            "latest_calibration": latest_calibration,
             "job": self.job(),
         }
