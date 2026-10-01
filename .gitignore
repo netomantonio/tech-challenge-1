@@ -124,6 +124,14 @@ resultados/fase2/*
 !resultados/fase3/
 resultados/fase3/**/auditoria.jsonl
 
+# Artefatos finais da fase 4 (relatorios, achados e alertas) sustentam o
+# relatorio tecnico e ficam versionaveis. O log de auditoria, o video anotado e
+# a serie com scores sao regerados a cada execucao.
+!resultados/fase4/
+resultados/fase4/auditoria_monitoramento.jsonl
+resultados/fase4/**/*.mp4
+resultados/fase4/**/sinais_vitais_scores.csv
+
 # Base SQLite mock de prontuarios e regenerada a partir do JSON sintetico.
 fase3/data/*.db
 
@@ -133,6 +141,11 @@ fase3/data/*.db
 fase3/data/finetuning_dataset.jsonl
 fase3/data/finetuning_train.jsonl
 fase3/data/finetuning_val.jsonl
+
+# Amostras multimodais da fase 4 (video, audio e series). Sao regeradas de
+# forma deterministica por `python -m fase4.data.gerar_dados_sinteticos` a
+# partir do codigo versionado, mesmo padrao de data/*.csv na fase 1.
+fase4/data/amostras/
 
 # Variáveis de ambiente / segredos
 .env
@@ -153,3 +166,4 @@ secrets.json
 # Arquivos temporários do sistema operacional
 *.tmp
 *.bak
+/.venv-fase3/
