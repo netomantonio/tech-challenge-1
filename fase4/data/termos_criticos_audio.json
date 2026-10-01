@@ -1,0 +1,109 @@
+{
+  "descricao": "Lexico clinico ficticio usado na Fase 4 para marcar termos criticos na transcricao da consulta. O peso indica a prioridade do achado: 0.9 exige avaliacao imediata, 0.6 pede reavaliacao na consulta e 0.4 entra apenas no relatorio.",
+  "categorias": {
+    "respiratorio": {
+      "peso": 0.9,
+      "termos": [
+        "falta de ar",
+        "fica sem ar",
+        "sem ar",
+        "nao consigo respirar",
+        "dificuldade para respirar",
+        "respiracao curta",
+        "cansaco para respirar",
+        "chiado no peito",
+        "sufocada",
+        "sufocado"
+      ]
+    },
+    "dor_toracica": {
+      "peso": 0.9,
+      "termos": [
+        "dor no peito",
+        "aperto no peito",
+        "peso no peito",
+        "pontada no peito"
+      ]
+    },
+    "neurologico": {
+      "peso": 0.9,
+      "termos": [
+        "desmaiei",
+        "quase desmaiei",
+        "tontura forte",
+        "vista escura",
+        "confusao mental",
+        "nao consigo falar direito",
+        "fala embolada",
+        "lingua presa"
+      ]
+    },
+    "infeccao": {
+      "peso": 0.8,
+      "termos": [
+        "febre",
+        "calafrio",
+        "tremedeira",
+        "ferida vermelha",
+        "secrecao na ferida",
+        "pus",
+        "cheiro ruim na ferida"
+      ]
+    },
+    "fadiga": {
+      "peso": 0.6,
+      "termos": [
+        "muito cansada",
+        "muito cansado",
+        "sem forca",
+        "exausta",
+        "exausto",
+        "cansaco",
+        "nao aguento",
+        "fraqueza"
+      ]
+    },
+    "dor": {
+      "peso": 0.6,
+      "termos": [
+        "dor forte",
+        "dor demais",
+        "dor insuportavel",
+        "dor aumentou",
+        "doendo muito"
+      ]
+    },
+    "adesao_tratamento": {
+      "peso": 0.4,
+      "termos": [
+        "parei de tomar",
+        "esqueci o remedio",
+        "nao tomei o remedio",
+        "nao fiz os exercicios"
+      ]
+    },
+    "sono_humor": {
+      "peso": 0.4,
+      "termos": [
+        "nao durmo",
+        "nao consigo dormir",
+        "sem vontade de nada",
+        "muito ansiosa",
+        "muito ansioso"
+      ]
+    }
+  },
+  "termos_positivos": [
+    "melhor",
+    "melhorou",
+    "bem",
+    "tranquila",
+    "tranquilo",
+    "sem dor",
+    "consegui",
+    "animada",
+    "animado",
+    "disposta",
+    "disposto"
+  ]
+}

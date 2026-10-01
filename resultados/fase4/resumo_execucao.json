@@ -1,0 +1,87 @@
+{
+  "executado_em": "2026-10-01T16:00:47.879147+00:00",
+  "servicos_azure": {
+    "PAC-0006": {
+      "speech_to_text": "offline",
+      "text_analytics": "offline"
+    },
+    "PAC-0002": {
+      "speech_to_text": "offline",
+      "text_analytics": "offline"
+    }
+  },
+  "backend_pose": "anotado",
+  "backend_detector": "anotado",
+  "pacientes": [
+    {
+      "paciente_id": "PAC-0006",
+      "servicos_azure": {
+        "speech_to_text": "offline",
+        "text_analytics": "offline"
+      },
+      "risco": 100.0,
+      "nivel_risco": "alto",
+      "modalidades_processadas": [
+        "video",
+        "audio",
+        "sinais_vitais",
+        "prescricoes",
+        "movimentacao"
+      ],
+      "modalidades_ausentes": [],
+      "achados_por_modalidade": {
+        "video": 9,
+        "audio": 9,
+        "sinais_vitais": 18,
+        "prescricao": 3,
+        "movimentacao": 2
+      },
+      "achados_por_severidade": {
+        "informativo": 10,
+        "atencao": 19,
+        "critico": 12
+      },
+      "sindromes": [
+        "deterioracao_respiratoria",
+        "suspeita_infeccao",
+        "risco_medicamentoso",
+        "reabilitacao_insegura",
+        "risco_de_imobilidade"
+      ],
+      "total_alertas": 6,
+      "alertas_por_prioridade": {
+        "vermelho": 5,
+        "laranja": 1
+      }
+    },
+    {
+      "paciente_id": "PAC-0002",
+      "servicos_azure": {
+        "speech_to_text": "offline",
+        "text_analytics": "offline"
+      },
+      "risco": 6.5,
+      "nivel_risco": "baixo",
+      "modalidades_processadas": [
+        "audio",
+        "sinais_vitais",
+        "prescricoes",
+        "movimentacao"
+      ],
+      "modalidades_ausentes": [
+        "video"
+      ],
+      "achados_por_modalidade": {
+        "sinais_vitais": 5
+      },
+      "achados_por_severidade": {
+        "informativo": 5,
+        "atencao": 0,
+        "critico": 0
+      },
+      "sindromes": [],
+      "total_alertas": 0,
+      "alertas_por_prioridade": {}
+    }
+  ]
+}

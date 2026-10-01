@@ -1,0 +1,47 @@
+modalidade,tipo,severidade,score,instante,descricao
+video,desvio_postural_tronco,atencao,0.624,00:11.40,Compensacao de tronco acima do tolerado durante o exercicio (19.4 graus)
+video,desvio_postural_tronco,atencao,0.597,00:15.07,Compensacao de tronco acima do tolerado durante o exercicio (17.8 graus)
+video,amplitude_ombro_esquerdo_excedida,critico,0.877,00:11.60,Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (139.6 graus)
+video,amplitude_ombro_esquerdo_excedida,critico,0.781,00:14.87,Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (133.8 graus)
+video,assimetria_entre_ombros,atencao,0.97,00:11.77,Assimetria entre os ombros na mesma repeticao (49.2 graus)
+video,assimetria_entre_ombros,atencao,0.648,00:13.37,Assimetria entre os ombros na mesma repeticao (25.9 graus)
+video,assimetria_entre_ombros,atencao,0.884,00:14.90,Assimetria entre os ombros na mesma repeticao (40.1 graus)
+video,invasao_area_critica,critico,0.95,00:13.20,Mao do paciente dentro da area critica do dreno durante a sessao
+video,profissional_ausente,atencao,0.75,00:10.00,Paciente executou o exercicio sem profissional em cena por 4.0 s
+audio,fala_entrecortada,atencao,0.743,00:00.60,"Fala entrecortada com frases curtas e pausas longas, compativel com esforco respiratorio"
+audio,fadiga_vocal,atencao,0.95,00:16.05,Sinais vocais de cansaco: queda de energia ao longo da consulta e taxa de fala reduzida
+audio,instabilidade_vocal,atencao,0.629,,"Frequencia fundamental instavel, compativel com voz tremula ou articulacao prejudicada"
+audio,termo_critico_respiratorio,critico,0.9,00:03.37,Queixa de categoria 'respiratorio' relatada pelo paciente: sem ar
+audio,termo_critico_dor_toracica,critico,0.9,00:05.75,Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito
+audio,termo_critico_infeccao,critico,0.8,00:08.65,Queixa de categoria 'infeccao' relatada pelo paciente: febre
+audio,termo_critico_fadiga,atencao,0.6,00:00.60,"Queixa de categoria 'fadiga' relatada pelo paciente: muito cansada, nao aguento"
+audio,termo_critico_dor,atencao,0.6,00:11.44,Queixa de categoria 'dor' relatada pelo paciente: dor aumentou
+audio,sentimento_negativo,informativo,0.667,,Sentimento predominante negativo na fala do paciente
+sinais_vitais,desvio_pontual_nao_confirmado_pressao_sistolica,informativo,0.204,2025-06-10T09:49:00,Leitura isolada de pressao sistolica fora do padrao recente (117.8); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
+sinais_vitais,desvio_pontual_nao_confirmado_pressao_sistolica,informativo,0.216,2025-06-10T10:06:00,Leitura isolada de pressao sistolica fora do padrao recente (135.6); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
+sinais_vitais,desvio_pontual_nao_confirmado_frequencia_cardiaca,informativo,0.6,2025-06-10T10:30:00,Leitura isolada de frequencia cardiaca fora do padrao recente (185); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
+sinais_vitais,desvio_pontual_nao_confirmado_frequencia_respiratoria,informativo,0.225,2025-06-10T12:07:00,Leitura isolada de frequencia respiratoria fora do padrao recente (18.4); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
+sinais_vitais,desvio_pontual_nao_confirmado_pressao_diastolica,informativo,0.205,2025-06-10T13:29:00,Leitura isolada de pressao diastolica fora do padrao recente (87.2); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
+sinais_vitais,desvio_pontual_nao_confirmado_frequencia_respiratoria,informativo,0.202,2025-06-10T15:56:00,Leitura isolada de frequencia respiratoria fora do padrao recente (14.7); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
+sinais_vitais,desvio_pontual_nao_confirmado_frequencia_respiratoria,informativo,0.247,2025-06-10T16:10:00,Leitura isolada de frequencia respiratoria fora do padrao recente (18.7); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
+sinais_vitais,desvio_pontual_nao_confirmado_frequencia_respiratoria,informativo,0.211,2025-06-10T16:23:00,Leitura isolada de frequencia respiratoria fora do padrao recente (19.1); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
+sinais_vitais,desvio_pontual_nao_confirmado_frequencia_cardiaca,informativo,0.23,2025-06-10T16:26:00,Leitura isolada de frequencia cardiaca fora do padrao recente (96.4); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
+sinais_vitais,tendencia_alta_frequencia_cardiaca,atencao,0.73,2025-06-10T16:51:00,Tendencia de alta sustentada de frequencia cardiaca: 93.5 contra 82.7 do basal
+sinais_vitais,tendencia_alta_temperatura,atencao,0.737,2025-06-10T17:01:00,Tendencia de alta sustentada de temperatura: 37.3 contra 36.9 do basal
+sinais_vitais,tendencia_alta_frequencia_respiratoria,atencao,0.719,2025-06-10T17:07:00,Tendencia de alta sustentada de frequencia respiratoria: 19.2 contra 16.2 do basal
+sinais_vitais,tendencia_queda_saturacao_oxigenio,atencao,0.721,2025-06-10T17:20:00,Tendencia de queda sustentada de saturacao oxigenio: 95.0 contra 97.1 do basal
+sinais_vitais,tendencia_queda_pressao_sistolica,atencao,0.72,2025-06-10T17:43:00,Tendencia de queda sustentada de pressao sistolica: 112.8 contra 125.1 do basal
+sinais_vitais,tendencia_queda_pressao_diastolica,atencao,0.727,2025-06-10T17:44:00,Tendencia de queda sustentada de pressao diastolica: 70.1 contra 78.6 do basal
+sinais_vitais,limite_critico_temperatura,critico,0.9,2025-06-10T18:03:00,Temperatura acima do limite critico: 38.08 C (limite 38)
+sinais_vitais,limite_critico_frequencia_respiratoria,critico,0.9,2025-06-10T18:17:00,Frequencia respiratoria acima do limite critico: 24.2 irpm (limite 24)
+sinais_vitais,anomalia_multivariada,critico,0.85,2025-06-10T17:08:00,"Combinacao anomala de sinais vitais em relacao ao basal do paciente (frequencia_cardiaca, temperatura, frequencia_respiratoria)"
+prescricao,salto_de_dose,critico,0.95,2025-06-10T14:05:00,Aumento de 400% na dose de morfina (2 para 10 mg)
+prescricao,suspensao_precoce_antimicrobiano,critico,0.914,2025-06-10T15:40:00,ceftriaxona suspenso no dia 2 de um esquema previsto para 7 dias
+prescricao,duplicidade_terapeutica,critico,0.88,2025-06-10T16:20:00,"Dois medicamentos da classe anti_inflamatorio_nao_esteroidal ativos ao mesmo tempo: cetoprofeno, ibuprofeno"
+movimentacao,imobilidade_prolongada,atencao,0.84,2025-06-10T09:00:00,Paciente praticamente imovel por 6 horas seguidas durante o dia
+movimentacao,agitacao_noturna,atencao,0.81,2025-06-10T02:00:00,"Atividade elevada em 3 horas da madrugada, padrao compativel com agitacao ou delirium"
+multimodal,sindrome_deterioracao_respiratoria,critico,0.99,2025-06-10T16:51:00,Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao
+multimodal,sindrome_suspeita_infeccao,critico,0.945,2025-06-10T16:51:00,Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica
+multimodal,sindrome_risco_medicamentoso,critico,0.99,2025-06-10T14:05:00,Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor
+multimodal,sindrome_reabilitacao_insegura,critico,0.99,00:13.20,Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela
+multimodal,sindrome_risco_de_imobilidade,critico,0.945,2025-06-10T02:00:00,Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitacao noturna

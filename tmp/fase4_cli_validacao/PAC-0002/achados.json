@@ -1,0 +1,72 @@
+[
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_sistolica",
+    "descricao": "Leitura isolada de pressao sistolica fora do padrao recente (117.8); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20350000000000001,
+    "instante": "2025-06-10T09:49:00",
+    "evidencias": {
+      "valor": 117.8,
+      "mediana_janela": 125.35,
+      "z_robusto": -4.07,
+      "instante": "2025-06-10T09:49:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_sistolica",
+    "descricao": "Leitura isolada de pressao sistolica fora do padrao recente (135.6); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.21600000000000003,
+    "instante": "2025-06-10T10:06:00",
+    "evidencias": {
+      "valor": 135.6,
+      "mediana_janela": 125.35,
+      "z_robusto": 4.32,
+      "instante": "2025-06-10T10:06:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (18.4); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.225,
+    "instante": "2025-06-10T12:07:00",
+    "evidencias": {
+      "valor": 18.4,
+      "mediana_janela": 16.4,
+      "z_robusto": 4.5,
+      "instante": "2025-06-10T12:07:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_diastolica",
+    "descricao": "Leitura isolada de pressao diastolica fora do padrao recente (87.2); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.205,
+    "instante": "2025-06-10T13:29:00",
+    "evidencias": {
+      "valor": 87.2,
+      "mediana_janela": 79.9,
+      "z_robusto": 4.1,
+      "instante": "2025-06-10T13:29:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (14.7); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2025-06-10T15:56:00",
+    "evidencias": {
+      "valor": 14.7,
+      "mediana_janela": 16.5,
+      "z_robusto": -4.05,
+      "instante": "2025-06-10T15:56:00"
+    }
+  }
+]

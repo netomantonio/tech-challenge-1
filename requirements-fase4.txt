@@ -1,0 +1,35 @@
+# Dependencias opcionais da Fase 4 (monitoramento multimodal).
+#
+# Mantidas fora de requirements.txt pelo mesmo motivo da Fase 3: nao sao
+# necessarias para rodar o pipeline, os testes nem o CI. O modulo `fase4`
+# funciona apenas com numpy, pandas e scikit-learn (ja em requirements.txt)
+# mais `wave` da biblioteca padrao; os pacotes abaixo trocam os substitutos
+# locais pelos servicos e modelos reais:
+#
+#   pip install -r requirements.txt -r requirements-fase4.txt
+#
+# O que cada grupo habilita:
+#
+# 1. Servicos gerenciados da Azure (pedidos no enunciado). Sem eles, e sem as
+#    variaveis AZURE_SPEECH_KEY/AZURE_SPEECH_REGION e
+#    AZURE_LANGUAGE_KEY/AZURE_LANGUAGE_ENDPOINT, `fase4.azure_services` usa o
+#    provedor "offline": a transcricao vem do arquivo de referencia do audio
+#    sintetico e o sentimento sai do lexico institucional.
+azure-cognitiveservices-speech>=1.40,<2.0
+azure-ai-textanalytics>=5.3,<6.0
+azure-core>=1.30,<2.0
+
+# 2. Leitura e escrita de video. Ja vem instalado no ambiente do projeto; esta
+#    listado porque o gerador de amostras e o video anotado dependem dele.
+opencv-contrib-python>=4.10,<4.12
+
+# 3. Estimador de pose real, para rodar `--backend-pose mediapipe` em video
+#    clinico de verdade. Usamos o MediaPipe Pose no lugar do OpenPose porque
+#    ele entrega a mesma saida (keypoints 2D do corpo) e instala por pip,
+#    enquanto o OpenPose exige compilar Caffe com CUDA. A analise postural a
+#    jusante nao muda: ela so consome coordenadas de articulacoes.
+mediapipe==0.10.21
+
+# 4. Detector de objetos real, para rodar `--backend-detector yolov8`. Baixa
+#    os pesos do YOLOv8 na primeira execucao.
+ultralytics>=8.3,<9.0

@@ -1,0 +1,659 @@
+[
+  {
+    "modalidade": "video",
+    "tipo": "desvio_postural_tronco",
+    "descricao": "Compensacao de tronco acima do tolerado durante o exercicio (19.4 graus)",
+    "severidade": "atencao",
+    "score": 0.6240777686560774,
+    "instante": "00:11.40",
+    "evidencias": {
+      "medida": "inclinacao_tronco",
+      "limite_graus": 15.0,
+      "valor_maximo_graus": 19.4,
+      "janela_s": "10.97-12.33",
+      "quadros": 42
+    }
+  },
+  {
+    "modalidade": "video",
+    "tipo": "desvio_postural_tronco",
+    "descricao": "Compensacao de tronco acima do tolerado durante o exercicio (17.8 graus)",
+    "severidade": "atencao",
+    "score": 0.5969961803703939,
+    "instante": "00:15.07",
+    "evidencias": {
+      "medida": "inclinacao_tronco",
+      "limite_graus": 15.0,
+      "valor_maximo_graus": 17.8,
+      "janela_s": "14.57-15.50",
+      "quadros": 29
+    }
+  },
+  {
+    "modalidade": "video",
+    "tipo": "amplitude_ombro_esquerdo_excedida",
+    "descricao": "Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (139.6 graus)",
+    "severidade": "critico",
+    "score": 0.8765948420253484,
+    "instante": "00:11.60",
+    "evidencias": {
+      "medida": "abducao_ombro_esquerdo",
+      "limite_graus": 120.0,
+      "valor_maximo_graus": 139.6,
+      "janela_s": "11.13-12.23",
+      "quadros": 34
+    }
+  },
+  {
+    "modalidade": "video",
+    "tipo": "amplitude_ombro_esquerdo_excedida",
+    "descricao": "Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (133.8 graus)",
+    "severidade": "critico",
+    "score": 0.780694105950081,
+    "instante": "00:14.87",
+    "evidencias": {
+      "medida": "abducao_ombro_esquerdo",
+      "limite_graus": 120.0,
+      "valor_maximo_graus": 133.8,
+      "janela_s": "14.53-15.43",
+      "quadros": 28
+    }
+  },
+  {
+    "modalidade": "video",
+    "tipo": "assimetria_entre_ombros",
+    "descricao": "Assimetria entre os ombros na mesma repeticao (49.2 graus)",
+    "severidade": "atencao",
+    "score": 0.97,
+    "instante": "00:11.77",
+    "evidencias": {
+      "medida": "assimetria_ombros",
+      "limite_graus": 20.0,
+      "valor_maximo_graus": 49.2,
+      "janela_s": "10.53-12.83",
+      "quadros": 70
+    }
+  },
+  {
+    "modalidade": "video",
+    "tipo": "assimetria_entre_ombros",
+    "descricao": "Assimetria entre os ombros na mesma repeticao (25.9 graus)",
+    "severidade": "atencao",
+    "score": 0.6475299099564406,
+    "instante": "00:13.37",
+    "evidencias": {
+      "medida": "assimetria_ombros",
+      "limite_graus": 20.0,
+      "valor_maximo_graus": 25.9,
+      "janela_s": "13.27-13.40",
+      "quadros": 5
+    }
+  },
+  {
+    "modalidade": "video",
+    "tipo": "assimetria_entre_ombros",
+    "descricao": "Assimetria entre os ombros na mesma repeticao (40.1 graus)",
+    "severidade": "atencao",
+    "score": 0.8844017918705518,
+    "instante": "00:14.90",
+    "evidencias": {
+      "medida": "assimetria_ombros",
+      "limite_graus": 20.0,
+      "valor_maximo_graus": 40.1,
+      "janela_s": "14.23-16.03",
+      "quadros": 55
+    }
+  },
+  {
+    "modalidade": "video",
+    "tipo": "invasao_area_critica",
+    "descricao": "Mao do paciente dentro da area critica do dreno durante a sessao",
+    "severidade": "critico",
+    "score": 0.95,
+    "instante": "00:13.20",
+    "evidencias": {
+      "sobreposicao_maxima": 1.0,
+      "duracao_s": 0.93,
+      "janela_s": "13.07-13.97"
+    }
+  },
+  {
+    "modalidade": "video",
+    "tipo": "profissional_ausente",
+    "descricao": "Paciente executou o exercicio sem profissional em cena por 4.0 s",
+    "severidade": "atencao",
+    "score": 0.75,
+    "instante": "00:10.00",
+    "evidencias": {
+      "duracao_s": 4.0,
+      "limite_s": 2.0,
+      "janela_s": "10.00-13.97"
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "fala_entrecortada",
+    "descricao": "Fala entrecortada com frases curtas e pausas longas, compativel com esforco respiratorio",
+    "severidade": "atencao",
+    "score": 0.7430217563968788,
+    "instante": "00:00.60",
+    "evidencias": {
+      "proporcao_pausa": 0.515,
+      "duracao_media_frase_s": 1.3,
+      "pausa_maxima_s": 1.42
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "fadiga_vocal",
+    "descricao": "Sinais vocais de cansaco: queda de energia ao longo da consulta e taxa de fala reduzida",
+    "severidade": "atencao",
+    "score": 0.9500000000000001,
+    "instante": "00:16.05",
+    "evidencias": {
+      "queda_energia_relativa": 0.415,
+      "taxa_fala_silabas_s": 1.31,
+      "energia_media": 0.0881
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "instabilidade_vocal",
+    "descricao": "Frequencia fundamental instavel, compativel com voz tremula ou articulacao prejudicada",
+    "severidade": "atencao",
+    "score": 0.6292818066054191,
+    "instante": null,
+    "evidencias": {
+      "jitter_f0": 0.0038,
+      "f0_media_hz": 173.4,
+      "f0_desvio_hz": 15.9
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "termo_critico_respiratorio",
+    "descricao": "Queixa de categoria 'respiratorio' relatada pelo paciente: sem ar",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "00:03.37",
+    "evidencias": {
+      "trecho": "Quando eu levanto da cama eu fico sem ar. Hoje de manha senti um aperto no",
+      "confianca_transcricao": 0.88,
+      "provedor_transcricao": "offline"
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "termo_critico_dor_toracica",
+    "descricao": "Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "00:05.75",
+    "evidencias": {
+      "trecho": "ico sem ar. Hoje de manha senti um aperto no peito. A ferida esta mais quente e tive",
+      "confianca_transcricao": 0.88,
+      "provedor_transcricao": "offline"
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "termo_critico_infeccao",
+    "descricao": "Queixa de categoria 'infeccao' relatada pelo paciente: febre",
+    "severidade": "critico",
+    "score": 0.8,
+    "instante": "00:08.65",
+    "evidencias": {
+      "trecho": ". A ferida esta mais quente e tive febre de noite. A dor aumentou e eu nao",
+      "confianca_transcricao": 0.88,
+      "provedor_transcricao": "offline"
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "termo_critico_fadiga",
+    "descricao": "Queixa de categoria 'fadiga' relatada pelo paciente: muito cansada, nao aguento",
+    "severidade": "atencao",
+    "score": 0.6,
+    "instante": "00:00.60",
+    "evidencias": {
+      "trecho": "Doutora, desde ontem eu estou muito cansada. Quando eu levanto da cama eu fico",
+      "confianca_transcricao": 0.88,
+      "provedor_transcricao": "offline"
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "termo_critico_dor",
+    "descricao": "Queixa de categoria 'dor' relatada pelo paciente: dor aumentou",
+    "severidade": "atencao",
+    "score": 0.6,
+    "instante": "00:11.44",
+    "evidencias": {
+      "trecho": "is quente e tive febre de noite. A dor aumentou e eu nao aguento fazer os exercici",
+      "confianca_transcricao": 0.88,
+      "provedor_transcricao": "offline"
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "sentimento_negativo",
+    "descricao": "Sentimento predominante negativo na fala do paciente",
+    "severidade": "informativo",
+    "score": 0.6666666666666666,
+    "instante": null,
+    "evidencias": {
+      "scores": {
+        "positivo": 0.0,
+        "neutro": 0.333,
+        "negativo": 0.667
+      },
+      "provedor": "offline"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_sistolica",
+    "descricao": "Leitura isolada de pressao sistolica fora do padrao recente (117.8); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20350000000000001,
+    "instante": "2025-06-10T09:49:00",
+    "evidencias": {
+      "valor": 117.8,
+      "mediana_janela": 125.35,
+      "z_robusto": -4.07,
+      "instante": "2025-06-10T09:49:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_sistolica",
+    "descricao": "Leitura isolada de pressao sistolica fora do padrao recente (135.6); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.21600000000000003,
+    "instante": "2025-06-10T10:06:00",
+    "evidencias": {
+      "valor": 135.6,
+      "mediana_janela": 125.35,
+      "z_robusto": 4.32,
+      "instante": "2025-06-10T10:06:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_cardiaca",
+    "descricao": "Leitura isolada de frequencia cardiaca fora do padrao recente (185); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.6,
+    "instante": "2025-06-10T10:30:00",
+    "evidencias": {
+      "valor": 185.0,
+      "mediana_janela": 82.95,
+      "z_robusto": 49.17,
+      "instante": "2025-06-10T10:30:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (18.4); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.225,
+    "instante": "2025-06-10T12:07:00",
+    "evidencias": {
+      "valor": 18.4,
+      "mediana_janela": 16.4,
+      "z_robusto": 4.5,
+      "instante": "2025-06-10T12:07:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_diastolica",
+    "descricao": "Leitura isolada de pressao diastolica fora do padrao recente (87.2); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.205,
+    "instante": "2025-06-10T13:29:00",
+    "evidencias": {
+      "valor": 87.2,
+      "mediana_janela": 79.9,
+      "z_robusto": 4.1,
+      "instante": "2025-06-10T13:29:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (14.7); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2025-06-10T15:56:00",
+    "evidencias": {
+      "valor": 14.7,
+      "mediana_janela": 16.5,
+      "z_robusto": -4.05,
+      "instante": "2025-06-10T15:56:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (18.7); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.2475,
+    "instante": "2025-06-10T16:10:00",
+    "evidencias": {
+      "valor": 18.7,
+      "mediana_janela": 16.5,
+      "z_robusto": 4.95,
+      "instante": "2025-06-10T16:10:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (19.1); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.211,
+    "instante": "2025-06-10T16:23:00",
+    "evidencias": {
+      "valor": 19.1,
+      "mediana_janela": 16.6,
+      "z_robusto": 4.22,
+      "instante": "2025-06-10T16:23:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_cardiaca",
+    "descricao": "Leitura isolada de frequencia cardiaca fora do padrao recente (96.4); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.22999999999999998,
+    "instante": "2025-06-10T16:26:00",
+    "evidencias": {
+      "valor": 96.4,
+      "mediana_janela": 85.5,
+      "z_robusto": 4.6,
+      "instante": "2025-06-10T16:26:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_alta_frequencia_cardiaca",
+    "descricao": "Tendencia de alta sustentada de frequencia cardiaca: 93.5 contra 82.7 do basal",
+    "severidade": "atencao",
+    "score": 0.73,
+    "instante": "2025-06-10T16:51:00",
+    "evidencias": {
+      "mediana_recente": 93.5,
+      "mediana_basal": 82.7,
+      "deslocamento": 10.8,
+      "tolerancia": 10.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_alta_temperatura",
+    "descricao": "Tendencia de alta sustentada de temperatura: 37.3 contra 36.9 do basal",
+    "severidade": "atencao",
+    "score": 0.7374999999999983,
+    "instante": "2025-06-10T17:01:00",
+    "evidencias": {
+      "mediana_recente": 37.3,
+      "mediana_basal": 36.85,
+      "deslocamento": 0.45,
+      "tolerancia": 0.4,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_alta_frequencia_respiratoria",
+    "descricao": "Tendencia de alta sustentada de frequencia respiratoria: 19.2 contra 16.2 do basal",
+    "severidade": "atencao",
+    "score": 0.7194444444444446,
+    "instante": "2025-06-10T17:07:00",
+    "evidencias": {
+      "mediana_recente": 19.25,
+      "mediana_basal": 16.2,
+      "deslocamento": 3.05,
+      "tolerancia": 3.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_queda_saturacao_oxigenio",
+    "descricao": "Tendencia de queda sustentada de saturacao oxigenio: 95.0 contra 97.1 do basal",
+    "severidade": "atencao",
+    "score": 0.7208333333333331,
+    "instante": "2025-06-10T17:20:00",
+    "evidencias": {
+      "mediana_recente": 95.05,
+      "mediana_basal": 97.1,
+      "deslocamento": -2.05,
+      "tolerancia": 2.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_queda_pressao_sistolica",
+    "descricao": "Tendencia de queda sustentada de pressao sistolica: 112.8 contra 125.1 do basal",
+    "severidade": "atencao",
+    "score": 0.7201388888888889,
+    "instante": "2025-06-10T17:43:00",
+    "evidencias": {
+      "mediana_recente": 112.85,
+      "mediana_basal": 125.1,
+      "deslocamento": -12.25,
+      "tolerancia": 12.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_queda_pressao_diastolica",
+    "descricao": "Tendencia de queda sustentada de pressao diastolica: 70.1 contra 78.6 do basal",
+    "severidade": "atencao",
+    "score": 0.7270833333333334,
+    "instante": "2025-06-10T17:44:00",
+    "evidencias": {
+      "mediana_recente": 70.1,
+      "mediana_basal": 78.6,
+      "deslocamento": -8.5,
+      "tolerancia": 8.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "limite_critico_temperatura",
+    "descricao": "Temperatura acima do limite critico: 38.08 C (limite 38)",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "2025-06-10T18:03:00",
+    "evidencias": {
+      "valor": 38.08,
+      "limite": 38.0,
+      "faixa_normal": "35.5-37.5 C"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "limite_critico_frequencia_respiratoria",
+    "descricao": "Frequencia respiratoria acima do limite critico: 24.2 irpm (limite 24)",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "2025-06-10T18:17:00",
+    "evidencias": {
+      "valor": 24.2,
+      "limite": 24.0,
+      "faixa_normal": "12-20 irpm"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "anomalia_multivariada",
+    "descricao": "Combinacao anomala de sinais vitais em relacao ao basal do paciente (frequencia_cardiaca, temperatura, frequencia_respiratoria)",
+    "severidade": "critico",
+    "score": 0.85,
+    "instante": "2025-06-10T17:08:00",
+    "evidencias": {
+      "inicio": "2025-06-10T16:09:00",
+      "fim": "2025-06-10T19:59:00",
+      "minutos": 231,
+      "score_minimo": -0.1598,
+      "corte_basal": -0.0332
+    }
+  },
+  {
+    "modalidade": "prescricao",
+    "tipo": "salto_de_dose",
+    "descricao": "Aumento de 400% na dose de morfina (2 para 10 mg)",
+    "severidade": "critico",
+    "score": 0.95,
+    "instante": "2025-06-10T14:05:00",
+    "evidencias": {
+      "medicamento": "morfina",
+      "classe": "opioide",
+      "dose_anterior": 2.0,
+      "dose_nova": 10.0,
+      "variacao_percentual": 400.0,
+      "prescritor": "MED-311"
+    }
+  },
+  {
+    "modalidade": "prescricao",
+    "tipo": "suspensao_precoce_antimicrobiano",
+    "descricao": "ceftriaxona suspenso no dia 2 de um esquema previsto para 7 dias",
+    "severidade": "critico",
+    "score": 0.9142857142857143,
+    "instante": "2025-06-10T15:40:00",
+    "evidencias": {
+      "medicamento": "ceftriaxona",
+      "dia_tratamento": 2,
+      "duracao_prevista_dias": 7,
+      "fracao_cumprida": 0.29,
+      "prescritor": "MED-311"
+    }
+  },
+  {
+    "modalidade": "prescricao",
+    "tipo": "duplicidade_terapeutica",
+    "descricao": "Dois medicamentos da classe anti_inflamatorio_nao_esteroidal ativos ao mesmo tempo: cetoprofeno, ibuprofeno",
+    "severidade": "critico",
+    "score": 0.88,
+    "instante": "2025-06-10T16:20:00",
+    "evidencias": {
+      "classe": "anti_inflamatorio_nao_esteroidal",
+      "medicamentos": [
+        "cetoprofeno",
+        "ibuprofeno"
+      ],
+      "prescritor": "MED-311"
+    }
+  },
+  {
+    "modalidade": "movimentacao",
+    "tipo": "imobilidade_prolongada",
+    "descricao": "Paciente praticamente imovel por 6 horas seguidas durante o dia",
+    "severidade": "atencao",
+    "score": 0.84,
+    "instante": "2025-06-10T09:00:00",
+    "evidencias": {
+      "horas": 6,
+      "inicio": "2025-06-10T09:00:00",
+      "fim": "2025-06-10T14:00:00",
+      "indice_medio": 3.7,
+      "limite_indice": 8.0
+    }
+  },
+  {
+    "modalidade": "movimentacao",
+    "tipo": "agitacao_noturna",
+    "descricao": "Atividade elevada em 3 horas da madrugada, padrao compativel com agitacao ou delirium",
+    "severidade": "atencao",
+    "score": 0.81,
+    "instante": "2025-06-10T02:00:00",
+    "evidencias": {
+      "horas_afetadas": [
+        "02:00",
+        "03:00",
+        "04:00"
+      ],
+      "indice_maximo": 67.7,
+      "limite_indice": 55.0
+    }
+  },
+  {
+    "modalidade": "multimodal",
+    "tipo": "sindrome_deterioracao_respiratoria",
+    "descricao": "Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao",
+    "severidade": "critico",
+    "score": 0.99,
+    "instante": "2025-06-10T16:51:00",
+    "evidencias": {
+      "modalidades": "audio, sinais_vitais",
+      "quantidade_achados": 16,
+      "tipos_de_achado": "fadiga_vocal, fala_entrecortada, instabilidade_vocal, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+      "acao": "Avaliar o paciente presencialmente, repetir oximetria e considerar suporte de oxigenio conforme protocolo"
+    }
+  },
+  {
+    "modalidade": "multimodal",
+    "tipo": "sindrome_suspeita_infeccao",
+    "descricao": "Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica",
+    "severidade": "critico",
+    "score": 0.9450000000000001,
+    "instante": "2025-06-10T16:51:00",
+    "evidencias": {
+      "modalidades": "audio, sinais_vitais",
+      "quantidade_achados": 14,
+      "tipos_de_achado": "anomalia_multivariada, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+      "acao": "Coletar culturas, reavaliar a ferida operatoria e checar o esquema antimicrobiano antes da proxima dose"
+    }
+  },
+  {
+    "modalidade": "multimodal",
+    "tipo": "sindrome_risco_medicamentoso",
+    "descricao": "Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor",
+    "severidade": "critico",
+    "score": 0.99,
+    "instante": "2025-06-10T14:05:00",
+    "evidencias": {
+      "modalidades": "prescricao, audio, sinais_vitais",
+      "quantidade_achados": 17,
+      "tipos_de_achado": "anomalia_multivariada, duplicidade_terapeutica, limite_critico_frequencia_respiratoria, limite_critico_temperatura, salto_de_dose, suspensao_precoce_antimicrobiano, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+      "acao": "Revisar a prescricao com a farmacia clinica antes da proxima administracao e registrar a justificativa no prontuario"
+    }
+  },
+  {
+    "modalidade": "multimodal",
+    "tipo": "sindrome_reabilitacao_insegura",
+    "descricao": "Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela",
+    "severidade": "critico",
+    "score": 0.99,
+    "instante": "00:13.20",
+    "evidencias": {
+      "modalidades": "video, audio",
+      "quantidade_achados": 16,
+      "tipos_de_achado": "amplitude_ombro_esquerdo_excedida, assimetria_entre_ombros, desvio_postural_tronco, fadiga_vocal, fala_entrecortada, instabilidade_vocal, invasao_area_critica, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+      "acao": "Rever o plano de reabilitacao com o fisioterapeuta antes da proxima sessao e reavaliar a liberacao de amplitude"
+    }
+  },
+  {
+    "modalidade": "multimodal",
+    "tipo": "sindrome_risco_de_imobilidade",
+    "descricao": "Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitacao noturna",
+    "severidade": "critico",
+    "score": 0.9450000000000001,
+    "instante": "2025-06-10T02:00:00",
+    "evidencias": {
+      "modalidades": "sinais_vitais, movimentacao",
+      "quantidade_achados": 11,
+      "tipos_de_achado": "agitacao_noturna, anomalia_multivariada, imobilidade_prolongada, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio",
+      "acao": "Reavaliar risco de lesao por pressao e de trombose e reforcar mobilizacao assistida"
+    }
+  }
+]
