@@ -21,15 +21,30 @@ azure-core>=1.30,<2.0
 
 # 2. Leitura e escrita de video. Ja vem instalado no ambiente do projeto; esta
 #    listado porque o gerador de amostras e o video anotado dependem dele.
-opencv-contrib-python>=4.10,<4.12
+opencv-contrib-python>=4.10,<4.14
 
 # 3. Estimador de pose real, para rodar `--backend-pose mediapipe` em video
 #    clinico de verdade. Usamos o MediaPipe Pose no lugar do OpenPose porque
 #    ele entrega a mesma saida (keypoints 2D do corpo) e instala por pip,
 #    enquanto o OpenPose exige compilar Caffe com CUDA. A analise postural a
 #    jusante nao muda: ela so consome coordenadas de articulacoes.
-mediapipe==0.10.21
+#    `fase4.video_analysis` aceita tanto a API legada (`mp.solutions.pose`,
+#    ate 0.10.x) quanto a API Tasks (`PoseLandmarker`, 0.10.x e 1.x); o
+#    modelo `pose_landmarker_lite.task` e baixado para fase4/data/modelos/.
+mediapipe>=0.10.30,<2.0
 
 # 4. Detector de objetos real, para rodar `--backend-detector yolov8`. Baixa
 #    os pesos do YOLOv8 na primeira execucao.
 ultralytics>=8.3,<9.0
+
+# 5. Demonstracao local sem credencial Azure e validacao com dados reais.
+#    - faster-whisper: provedor `--provedor-azure local` de Speech to Text
+#      (modelo baixado uma vez para fase4/data/modelos/). Nao substitui a
+#      Azure pedida no enunciado; serve para mostrar transcricao real.
+#    - pyttsx3: sintetiza fala pt-BR com a voz do Windows para
+#      `python -m fase4.data.gerar_fala_tts` (audio inteligivel de consulta).
+#    - wfdb: le registros do PhysioNet (MIMIC-III Waveform Matched Subset)
+#      em `python -m fase4.data.baixar_physionet`.
+faster-whisper>=1.1,<2.0
+pyttsx3>=2.90
+wfdb>=4.1,<5.0

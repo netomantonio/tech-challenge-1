@@ -56,9 +56,26 @@ def mostrar_servicos() -> None:
         )
 
 
+def _parse_area_critica(texto: str | None) -> tuple[float, float, float, float] | None:
+    """Converte "x1,y1,x2,y2" (pixels) na ROI manual da area critica."""
+    if not texto:
+        return None
+    partes = [p.strip() for p in texto.split(",")]
+    if len(partes) != 4:
+        raise argparse.ArgumentTypeError("--area-critica espera quatro numeros: x1,y1,x2,y2")
+    try:
+        x1, y1, x2, y2 = (float(p) for p in partes)
+    except ValueError as erro:
+        raise argparse.ArgumentTypeError("--area-critica espera numeros") from erro
+    if x2 <= x1 or y2 <= y1:
+        raise argparse.ArgumentTypeError("--area-critica exige x2 > x1 e y2 > y1")
+    return (x1, y1, x2, y2)
+
+
 def demonstrar_paciente(
     paciente_id: str, provedor_azure: str, backend_pose: str, backend_detector: str,
     raiz_amostras: Path | None = None, dir_saida: Path | None = None,
+    area_critica: tuple[float, float, float, float] | None = None,
 ) -> None:
     _titulo(f"Monitoramento multimodal - paciente {paciente_id}")
 
@@ -79,6 +96,7 @@ def demonstrar_paciente(
         provedor_azure=provedor_azure,
         backend_pose=backend_pose,
         backend_detector=backend_detector,
+        area_critica=area_critica,
     )
 
     if resultado.resultado_video is not None:
@@ -86,7 +104,13 @@ def demonstrar_paciente(
         video = resultado.resultado_video
         print(
             f"  {video.quadros_analisados} quadros, {video.duracao_s:.1f} s, "
-            f"pose={video.backend_pose}, detector={video.backend_detector}"
+            f"pose={video.backend_pose} ({video.quadros_com_pose} quadros com pose), "
+            f"detector={video.backend_detector}"
+        )
+        print(
+            f"  area critica: {video.origem_area_critica}"
+            + (f" {video.area_critica_manual}" if video.area_critica_manual else "")
+            + f"; mao do paciente por {video.regra_mao}"
         )
         for medida, valor in video.resumo_angulos.items():
             print(f"  {medida:34s} {valor:6.1f} graus")
@@ -220,6 +244,16 @@ def main() -> None:
         choices=["anotado", "yolov8"],
         help="Detector de objetos (padrao: anotado).",
     )
+    parser.add_argument(
+        "--area-critica",
+        type=_parse_area_critica,
+        default=None,
+        metavar="X1,Y1,X2,Y2",
+        help=(
+            "ROI manual da area critica em pixels (ex.: 250,178,296,220). Necessaria "
+            "com --backend-detector yolov8, que nao reconhece drenos."
+        ),
+    )
     args = parser.parse_args()
     if args.atraso < 0:
         parser.error("--atraso deve ser maior ou igual a zero")
@@ -241,6 +275,7 @@ def main() -> None:
             provedor_azure=args.provedor_azure,
             backend_pose=args.backend_pose,
             backend_detector=args.backend_detector,
+            area_critica=args.area_critica,
         )
         _titulo("Resumo consolidado")
         for paciente in resumo["pacientes"]:
@@ -254,7 +289,7 @@ def main() -> None:
 
     demonstrar_paciente(
         args.paciente_id, args.provedor_azure, args.backend_pose, args.backend_detector,
-        args.raiz_amostras, args.dir_saida,
+        args.raiz_amostras, args.dir_saida, area_critica=args.area_critica,
     )
 
 

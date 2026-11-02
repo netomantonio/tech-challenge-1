@@ -17,6 +17,11 @@ from pathlib import Path
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 DIR_DADOS = Path(__file__).resolve().parent / "data"
 DIR_RESULTADOS = RAIZ_PROJETO / "resultados" / "fase4"
+# Pesos e modelos baixados na primeira execucao dos backends reais
+# (MediaPipe PoseLandmarker, faster-whisper). Fora do git.
+DIR_MODELOS = DIR_DADOS / "modelos"
+# Registros do PhysioNet convertidos para o esquema do projeto. Fora do git.
+DIR_PHYSIONET = DIR_DADOS / "physionet"
 
 CAMINHO_TERMOS_CRITICOS = DIR_DADOS / "termos_criticos_audio.json"
 
@@ -58,6 +63,11 @@ class LimiaresVideo:
     # Fracao do corpo do paciente dentro da area critica (dreno) que
     # caracteriza invasao de area.
     sobreposicao_area_critica: float = 0.0
+    # Raio (pixels) em torno do keypoint do punho usado como "mao" quando o
+    # detector nao fornece a caixa da mao do paciente (caso do YOLOv8
+    # generico com area critica informada manualmente). Igual a meia caixa
+    # de mao das amostras sinteticas.
+    raio_mao_px: float = 11.0
 
 
 @dataclass(frozen=True)

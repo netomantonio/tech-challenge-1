@@ -87,6 +87,7 @@ def processar_paciente(
     limiares: LimiaresAnomalia = LIMIARES_ANOMALIA,
     gravar_relatorios: bool = True,
     gravar_video_anotado: bool = True,
+    area_critica: tuple[float, float, float, float] | None = None,
 ) -> ResultadoPaciente:
     """Executa o monitoramento completo de um paciente."""
     amostras = localizar_amostras(paciente_id, raiz_amostras)
@@ -111,6 +112,7 @@ def processar_paciente(
             caminho_objetos=amostras.get("objetos"),
             backend_pose=backend_pose,
             backend_detector=backend_detector,
+            area_critica=area_critica,
         )
         achados.extend(resultado_video.achados)
         processadas.append("video")
@@ -381,6 +383,7 @@ def processar_lote(
     provedor_azure: str = "auto",
     backend_pose: str = "anotado",
     backend_detector: str = "anotado",
+    area_critica: tuple[float, float, float, float] | None = None,
 ) -> dict:
     """Processa varios pacientes e grava o resumo consolidado da execucao."""
     saida = dir_saida or DIR_RESULTADOS
@@ -395,6 +398,7 @@ def processar_lote(
             provedor_azure=provedor_azure,
             backend_pose=backend_pose,
             backend_detector=backend_detector,
+            area_critica=area_critica,
         )
         resultados.append(resultado)
 

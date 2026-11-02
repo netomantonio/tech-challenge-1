@@ -19,21 +19,39 @@ Usamos MediaPipe Pose no lugar do OpenPose porque ele entrega o mesmo tipo de
 saida (keypoints 2D do corpo) com instalacao via pip, enquanto o OpenPose
 exige compilar Caffe/CUDA; a analise a jusante e identica, ja que depende
 apenas das coordenadas das articulacoes.
+
+O YOLOv8 generico (classes COCO) nao conhece `dreno`, `mao_paciente` nem
+`profissional`. Para as regras de evento funcionarem em video real, a area
+critica pode ser informada manualmente (`area_critica`), a mao do paciente
+passa a ser o keypoint do punho e "profissional presente" vira "duas ou mais
+pessoas em cena".
 """
 
 from __future__ import annotations
 
 import json
 import math
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 from fase4.alertas import Achado
-from fase4.config import LIMIARES_VIDEO, LimiaresVideo
+from fase4.config import DIR_MODELOS, LIMIARES_VIDEO, LimiaresVideo
 
 BACKENDS_POSE = ("anotado", "mediapipe")
 BACKENDS_DETECTOR = ("anotado", "yolov8")
+
+# Modelo do MediaPipe PoseLandmarker (API Tasks), baixado na primeira execucao.
+URL_MODELO_POSE = (
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
+    "pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+)
+CAMINHO_MODELO_POSE = DIR_MODELOS / "pose_landmarker_lite.task"
+
+# Classe do COCO usada pelo YOLOv8 generico para qualquer pessoa em cena.
+CLASSE_PESSOA_GENERICA = "person"
+CLASSE_AREA_CRITICA_MANUAL = "area_critica_manual"
 
 # Correspondencia entre os pontos do MediaPipe Pose e os nomes usados aqui.
 _INDICES_MEDIAPIPE = {
@@ -120,6 +138,16 @@ class ResultadoVideo:
     medidas: list[MedidasQuadro]
     achados: list[Achado]
     resumo_angulos: dict[str, float] = field(default_factory=dict)
+    # Quantos quadros tiveram pose detectada (igual a quadros_analisados nas
+    # anotacoes; menor em video real quando o estimador perde a pessoa).
+    quadros_com_pose: int = 0
+    # Como a area critica foi definida: "anotada" (caixa do detector),
+    # "manual" (ROI informada) ou "nenhuma".
+    origem_area_critica: str = "nenhuma"
+    # Como a mao do paciente foi localizada: "caixa_detector", "keypoint_punho"
+    # ou "nenhuma".
+    regra_mao: str = "nenhuma"
+    area_critica_manual: tuple[float, float, float, float] | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -129,7 +157,11 @@ class ResultadoVideo:
             "backend_detector": self.backend_detector,
             "fps": self.fps,
             "quadros_analisados": self.quadros_analisados,
+            "quadros_com_pose": self.quadros_com_pose,
             "duracao_s": round(self.duracao_s, 3),
+            "origem_area_critica": self.origem_area_critica,
+            "regra_mao": self.regra_mao,
+            "area_critica_manual": list(self.area_critica_manual) if self.area_critica_manual else None,
             "resumo_angulos": {k: round(v, 2) for k, v in self.resumo_angulos.items()},
             "achados": [a.to_dict() for a in self.achados],
         }
@@ -199,8 +231,68 @@ def _fps_do_video(caminho_video: Path | str, padrao: float = 30.0) -> float:
     return float(fps) if fps and fps > 0 else padrao
 
 
-def extrair_pose_mediapipe(caminho_video: Path | str) -> tuple[list[QuadroPose], float]:
-    """Roda o MediaPipe Pose quadro a quadro num video real."""
+def garantir_modelo_pose(destino: Path | str = CAMINHO_MODELO_POSE) -> Path:
+    """Baixa o modelo do PoseLandmarker uma unica vez (API Tasks do MediaPipe)."""
+    destino = Path(destino)
+    if not destino.exists():
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(URL_MODELO_POSE, destino)
+    return destino
+
+
+def _quadros_do_video(captura: Any) -> Iterator[tuple[int, Any]]:
+    indice = 0
+    while True:
+        ok, imagem = captura.read()
+        if not ok:
+            break
+        yield indice, imagem
+        indice += 1
+
+
+def _landmarks_api_legada(mp: Any, cv2: Any, captura: Any) -> Iterator[tuple[int, Any, Any]]:
+    """`mp.solutions.pose` (MediaPipe ate 0.10.x). Rende (indice, imagem, landmarks|None)."""
+    with mp.solutions.pose.Pose(
+        static_image_mode=False, model_complexity=1, min_detection_confidence=0.5
+    ) as pose:
+        for indice, imagem in _quadros_do_video(captura):
+            resultado = pose.process(cv2.cvtColor(imagem, cv2.COLOR_BGR2RGB))
+            pontos = resultado.pose_landmarks.landmark if resultado.pose_landmarks else None
+            yield indice, imagem, pontos
+
+
+def _landmarks_api_tasks(
+    mp: Any, cv2: Any, captura: Any, fps: float, caminho_modelo: Path | str | None
+) -> Iterator[tuple[int, Any, Any]]:
+    """`PoseLandmarker` da API Tasks (MediaPipe 0.10.x e 1.x), em modo VIDEO."""
+    from mediapipe.tasks import python as mp_python
+    from mediapipe.tasks.python import vision
+
+    modelo = garantir_modelo_pose(caminho_modelo or CAMINHO_MODELO_POSE)
+    opcoes = vision.PoseLandmarkerOptions(
+        base_options=mp_python.BaseOptions(model_asset_path=str(modelo)),
+        running_mode=vision.RunningMode.VIDEO,
+        num_poses=1,
+        min_pose_detection_confidence=0.5,
+    )
+    with vision.PoseLandmarker.create_from_options(opcoes) as landmarker:
+        for indice, imagem in _quadros_do_video(captura):
+            rgb = cv2.cvtColor(imagem, cv2.COLOR_BGR2RGB)
+            imagem_mp = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+            resultado = landmarker.detect_for_video(imagem_mp, int(indice * 1000 / fps))
+            pontos = resultado.pose_landmarks[0] if resultado.pose_landmarks else None
+            yield indice, imagem, pontos
+
+
+def extrair_pose_mediapipe(
+    caminho_video: Path | str, caminho_modelo: Path | str | None = None
+) -> tuple[list[QuadroPose], float]:
+    """Roda o MediaPipe Pose quadro a quadro num video real.
+
+    Aceita as duas APIs do MediaPipe: a legada (`mp.solutions.pose`, ate a
+    serie 0.10) e a Tasks (`PoseLandmarker`, 0.10.x e 1.x). Os indices das
+    33 articulacoes sao os mesmos nas duas; `visibility` vira a confianca.
+    """
     try:
         import cv2
         import mediapipe as mp
@@ -214,36 +306,33 @@ def extrair_pose_mediapipe(caminho_video: Path | str) -> tuple[list[QuadroPose],
     if not captura.isOpened():  # pragma: no cover
         raise BackendIndisponivelError(f"nao foi possivel abrir o video {caminho_video}")
 
-    fps = captura.get(cv2.CAP_PROP_FPS) or 30.0
+    fps = float(captura.get(cv2.CAP_PROP_FPS) or 30.0)
     quadros: list[QuadroPose] = []
 
-    with mp.solutions.pose.Pose(
-        static_image_mode=False, model_complexity=1, min_detection_confidence=0.5
-    ) as pose:
-        indice = 0
-        while True:
-            ok, imagem = captura.read()
-            if not ok:
-                break
-            altura, largura = imagem.shape[:2]
-            resultado = pose.process(cv2.cvtColor(imagem, cv2.COLOR_BGR2RGB))
-            articulacoes: dict[str, Articulacao] = {}
-            if resultado.pose_landmarks:
-                pontos = resultado.pose_landmarks.landmark
-                for nome, idx in _INDICES_MEDIAPIPE.items():
-                    ponto = pontos[idx]
-                    articulacoes[nome] = Articulacao(
-                        x=ponto.x * largura,
-                        y=ponto.y * altura,
-                        confianca=float(getattr(ponto, "visibility", 0.0)),
-                    )
-            quadros.append(
-                QuadroPose(quadro=indice, instante_s=indice / fps, articulacoes=articulacoes)
-            )
-            indice += 1
+    solutions = getattr(mp, "solutions", None)
+    if solutions is not None and hasattr(solutions, "pose"):
+        iterador = _landmarks_api_legada(mp, cv2, captura)
+    else:
+        iterador = _landmarks_api_tasks(mp, cv2, captura, fps, caminho_modelo)
+
+    for indice, imagem, pontos in iterador:
+        altura, largura = imagem.shape[:2]
+        articulacoes: dict[str, Articulacao] = {}
+        if pontos is not None:
+            for nome, idx in _INDICES_MEDIAPIPE.items():
+                ponto = pontos[idx]
+                visibilidade = getattr(ponto, "visibility", None)
+                articulacoes[nome] = Articulacao(
+                    x=float(ponto.x) * largura,
+                    y=float(ponto.y) * altura,
+                    confianca=float(visibilidade) if visibilidade is not None else 1.0,
+                )
+        quadros.append(
+            QuadroPose(quadro=indice, instante_s=indice / fps, articulacoes=articulacoes)
+        )
 
     captura.release()
-    return quadros, float(fps)
+    return quadros, fps
 
 
 def detectar_objetos_yolov8(
@@ -517,29 +606,14 @@ def _sobreposicao(caixa_a: tuple[float, ...], caixa_b: tuple[float, ...]) -> flo
     return intersecao / area_a if area_a > 0 else 0.0
 
 
-def avaliar_eventos(
-    quadros: list[QuadroObjetos],
+def _achados_invasao(
+    invasoes: list[tuple[int, float, float]],
     fps: float,
-    limiares: LimiaresVideo = LIMIARES_VIDEO,
-    classe_paciente: str = "mao_paciente",
-    classe_profissional: str = "profissional",
+    limiares: LimiaresVideo,
+    origem_mao: str,
 ) -> list[Achado]:
-    """Regras sobre objetos: invasao de area critica e ausencia do profissional."""
+    """Transforma a serie de sobreposicoes por quadro em achados de invasao."""
     achados: list[Achado] = []
-    if not quadros:
-        return achados
-
-    # Invasao da area critica (regiao do dreno cirurgico).
-    invasoes: list[tuple[int, float, float]] = []
-    for quadro in quadros:
-        criticas = [o for o in quadro.objetos if o.area_critica]
-        mao = next((o for o in quadro.objetos if o.classe == classe_paciente), None)
-        maior = 0.0
-        if mao is not None:
-            for area in criticas:
-                maior = max(maior, _sobreposicao(mao.caixa, area.caixa))
-        invasoes.append((quadro.quadro, quadro.instante_s, maior))
-
     for janela in _janelas_acima(
         invasoes, limiares.sobreposicao_area_critica, limiares.quadros_minimos_desvio
     ):
@@ -559,17 +633,94 @@ def avaliar_eventos(
                     "janela_s": (
                         f"{janela['instante_inicial_s']:.2f}-{janela['instante_final_s']:.2f}"
                     ),
+                    "origem_mao": origem_mao,
                 },
             )
         )
+    return achados
 
-    # Ausencia do profissional em cena.
+
+def avaliar_area_critica_por_punhos(
+    quadros_pose: list[QuadroPose],
+    quadros_objetos: list[QuadroObjetos],
+    fps: float,
+    limiares: LimiaresVideo = LIMIARES_VIDEO,
+) -> list[Achado]:
+    """Invasao de area critica usando os punhos do estimador de pose.
+
+    E o caminho para video real: o YOLOv8 generico nao tem a classe
+    `mao_paciente`, mas o MediaPipe entrega o punho. Cada punho vira uma caixa
+    de `raio_mao_px` e a regra e a mesma de `avaliar_eventos`: fracao da caixa
+    da mao dentro de qualquer area critica do quadro (anotada ou manual).
+    """
+    if not quadros_pose or not quadros_objetos:
+        return []
+
+    areas_por_quadro = {
+        q.quadro: [o.caixa for o in q.objetos if o.area_critica] for q in quadros_objetos
+    }
+    raio = limiares.raio_mao_px
+    minimo = limiares.confianca_minima_keypoint
+    invasoes: list[tuple[int, float, float]] = []
+    for quadro in quadros_pose:
+        maior = 0.0
+        for nome in ("punho_esquerdo", "punho_direito"):
+            punho = quadro.articulacoes.get(nome)
+            if punho is None or punho.confianca < minimo:
+                continue
+            caixa_mao = (punho.x - raio, punho.y - raio, punho.x + raio, punho.y + raio)
+            for area in areas_por_quadro.get(quadro.quadro, []):
+                maior = max(maior, _sobreposicao(caixa_mao, area))
+        invasoes.append((quadro.quadro, quadro.instante_s, maior))
+
+    return _achados_invasao(invasoes, fps, limiares, origem_mao="keypoint_punho")
+
+
+def avaliar_eventos(
+    quadros: list[QuadroObjetos],
+    fps: float,
+    limiares: LimiaresVideo = LIMIARES_VIDEO,
+    classe_paciente: str = "mao_paciente",
+    classe_profissional: str = "profissional",
+    pessoas_genericas: bool = False,
+    avaliar_mao: bool = True,
+    avaliar_profissional: bool = True,
+) -> list[Achado]:
+    """Regras sobre objetos: invasao de area critica e ausencia do profissional.
+
+    Com `pessoas_genericas=True` (detector COCO, sem classe `profissional`),
+    o profissional e considerado presente quando ha duas ou mais pessoas em
+    cena: o paciente e quem o acompanha.
+    """
+    achados: list[Achado] = []
+    if not quadros:
+        return achados
+
+    # Invasao da area critica (regiao do dreno cirurgico) pela caixa da mao.
+    if avaliar_mao:
+        invasoes: list[tuple[int, float, float]] = []
+        for quadro in quadros:
+            criticas = [o for o in quadro.objetos if o.area_critica]
+            mao = next((o for o in quadro.objetos if o.classe == classe_paciente), None)
+            maior = 0.0
+            if mao is not None:
+                for area in criticas:
+                    maior = max(maior, _sobreposicao(mao.caixa, area.caixa))
+            invasoes.append((quadro.quadro, quadro.instante_s, maior))
+        achados.extend(_achados_invasao(invasoes, fps, limiares, origem_mao="caixa_detector"))
+
+    # Ausencia do profissional em cena. Sem detector (so a ROI manual
+    # injetada) nao ha como saber quem esta em cena, e a regra nao se aplica.
+    if not avaliar_profissional:
+        return achados
+
+    def _profissional_presente(objetos: list[Objeto]) -> bool:
+        if pessoas_genericas:
+            return sum(1 for o in objetos if o.classe == CLASSE_PESSOA_GENERICA) >= 2
+        return any(o.classe == classe_profissional for o in objetos)
+
     ausencias: list[tuple[int, float, float]] = [
-        (
-            quadro.quadro,
-            quadro.instante_s,
-            0.0 if any(o.classe == classe_profissional for o in quadro.objetos) else 1.0,
-        )
+        (quadro.quadro, quadro.instante_s, 0.0 if _profissional_presente(quadro.objetos) else 1.0)
         for quadro in quadros
     ]
     quadros_minimos = max(1, int(limiares.segundos_max_sem_profissional * fps))
@@ -592,11 +743,45 @@ def avaliar_eventos(
                     "janela_s": (
                         f"{janela['instante_inicial_s']:.2f}-{janela['instante_final_s']:.2f}"
                     ),
+                    "criterio": (
+                        "menos de duas pessoas em cena" if pessoas_genericas
+                        else f"sem objeto '{classe_profissional}'"
+                    ),
                 },
             )
         )
 
     return achados
+
+
+def injetar_area_critica_manual(
+    quadros_objetos: list[QuadroObjetos],
+    quadros_pose: list[QuadroPose],
+    area: tuple[float, float, float, float],
+) -> list[QuadroObjetos]:
+    """Acrescenta a ROI manual como objeto critico em todos os quadros.
+
+    Se o detector nao produziu quadros (backend anotado sem arquivo de
+    objetos), os quadros sao criados a partir dos quadros de pose, para a
+    regra de area critica ter onde se apoiar.
+    """
+    caixa = tuple(float(v) for v in area)
+    if len(caixa) != 4:
+        raise ValueError("area_critica deve ter quatro valores: x1, y1, x2, y2")
+    if caixa[2] <= caixa[0] or caixa[3] <= caixa[1]:
+        raise ValueError("area_critica invalida: x2 > x1 e y2 > y1 sao obrigatorios")
+
+    base = quadros_objetos or [
+        QuadroObjetos(quadro=q.quadro, instante_s=q.instante_s, objetos=[]) for q in quadros_pose
+    ]
+    resultado: list[QuadroObjetos] = []
+    for quadro in base:
+        objetos = [o for o in quadro.objetos if o.classe != CLASSE_AREA_CRITICA_MANUAL]
+        objetos.append(
+            Objeto(classe=CLASSE_AREA_CRITICA_MANUAL, confianca=1.0, caixa=caixa, area_critica=True)  # type: ignore[arg-type]
+        )
+        resultado.append(QuadroObjetos(quadro=quadro.quadro, instante_s=quadro.instante_s, objetos=objetos))
+    return resultado
 
 
 # ---------------------------------------------------------------------------
@@ -612,8 +797,15 @@ def analisar_sessao(
     backend_pose: str = "anotado",
     backend_detector: str = "anotado",
     limiares: LimiaresVideo = LIMIARES_VIDEO,
+    area_critica: tuple[float, float, float, float] | None = None,
 ) -> ResultadoVideo:
-    """Analisa uma sessao clinica gravada e devolve medidas e achados."""
+    """Analisa uma sessao clinica gravada e devolve medidas e achados.
+
+    `area_critica` (x1, y1, x2, y2, em pixels) define manualmente a regiao
+    que o paciente nao deve tocar. E o caminho para video real com YOLOv8
+    generico, que nao reconhece drenos: a ROI vem do fisioterapeuta e a mao
+    vem do punho do estimador de pose.
+    """
     if backend_pose not in BACKENDS_POSE:
         raise ValueError(f"backend de pose invalido: {backend_pose}")
     if backend_detector not in BACKENDS_DETECTOR:
@@ -637,10 +829,38 @@ def analisar_sessao(
             raise ValueError("o backend 'yolov8' exige caminho_video")
         quadros_objetos = detectar_objetos_yolov8(caminho_video)
 
-    medidas = medir_quadros(quadros_pose, limiares)
-    achados = avaliar_postura(medidas, limiares) + avaliar_eventos(
-        quadros_objetos, fps, limiares
+    detector_ativo = bool(quadros_objetos)
+    origem_area = "nenhuma"
+    if any(o.area_critica for q in quadros_objetos for o in q.objetos):
+        origem_area = "anotada"
+    if area_critica is not None:
+        quadros_objetos = injetar_area_critica_manual(quadros_objetos, quadros_pose, area_critica)
+        origem_area = "manual"
+
+    # A mao do paciente vem da caixa do detector quando ela existe; senao, do
+    # punho do estimador de pose (video real com detector generico).
+    tem_caixa_mao = any(o.classe == "mao_paciente" for q in quadros_objetos for o in q.objetos)
+    tem_punho = any(
+        n in q.articulacoes for q in quadros_pose for n in ("punho_esquerdo", "punho_direito")
     )
+    if tem_caixa_mao:
+        regra_mao = "caixa_detector"
+    elif origem_area != "nenhuma" and tem_punho:
+        regra_mao = "keypoint_punho"
+    else:
+        regra_mao = "nenhuma"
+
+    pessoas_genericas = backend_detector == "yolov8"
+    medidas = medir_quadros(quadros_pose, limiares)
+    achados = avaliar_postura(medidas, limiares)
+    achados += avaliar_eventos(
+        quadros_objetos, fps, limiares,
+        pessoas_genericas=pessoas_genericas,
+        avaliar_mao=(regra_mao == "caixa_detector"),
+        avaliar_profissional=detector_ativo,
+    )
+    if regra_mao == "keypoint_punho":
+        achados += avaliar_area_critica_por_punhos(quadros_pose, quadros_objetos, fps, limiares)
 
     duracao = (len(quadros_pose) / fps) if fps else 0.0
     return ResultadoVideo(
@@ -654,6 +874,10 @@ def analisar_sessao(
         medidas=medidas,
         achados=achados,
         resumo_angulos=_resumo_angulos(medidas),
+        quadros_com_pose=sum(1 for q in quadros_pose if q.articulacoes),
+        origem_area_critica=origem_area,
+        regra_mao=regra_mao,
+        area_critica_manual=tuple(float(v) for v in area_critica) if area_critica else None,  # type: ignore[arg-type]
     )
 
 
@@ -677,9 +901,15 @@ def relatorio_markdown(resultado: ResultadoVideo) -> str:
         "",
         f"Arquivo: `{Path(resultado.caminho_video).name}`  ",
         f"Duração: {resultado.duracao_s:.1f} s ({resultado.quadros_analisados} quadros "
-        f"a {resultado.fps:.0f} fps)  ",
+        f"a {resultado.fps:.0f} fps; pose detectada em {resultado.quadros_com_pose})  ",
         f"Estimador de pose: `{resultado.backend_pose}`  ",
-        f"Detector de objetos: `{resultado.backend_detector}`",
+        f"Detector de objetos: `{resultado.backend_detector}`  ",
+        f"Área crítica: `{resultado.origem_area_critica}`"
+        + (
+            f" {tuple(int(v) for v in resultado.area_critica_manual)}"
+            if resultado.area_critica_manual else ""
+        )
+        + f"; mão do paciente por `{resultado.regra_mao}`",
         "",
         "## Amplitudes observadas",
         "",

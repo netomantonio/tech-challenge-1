@@ -131,6 +131,7 @@ resultados/fase3/**/auditoria.jsonl
 resultados/fase4/auditoria_monitoramento.jsonl
 resultados/fase4/**/*.mp4
 resultados/fase4/**/sinais_vitais_scores.csv
+resultados/fase4/**/fila_alertas.jsonl
 
 # Base SQLite mock de prontuarios e regenerada a partir do JSON sintetico.
 fase3/data/*.db
@@ -146,6 +147,15 @@ fase3/data/finetuning_val.jsonl
 # forma deterministica por `python -m fase4.data.gerar_dados_sinteticos` a
 # partir do codigo versionado, mesmo padrao de data/*.csv na fase 1.
 fase4/data/amostras/
+
+# Registros do PhysioNet baixados por `python -m fase4.data.baixar_physionet`
+# e pesos de modelos (YOLOv8, MediaPipe, Whisper) baixados na primeira
+# execucao dos backends reais. Ambos sao refeitos pelos scripts.
+fase4/data/physionet/
+fase4/data/modelos/
+
+# Sobras de validacao manual e PDFs rasterizados.
+tmp/
 
 # Variáveis de ambiente / segredos
 .env
