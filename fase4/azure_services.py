@@ -110,6 +110,13 @@ class ResultadoAnaliseTexto:
     frases_chave: list[str]
     termos_criticos: list[TermoCritico]
     provedor: str
+    # Entidades clinicas reconhecidas pela Azure (Text Analytics for health ou
+    # NER generico), cada uma como {"texto", "categoria", "confianca"}. Vazio
+    # no provedor offline.
+    entidades: list[dict[str, Any]] = field(default_factory=list)
+    # Em quantos documentos o texto foi dividido para respeitar o limite por
+    # documento do servico (1 no offline).
+    documentos_enviados: int = 1
 
     def to_dict(self) -> dict:
         return {
@@ -125,6 +132,8 @@ class ResultadoAnaliseTexto:
                 }
                 for t in self.termos_criticos
             ],
+            "entidades": self.entidades,
+            "documentos_enviados": self.documentos_enviados,
             "provedor": self.provedor,
         }
 
@@ -305,6 +314,42 @@ def nome_modelo_whisper() -> str:
     return os.getenv(ENV_WHISPER_MODELO, MODELO_WHISPER_PADRAO)
 
 
+TAXA_WHISPER = 16_000
+
+
+def _carregar_wav_para_whisper(caminho_wav: Path) -> "np.ndarray":
+    """Le o WAV PCM como float32 mono a 16 kHz, formato que o whisper consome.
+
+    Passar o vetor pronto evita o decodificador de midia do faster-whisper
+    (PyAV), cuja versao instalada pode ser incompativel; para WAV nao ha
+    motivo para depender dele.
+    """
+    import numpy as np
+
+    with wave.open(str(caminho_wav), "rb") as wav:
+        canais, largura, taxa, quadros = (
+            wav.getnchannels(), wav.getsampwidth(), wav.getframerate(), wav.getnframes()
+        )
+        bruto = wav.readframes(quadros)
+    if largura == 2:
+        sinal = np.frombuffer(bruto, dtype="<i2").astype(np.float32) / 32768.0
+    elif largura == 4:
+        sinal = np.frombuffer(bruto, dtype="<i4").astype(np.float32) / 2147483648.0
+    elif largura == 1:
+        sinal = (np.frombuffer(bruto, dtype=np.uint8).astype(np.float32) - 128.0) / 128.0
+    else:
+        raise ServicoAzureIndisponivelError(f"WAV com {largura * 8} bits nao suportado pelo provedor local.")
+    if canais > 1:
+        sinal = sinal.reshape(-1, canais).mean(axis=1)
+    if taxa != TAXA_WHISPER and sinal.size:
+        duracao = sinal.size / taxa
+        novos = int(round(duracao * TAXA_WHISPER))
+        origem = np.linspace(0.0, duracao, num=sinal.size, endpoint=False)
+        destino = np.linspace(0.0, duracao, num=novos, endpoint=False)
+        sinal = np.interp(destino, origem, sinal).astype(np.float32)
+    return sinal.astype(np.float32)
+
+
 def _transcrever_local(caminho_wav: Path, idioma: str) -> ResultadoTranscricao:
     """Speech to Text local com faster-whisper (CPU, int8).
 
@@ -319,7 +364,8 @@ def _transcrever_local(caminho_wav: Path, idioma: str) -> ResultadoTranscricao:
         nome_modelo_whisper(), device="cpu", compute_type="int8", download_root=str(DIR_MODELOS)
     )
     segmentos_brutos, _info = modelo.transcribe(
-        str(caminho_wav), language=idioma.split("-")[0], beam_size=5, vad_filter=True
+        _carregar_wav_para_whisper(caminho_wav),
+        language=idioma.split("-")[0], beam_size=5, vad_filter=True,
     )
     segmentos = [
         SegmentoTranscricao(
@@ -395,8 +441,179 @@ def _sdk_language_disponivel() -> bool:
     return True
 
 
+# Limite de caracteres por documento aceito pelo Azure AI Language (5.120) e
+# de documentos por requisicao nas operacoes de sentimento e frases-chave.
+LIMITE_CARACTERES_DOCUMENTO = 5_000
+LIMITE_DOCUMENTOS_POR_CHAMADA = 10
+
+# Categorias do Text Analytics for health que interessam ao monitoramento.
+CATEGORIAS_SAUDE_RELEVANTES = {
+    "SymptomOrSign": "sintoma",
+    "Diagnosis": "diagnostico",
+    "MedicationName": "medicamento",
+    "BodyStructure": "estrutura_corporal",
+    "ExaminationName": "exame",
+    "TreatmentName": "tratamento",
+}
+# Confianca minima para uma entidade fora do lexico virar termo informativo.
+CONFIANCA_MINIMA_ENTIDADE = 0.8
+CATEGORIA_SINTOMA_AZURE = "sintoma_relatado_azure"
+PESO_SINTOMA_AZURE = 0.45
+
+
+def dividir_em_documentos(texto: str, limite: int = LIMITE_CARACTERES_DOCUMENTO) -> list[str]:
+    """Divide o texto em documentos de ate `limite` caracteres, em fim de frase.
+
+    Uma consulta de 20 minutos transcrita passa com folga dos 5.120
+    caracteres que o servico aceita por documento; sem dividir, a chamada
+    inteira falha. A quebra procura o fim de frase mais proximo do limite e,
+    se nao houver, quebra em espaco.
+    """
+    texto = texto.strip()
+    if not texto:
+        return []
+    documentos: list[str] = []
+    while len(texto) > limite:
+        corte = -1
+        for pontuacao in (". ", "! ", "? ", "; ", ", "):
+            corte = max(corte, texto.rfind(pontuacao, 0, limite))
+        if corte > 0:
+            corte += 1  # mantem a pontuacao no documento anterior
+        else:
+            corte = texto.rfind(" ", 0, limite)
+        if corte <= 0:
+            corte = limite
+        documentos.append(texto[:corte].strip())
+        texto = texto[corte:].strip()
+    if texto:
+        documentos.append(texto)
+    return documentos
+
+
+def _lotes(itens: list[str], tamanho: int) -> list[list[str]]:
+    return [itens[i:i + tamanho] for i in range(0, len(itens), tamanho)]
+
+
+def _entidades_azure(cliente: Any, documentos: list[str], codigo_idioma: str) -> list[dict[str, Any]]:
+    """Entidades clinicas: Text Analytics for health, com NER generico de reserva.
+
+    O recurso de saude e opcional no SDK/recurso; quando indisponivel caimos
+    para `recognize_entities`, que ainda marca categorias uteis (Quantity,
+    DateTime, Person) mas nao sintomas. Falha aqui nao derruba a analise: as
+    entidades enriquecem o relatorio, quem decide alerta e o lexico.
+    """
+    entidades: list[dict[str, Any]] = []
+    try:
+        poller = cliente.begin_analyze_healthcare_entities(documentos, language=codigo_idioma)
+        for resultado in poller.result():
+            if getattr(resultado, "is_error", False):
+                continue
+            for entidade in resultado.entities:
+                entidades.append(
+                    {
+                        "texto": str(entidade.text),
+                        "categoria": str(entidade.category),
+                        "confianca": float(getattr(entidade, "confidence_score", 0.0) or 0.0),
+                        "origem": "text_analytics_for_health",
+                    }
+                )
+        return entidades
+    except Exception:  # noqa: BLE001 - recurso opcional; tentamos o NER generico
+        pass
+
+    try:
+        for lote in _lotes(documentos, LIMITE_DOCUMENTOS_POR_CHAMADA):
+            for resultado in cliente.recognize_entities(lote, language=codigo_idioma):
+                if getattr(resultado, "is_error", False):
+                    continue
+                for entidade in resultado.entities:
+                    entidades.append(
+                        {
+                            "texto": str(entidade.text),
+                            "categoria": str(entidade.category),
+                            "confianca": float(getattr(entidade, "confidence_score", 0.0) or 0.0),
+                            "origem": "ner_generico",
+                        }
+                    )
+    except Exception:  # noqa: BLE001
+        return []
+    return entidades
+
+
+def _termos_a_partir_de_entidades(
+    entidades: list[dict[str, Any]], texto: str, ja_encontrados: list[TermoCritico]
+) -> list[TermoCritico]:
+    """Cruza as entidades da Azure com o lexico institucional.
+
+    Entidade que casa com um termo do lexico herda a categoria e o peso dele
+    (e so e acrescentada se o lexico ainda nao a tinha achado). Sintoma ou
+    diagnostico reconhecido pela Azure com confianca alta, mas fora do
+    lexico, entra como termo informativo: a Azure identificou, o hospital
+    ainda nao decidiu a prioridade.
+    """
+    lexico = carregar_lexico()
+    normalizado = normalizar_texto(texto)
+    vistos = {(normalizar_texto(t.termo), t.categoria) for t in ja_encontrados}
+    novos: list[TermoCritico] = []
+
+    for entidade in entidades:
+        alvo = normalizar_texto(entidade["texto"]).strip()
+        if not alvo:
+            continue
+        casou = False
+        for categoria, dados in lexico.get("categorias", {}).items():
+            for termo in dados.get("termos", []):
+                termo_norm = normalizar_texto(termo)
+                if alvo == termo_norm or alvo in termo_norm or termo_norm in alvo:
+                    casou = True
+                    chave = (termo_norm, categoria)
+                    if chave in vistos:
+                        continue
+                    vistos.add(chave)
+                    novos.append(
+                        TermoCritico(
+                            termo=termo,
+                            categoria=categoria,
+                            peso=float(dados.get("peso", 0.5)),
+                            trecho=_trecho(texto, normalizado, termo_norm) or entidade["texto"],
+                        )
+                    )
+        if casou:
+            continue
+        categoria_azure = entidade.get("categoria", "")
+        if (
+            categoria_azure in ("SymptomOrSign", "Diagnosis")
+            and entidade.get("confianca", 0.0) >= CONFIANCA_MINIMA_ENTIDADE
+            and (alvo, CATEGORIA_SINTOMA_AZURE) not in vistos
+        ):
+            vistos.add((alvo, CATEGORIA_SINTOMA_AZURE))
+            novos.append(
+                TermoCritico(
+                    termo=entidade["texto"],
+                    categoria=CATEGORIA_SINTOMA_AZURE,
+                    peso=PESO_SINTOMA_AZURE,
+                    trecho=_trecho(texto, normalizado, alvo) or entidade["texto"],
+                )
+            )
+    return novos
+
+
+def _trecho(texto: str, normalizado: str, alvo: str) -> str | None:
+    posicao = normalizado.find(alvo)
+    if posicao < 0:
+        return None
+    inicio = max(0, posicao - 35)
+    fim = min(len(texto), posicao + len(alvo) + 35)
+    return texto[inicio:fim].strip()
+
+
 def _analisar_texto_azure(texto: str, idioma: str) -> ResultadoAnaliseTexto:
-    """Sentimento e frases-chave pelo Azure Text Analytics (Azure AI Language)."""
+    """Sentimento, frases-chave e entidades pelo Azure Text Analytics (Azure AI Language).
+
+    O texto e dividido em documentos de ate 5.000 caracteres e enviado em
+    lotes de 10. O sentimento final e a media dos scores ponderada pelo
+    tamanho de cada documento; as frases-chave sao unidas sem repeticao.
+    """
     from azure.ai.textanalytics import TextAnalyticsClient
     from azure.core.credentials import AzureKeyCredential
 
@@ -405,32 +622,57 @@ def _analisar_texto_azure(texto: str, idioma: str) -> ResultadoAnaliseTexto:
         credential=AzureKeyCredential(os.environ[ENV_LANGUAGE_KEY]),
     )
     codigo_idioma = idioma.split("-")[0]
+    documentos = dividir_em_documentos(texto) or [texto]
 
-    sentimento = cliente.analyze_sentiment([texto], language=codigo_idioma)[0]
-    frases = cliente.extract_key_phrases([texto], language=codigo_idioma)[0]
+    sentimentos: list[Any] = []
+    frases_por_doc: list[Any] = []
+    for lote in _lotes(documentos, LIMITE_DOCUMENTOS_POR_CHAMADA):
+        sentimentos.extend(cliente.analyze_sentiment(lote, language=codigo_idioma))
+        frases_por_doc.extend(cliente.extract_key_phrases(lote, language=codigo_idioma))
 
-    if sentimento.is_error or frases.is_error:
+    if any(getattr(s, "is_error", False) for s in sentimentos) or any(
+        getattr(f, "is_error", False) for f in frases_por_doc
+    ):
         raise ServicoAzureIndisponivelError("Azure Text Analytics nao concluiu a analise do texto.")
 
-    scores = {
-        "positivo": float(sentimento.confidence_scores.positive),
-        "neutro": float(sentimento.confidence_scores.neutral),
-        "negativo": float(sentimento.confidence_scores.negative),
-    }
+    pesos = [max(len(d), 1) for d in documentos]
+    total = float(sum(pesos))
+    scores = {"positivo": 0.0, "neutro": 0.0, "negativo": 0.0}
+    for sentimento, peso in zip(sentimentos, pesos):
+        scores["positivo"] += float(sentimento.confidence_scores.positive) * peso / total
+        scores["neutro"] += float(sentimento.confidence_scores.neutral) * peso / total
+        scores["negativo"] += float(sentimento.confidence_scores.negative) * peso / total
+
     traducao = {"positive": "positivo", "neutral": "neutro", "negative": "negativo", "mixed": "misto"}
+    if len(sentimentos) == 1:
+        rotulo = traducao.get(sentimentos[0].sentiment, sentimentos[0].sentiment)
+    else:
+        rotulo = max(scores, key=scores.get)
+
+    frases_chave: list[str] = []
+    for resultado in frases_por_doc:
+        for frase in resultado.key_phrases:
+            if frase not in frases_chave:
+                frases_chave.append(frase)
 
     # As frases-chave da Azure nao dizem o que e clinicamente critico, so o
     # que e saliente no texto. Por isso o lexico institucional continua
-    # valendo nos dois provedores: ele define o que vira alerta.
-    frases_chave = list(frases.key_phrases) if not frases.is_error else []
+    # valendo nos dois provedores: ele define o que vira alerta. As entidades
+    # clinicas da Azure ampliam a busca: o que ela reconhece e cruzado com o
+    # lexico, e sintomas fora dele entram como informativos.
     termos = _buscar_termos_criticos(texto)
+    entidades = _entidades_azure(cliente, documentos, codigo_idioma)
+    termos += _termos_a_partir_de_entidades(entidades, texto, termos)
+    termos.sort(key=lambda t: t.peso, reverse=True)
 
     return ResultadoAnaliseTexto(
-        sentimento=traducao.get(sentimento.sentiment, sentimento.sentiment),
+        sentimento=rotulo,
         scores_sentimento=scores,
         frases_chave=frases_chave,
         termos_criticos=termos,
         provedor="azure",
+        entidades=entidades,
+        documentos_enviados=len(documentos),
     )
 
 

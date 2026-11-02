@@ -639,6 +639,20 @@ def relatorio_markdown(resultado: ResultadoAudio) -> str:
     else:
         linhas.append("Nenhum termo crítico do léxico institucional foi encontrado.")
 
+    if resultado.analise_texto.entidades:
+        linhas += [
+            "",
+            f"Entidades clínicas reconhecidas pela Azure "
+            f"({resultado.analise_texto.documentos_enviados} documento(s) enviado(s)):",
+            "",
+            "| Entidade | Categoria | Confiança |",
+            "| --- | --- | ---: |",
+        ]
+        for entidade in resultado.analise_texto.entidades:
+            linhas.append(
+                f"| {entidade['texto']} | {entidade['categoria']} | {entidade['confianca']:.2f} |"
+            )
+
     linhas += ["", "## Achados", ""]
     if resultado.achados:
         for achado in resultado.achados:
