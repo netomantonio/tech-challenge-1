@@ -33,6 +33,18 @@ ENV_LANGUAGE_ENDPOINT = "AZURE_LANGUAGE_ENDPOINT"
 
 IDIOMA_PADRAO = "pt-BR"
 
+# Provedor `local` de Speech to Text (faster-whisper), usado para demonstrar a
+# transcricao em fala real sem credencial da Azure. Nao substitui a Azure
+# pedida no enunciado. O modelo e baixado uma vez para DIR_MODELOS.
+ENV_WHISPER_MODELO = "FASE4_WHISPER_MODELO"
+MODELO_WHISPER_PADRAO = "small"
+
+# Canais de entrega dos alertas. A fila JSONL e sempre gravada na pasta de
+# saida; o webhook so e usado quando a URL esta definida.
+ENV_WEBHOOK_URL = "FASE4_WEBHOOK_URL"
+ENV_FILA_ALERTAS = "FASE4_FILA_ALERTAS"
+NOME_FILA_ALERTAS = "fila_alertas.jsonl"
+
 
 def azure_speech_configurada() -> bool:
     return bool(os.getenv(ENV_SPEECH_KEY) and os.getenv(ENV_SPEECH_REGION))
@@ -91,6 +103,13 @@ class LimiaresAudio:
     queda_energia_relativa: float = 0.30
     # Taxa de fala (silabas estimadas por segundo) considerada lenta.
     taxa_fala_lenta: float = 2.2
+    # Desvio-padrao da F0 (Hz) abaixo do qual a voz e considerada monotona
+    # (monopitch). Junto com a fala lenta e o jitter alto, compoe o padrao
+    # acustico associado a disartria na literatura (Darley, Aronson e Brown).
+    # O corte e academico: a voz sintetica estavel do PAC-0002 fica em ~3 Hz
+    # e a voz com piora do PAC-0006 em ~16 Hz; em fala natural os valores
+    # sao maiores e o limiar precisaria ser recalibrado.
+    monopitch_f0_desvio_hz: float = 8.0
     # Confianca minima da transcricao para usar o texto nas regras.
     confianca_minima_transcricao: float = 0.50
 

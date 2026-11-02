@@ -17,11 +17,18 @@ servico tem dois provedores:
 O provedor `auto` (padrao) usa a Azure quando ha credencial e SDK, e cai
 para o modo offline caso contrario. O resto do pipeline nao muda: os dois
 provedores devolvem exatamente as mesmas estruturas.
+
+Ha ainda um terceiro provedor, `local`, para a transcricao: roda o
+faster-whisper na propria maquina. Ele existe para demonstrar Speech to Text
+em fala real quando nao ha credencial da Azure, e precisa ser pedido
+explicitamente (`auto` nunca o escolhe). A analise de texto no modo `local`
+usa o lexico, como no `offline`.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import unicodedata
@@ -33,16 +40,19 @@ from typing import Any
 
 from fase4.config import (
     CAMINHO_TERMOS_CRITICOS,
+    DIR_MODELOS,
     ENV_LANGUAGE_ENDPOINT,
     ENV_LANGUAGE_KEY,
     ENV_SPEECH_KEY,
     ENV_SPEECH_REGION,
+    ENV_WHISPER_MODELO,
     IDIOMA_PADRAO,
+    MODELO_WHISPER_PADRAO,
     azure_language_configurada,
     azure_speech_configurada,
 )
 
-PROVEDORES = ("auto", "azure", "offline")
+PROVEDORES = ("auto", "azure", "offline", "local")
 
 
 class ServicoAzureIndisponivelError(RuntimeError):
@@ -283,12 +293,67 @@ def _transcrever_offline(caminho_wav: Path, idioma: str) -> ResultadoTranscricao
     )
 
 
+def _sdk_whisper_disponivel() -> bool:
+    try:
+        import faster_whisper  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
+def nome_modelo_whisper() -> str:
+    return os.getenv(ENV_WHISPER_MODELO, MODELO_WHISPER_PADRAO)
+
+
+def _transcrever_local(caminho_wav: Path, idioma: str) -> ResultadoTranscricao:
+    """Speech to Text local com faster-whisper (CPU, int8).
+
+    A confianca de cada segmento e `exp(avg_logprob)`, a probabilidade media
+    por token que o modelo atribuiu ao proprio texto. Nao e comparavel ao
+    `Confidence` da Azure, mas serve ao mesmo filtro de confianca minima.
+    """
+    from faster_whisper import WhisperModel
+
+    DIR_MODELOS.mkdir(parents=True, exist_ok=True)
+    modelo = WhisperModel(
+        nome_modelo_whisper(), device="cpu", compute_type="int8", download_root=str(DIR_MODELOS)
+    )
+    segmentos_brutos, _info = modelo.transcribe(
+        str(caminho_wav), language=idioma.split("-")[0], beam_size=5, vad_filter=True
+    )
+    segmentos = [
+        SegmentoTranscricao(
+            inicio_s=float(s.start),
+            fim_s=float(s.end),
+            texto=s.text.strip(),
+            confianca=max(0.0, min(1.0, math.exp(float(s.avg_logprob)))),
+        )
+        for s in segmentos_brutos
+        if s.text.strip()
+    ]
+    texto = " ".join(s.texto for s in segmentos).strip()
+    if not texto:
+        raise ServicoAzureIndisponivelError(
+            "O provedor local (faster-whisper) nao reconheceu fala no arquivo informado."
+        )
+    duracoes = [max(s.fim_s - s.inicio_s, 1e-3) for s in segmentos]
+    confianca = sum(s.confianca * d for s, d in zip(segmentos, duracoes)) / sum(duracoes)
+    return ResultadoTranscricao(
+        texto=texto,
+        confianca=confianca,
+        duracao_s=duracao_wav(caminho_wav),
+        idioma=idioma,
+        provedor="local",
+        segmentos=segmentos,
+    )
+
+
 def transcrever_audio(
     caminho_wav: Path | str,
     provedor: str = "auto",
     idioma: str = IDIOMA_PADRAO,
 ) -> ResultadoTranscricao:
-    """Transcreve um WAV com Azure Speech to Text ou com o substituto offline."""
+    """Transcreve um WAV com Azure Speech to Text, com o whisper local ou offline."""
     if provedor not in PROVEDORES:
         raise ValueError(f"provedor invalido: {provedor}")
 
@@ -302,6 +367,14 @@ def transcrever_audio(
                 f"as variaveis {ENV_SPEECH_KEY} e {ENV_SPEECH_REGION} definidas."
             )
         return _transcrever_azure(caminho, idioma)
+
+    if provedor == "local":
+        if not _sdk_whisper_disponivel():
+            raise ServicoAzureIndisponivelError(
+                "O provedor local exige faster-whisper instalado "
+                "(pip install -r requirements-fase4.txt)."
+            )
+        return _transcrever_local(caminho, idioma)
 
     if provedor == "auto" and pode_azure:
         return _transcrever_azure(caminho, idioma)
@@ -456,7 +529,12 @@ def analisar_texto(
     provedor: str = "auto",
     idioma: str = IDIOMA_PADRAO,
 ) -> ResultadoAnaliseTexto:
-    """Extrai sentimento, frases-chave e termos criticos de uma transcricao."""
+    """Extrai sentimento, frases-chave e termos criticos de uma transcricao.
+
+    O provedor `local` so existe para a transcricao; aqui ele equivale ao
+    `offline` (lexico institucional), porque nao ha modelo de linguagem local
+    no projeto.
+    """
     if provedor not in PROVEDORES:
         raise ValueError(f"provedor invalido: {provedor}")
 
@@ -492,5 +570,11 @@ def status_servicos() -> dict[str, Any]:
             "provedor_efetivo": "azure"
             if azure_language_configurada() and _sdk_language_disponivel()
             else "offline",
+        },
+        "speech_to_text_local": {
+            "credencial": True,
+            "sdk": _sdk_whisper_disponivel(),
+            "provedor_efetivo": "local" if _sdk_whisper_disponivel() else "indisponivel",
+            "modelo": nome_modelo_whisper(),
         },
     }

@@ -62,14 +62,24 @@ class ResultadoPaciente:
         }
 
 
-def localizar_amostras(paciente_id: str, raiz: Path | None = None) -> dict[str, Path]:
-    """Mapeia quais arquivos de amostra existem para o paciente."""
+ARQUIVO_AUDIO_PADRAO = "consulta.wav"
+
+
+def localizar_amostras(
+    paciente_id: str, raiz: Path | None = None, arquivo_audio: str = ARQUIVO_AUDIO_PADRAO
+) -> dict[str, Path]:
+    """Mapeia quais arquivos de amostra existem para o paciente.
+
+    `arquivo_audio` permite trocar o WAV da consulta (por exemplo
+    `consulta_fala.wav`, gerado por `fase4.data.gerar_fala_tts` com fala
+    inteligivel) sem mexer nas demais modalidades.
+    """
     base = (raiz or DIR_AMOSTRAS) / paciente_id
     candidatos = {
         "sinais_vitais": base / "sinais_vitais.csv",
         "prescricoes": base / "prescricoes.json",
         "movimentacao": base / "movimentacao.csv",
-        "audio": base / "consulta.wav",
+        "audio": base / arquivo_audio,
         "video": base / "fisioterapia.mp4",
         "keypoints": base / "fisioterapia.keypoints.json",
         "objetos": base / "fisioterapia.objetos.json",
@@ -88,9 +98,10 @@ def processar_paciente(
     gravar_relatorios: bool = True,
     gravar_video_anotado: bool = True,
     area_critica: tuple[float, float, float, float] | None = None,
+    arquivo_audio: str = ARQUIVO_AUDIO_PADRAO,
 ) -> ResultadoPaciente:
     """Executa o monitoramento completo de um paciente."""
-    amostras = localizar_amostras(paciente_id, raiz_amostras)
+    amostras = localizar_amostras(paciente_id, raiz_amostras, arquivo_audio=arquivo_audio)
     saida = (dir_saida or DIR_RESULTADOS) / paciente_id
     if gravar_relatorios:
         saida.mkdir(parents=True, exist_ok=True)
@@ -384,6 +395,7 @@ def processar_lote(
     backend_pose: str = "anotado",
     backend_detector: str = "anotado",
     area_critica: tuple[float, float, float, float] | None = None,
+    arquivo_audio: str = ARQUIVO_AUDIO_PADRAO,
 ) -> dict:
     """Processa varios pacientes e grava o resumo consolidado da execucao."""
     saida = dir_saida or DIR_RESULTADOS
@@ -399,6 +411,7 @@ def processar_lote(
             backend_pose=backend_pose,
             backend_detector=backend_detector,
             area_critica=area_critica,
+            arquivo_audio=arquivo_audio,
         )
         resultados.append(resultado)
 
@@ -407,6 +420,7 @@ def processar_lote(
         "servicos_azure": {r.paciente_id: r.provedores_utilizados() for r in resultados},
         "backend_pose": backend_pose,
         "backend_detector": backend_detector,
+        "arquivo_audio": arquivo_audio,
         "pacientes": [
             {
                 "paciente_id": r.paciente_id,

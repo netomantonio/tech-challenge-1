@@ -21,7 +21,9 @@ diagnostico.
 
 from __future__ import annotations
 
+import json
 import math
+import re
 import wave
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -104,6 +106,11 @@ class ResultadoAudio:
     transcricao: ResultadoTranscricao
     analise_texto: ResultadoAnaliseTexto
     achados: list[Achado]
+    # Taxa de erro de palavras da transcricao contra o texto de referencia
+    # gravado ao lado do audio, quando a transcricao veio de um reconhecedor
+    # real (azure ou local). None quando nao ha referencia ou no modo offline,
+    # em que a transcricao *e* a referencia.
+    wer_referencia: float | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -112,8 +119,44 @@ class ResultadoAudio:
             "atributos_acusticos": self.atributos.to_dict(),
             "transcricao": self.transcricao.to_dict(),
             "analise_texto": self.analise_texto.to_dict(),
+            "wer_referencia": None if self.wer_referencia is None else round(self.wer_referencia, 4),
             "achados": [a.to_dict() for a in self.achados],
         }
+
+
+def _tokens_para_wer(texto: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", normalizar_texto(texto))
+
+
+def taxa_erro_palavras(referencia: str, hipotese: str) -> float:
+    """WER classico: (substituicoes + insercoes + remocoes) / palavras da referencia.
+
+    Normaliza acentos, caixa e pontuacao antes de comparar, para medir o
+    reconhecimento e nao a ortografia. Referencia vazia devolve 0.0 se a
+    hipotese tambem estiver vazia e 1.0 caso contrario.
+    """
+    ref = _tokens_para_wer(referencia)
+    hip = _tokens_para_wer(hipotese)
+    if not ref:
+        return 0.0 if not hip else 1.0
+    anterior = list(range(len(hip) + 1))
+    for i, palavra_ref in enumerate(ref, start=1):
+        atual = [i]
+        for j, palavra_hip in enumerate(hip, start=1):
+            custo = 0 if palavra_ref == palavra_hip else 1
+            atual.append(min(anterior[j] + 1, atual[j - 1] + 1, anterior[j - 1] + custo))
+        anterior = atual
+    return anterior[-1] / len(ref)
+
+
+def _texto_de_referencia(caminho_audio: Path) -> str | None:
+    referencia = caminho_audio.with_suffix(".transcricao.json")
+    if not referencia.exists():
+        return None
+    with referencia.open(encoding="utf-8") as f:
+        dados = json.load(f)
+    texto = " ".join(s.get("texto", "") for s in dados.get("segmentos", [])).strip()
+    return texto or None
 
 
 # ---------------------------------------------------------------------------
@@ -371,14 +414,15 @@ def avaliar_alteracoes_vocais(
             )
         )
 
-    if atributos.jitter_f0 >= limiares.jitter_alto:
+    jitter_alto = atributos.jitter_f0 >= limiares.jitter_alto
+    if jitter_alto:
         achados.append(
             Achado(
                 modalidade="audio",
                 tipo="instabilidade_vocal",
                 descricao=(
                     "Frequencia fundamental instavel, compativel com voz tremula ou "
-                    "articulacao prejudicada"
+                    "articulacao imprecisa (indicador acustico de disartria)"
                 ),
                 severidade="atencao",
                 score=min(0.9, 0.5 + (atributos.jitter_f0 - limiares.jitter_alto) * 100),
@@ -387,6 +431,38 @@ def avaliar_alteracoes_vocais(
                     "jitter_f0": round(atributos.jitter_f0, 4),
                     "f0_media_hz": round(atributos.f0_media_hz, 1),
                     "f0_desvio_hz": round(atributos.f0_desvio_hz, 1),
+                },
+            )
+        )
+
+    # Padrao disartrico: fala lenta somada a controle fonatorio alterado
+    # (F0 instavel) ou a voz monotona (monopitch). Sao os marcadores
+    # acusticos classicos de disartria; aqui sao indicadores de triagem,
+    # nao diagnostico, e nao distinguem o tipo de disartria.
+    monopitch = atributos.f0_desvio_hz <= limiares.monopitch_f0_desvio_hz
+    fala_lenta = atributos.taxa_fala_silabas_s <= limiares.taxa_fala_lenta
+    if fala_lenta and (jitter_alto or monopitch):
+        marcadores = ["taxa de fala reduzida"]
+        if jitter_alto:
+            marcadores.append("F0 instavel")
+        if monopitch:
+            marcadores.append("voz monotona")
+        achados.append(
+            Achado(
+                modalidade="audio",
+                tipo="padrao_disartrico",
+                descricao=(
+                    "Padrao acustico compativel com disartria: " + ", ".join(marcadores)
+                ),
+                severidade="atencao",
+                score=min(0.9, 0.5 + 0.15 * (len(marcadores) - 1)),
+                instante=None,
+                evidencias={
+                    "taxa_fala_silabas_s": round(atributos.taxa_fala_silabas_s, 2),
+                    "jitter_f0": round(atributos.jitter_f0, 4),
+                    "f0_desvio_hz": round(atributos.f0_desvio_hz, 1),
+                    "limite_taxa_fala": limiares.taxa_fala_lenta,
+                    "limite_monopitch_hz": limiares.monopitch_f0_desvio_hz,
                 },
             )
         )
@@ -491,6 +567,12 @@ def analisar_consulta(
 
     achados = avaliar_alteracoes_vocais(atributos, limiares) + achados_conteudo
 
+    wer = None
+    if transcricao.provedor != "offline":
+        referencia = _texto_de_referencia(caminho)
+        if referencia:
+            wer = taxa_erro_palavras(referencia, transcricao.texto)
+
     return ResultadoAudio(
         paciente_id=paciente_id,
         caminho_audio=str(caminho),
@@ -498,6 +580,7 @@ def analisar_consulta(
         transcricao=transcricao,
         analise_texto=analise,
         achados=achados,
+        wer_referencia=wer,
     )
 
 
@@ -510,7 +593,12 @@ def relatorio_markdown(resultado: ResultadoAudio) -> str:
         f"Arquivo: `{Path(resultado.caminho_audio).name}`  ",
         f"Duração: {atributos.duracao_total_s:.1f} s  ",
         f"Transcrição: provedor `{resultado.transcricao.provedor}`, "
-        f"confiança média {resultado.transcricao.confianca:.2f}  ",
+        f"confiança média {resultado.transcricao.confianca:.2f}"
+        + (
+            f", taxa de erro de palavras contra a referência {resultado.wer_referencia:.1%}"
+            if resultado.wer_referencia is not None else ""
+        )
+        + "  ",
         f"Análise de texto: provedor `{resultado.analise_texto.provedor}`",
         "",
         "## Atributos acústicos",

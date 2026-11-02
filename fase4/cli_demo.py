@@ -25,7 +25,12 @@ from fase4 import anomaly_detection
 from fase4.alertas import MotorDeAlertas
 from fase4.azure_services import status_servicos
 from fase4.data.gerar_dados_sinteticos import PACIENTES_PADRAO
-from fase4.pipeline import localizar_amostras, processar_lote, processar_paciente
+from fase4.pipeline import (
+    ARQUIVO_AUDIO_PADRAO,
+    localizar_amostras,
+    processar_lote,
+    processar_paciente,
+)
 
 LARGURA = 74
 
@@ -76,10 +81,11 @@ def demonstrar_paciente(
     paciente_id: str, provedor_azure: str, backend_pose: str, backend_detector: str,
     raiz_amostras: Path | None = None, dir_saida: Path | None = None,
     area_critica: tuple[float, float, float, float] | None = None,
+    arquivo_audio: str = ARQUIVO_AUDIO_PADRAO,
 ) -> None:
     _titulo(f"Monitoramento multimodal - paciente {paciente_id}")
 
-    amostras = localizar_amostras(paciente_id, raiz_amostras)
+    amostras = localizar_amostras(paciente_id, raiz_amostras, arquivo_audio=arquivo_audio)
     _secao("Amostras encontradas")
     if not amostras:
         print("  nenhuma. Rode primeiro: python -m fase4.data.gerar_dados_sinteticos")
@@ -97,6 +103,7 @@ def demonstrar_paciente(
         backend_pose=backend_pose,
         backend_detector=backend_detector,
         area_critica=area_critica,
+        arquivo_audio=arquivo_audio,
     )
 
     if resultado.resultado_video is not None:
@@ -137,6 +144,11 @@ def demonstrar_paciente(
             f"{audio.analise_texto.sentimento}; termos criticos: "
             f"{', '.join(t.termo for t in audio.analise_texto.termos_criticos) or 'nenhum'}"
         )
+        if audio.wer_referencia is not None:
+            print(
+                f"  taxa de erro de palavras contra a transcricao de referencia: "
+                f"{audio.wer_referencia:.1%}"
+            )
         for achado in audio.achados:
             print(f"  [{achado.severidade:11s}] {achado.instante or '-':>8s}  {achado.descricao}")
 
@@ -229,8 +241,22 @@ def main() -> None:
     parser.add_argument(
         "--provedor-azure",
         default="auto",
-        choices=["auto", "azure", "offline"],
-        help="Provedor de Speech to Text e Text Analytics (padrao: auto).",
+        choices=["auto", "azure", "offline", "local"],
+        help=(
+            "Provedor de Speech to Text e Text Analytics (padrao: auto). "
+            "'local' transcreve com faster-whisper na propria maquina, para "
+            "demonstracao sem credencial Azure."
+        ),
+    )
+    parser.add_argument(
+        "--audio",
+        default=ARQUIVO_AUDIO_PADRAO,
+        metavar="ARQUIVO",
+        help=(
+            "Nome do WAV da consulta dentro da pasta do paciente (padrao: consulta.wav). "
+            "Use consulta_fala.wav para o audio com fala inteligivel gerado por "
+            "python -m fase4.data.gerar_fala_tts."
+        ),
     )
     parser.add_argument(
         "--backend-pose",
@@ -276,6 +302,7 @@ def main() -> None:
             backend_pose=args.backend_pose,
             backend_detector=args.backend_detector,
             area_critica=args.area_critica,
+            arquivo_audio=args.audio,
         )
         _titulo("Resumo consolidado")
         for paciente in resumo["pacientes"]:
@@ -290,6 +317,7 @@ def main() -> None:
     demonstrar_paciente(
         args.paciente_id, args.provedor_azure, args.backend_pose, args.backend_detector,
         args.raiz_amostras, args.dir_saida, area_critica=args.area_critica,
+        arquivo_audio=args.audio,
     )
 
 

@@ -52,6 +52,7 @@ GRUPOS_ACHADO = (
     ("fala_entrecortada", "alteracoes_vocais"),
     ("fadiga_vocal", "alteracoes_vocais"),
     ("instabilidade_vocal", "alteracoes_vocais"),
+    ("padrao_disartrico", "alteracoes_vocais"),
     ("desvio_postural_", "execucao_exercicio"),
     ("amplitude_ombro_", "execucao_exercicio"),
     ("assimetria_entre_ombros", "execucao_exercicio"),
