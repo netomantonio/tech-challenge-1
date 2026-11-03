@@ -1,23 +1,15 @@
 modalidade,tipo,severidade,score,instante,descricao
-video,desvio_postural_tronco,atencao,0.624,00:11.40,Compensacao de tronco acima do tolerado durante o exercicio (19.4 graus)
-video,desvio_postural_tronco,atencao,0.597,00:15.07,Compensacao de tronco acima do tolerado durante o exercicio (17.8 graus)
-video,amplitude_ombro_esquerdo_excedida,critico,0.877,00:11.60,Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (139.6 graus)
-video,amplitude_ombro_esquerdo_excedida,critico,0.781,00:14.87,Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (133.8 graus)
-video,assimetria_entre_ombros,atencao,0.97,00:11.77,Assimetria entre os ombros na mesma repeticao (49.2 graus)
-video,assimetria_entre_ombros,atencao,0.648,00:13.37,Assimetria entre os ombros na mesma repeticao (25.9 graus)
-video,assimetria_entre_ombros,atencao,0.884,00:14.90,Assimetria entre os ombros na mesma repeticao (40.1 graus)
-video,invasao_area_critica,critico,0.95,00:13.20,Mao do paciente dentro da area critica do dreno durante a sessao
-video,profissional_ausente,atencao,0.75,00:10.00,Paciente executou o exercicio sem profissional em cena por 4.0 s
-audio,fala_entrecortada,atencao,0.743,00:00.60,"Fala entrecortada com frases curtas e pausas longas, compativel com esforco respiratorio"
-audio,fadiga_vocal,atencao,0.95,00:16.05,Sinais vocais de cansaco: queda de energia ao longo da consulta e taxa de fala reduzida
-audio,instabilidade_vocal,atencao,0.629,,"Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria)"
-audio,padrao_disartrico,atencao,0.65,,"Padrao acustico compativel com disartria: taxa de fala reduzida, F0 instavel"
-audio,termo_critico_respiratorio,critico,0.9,00:03.37,Queixa de categoria 'respiratorio' relatada pelo paciente: sem ar
-audio,termo_critico_dor_toracica,critico,0.9,00:05.75,Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito
-audio,termo_critico_infeccao,critico,0.8,00:08.65,Queixa de categoria 'infeccao' relatada pelo paciente: febre
-audio,termo_critico_fadiga,atencao,0.6,00:00.60,"Queixa de categoria 'fadiga' relatada pelo paciente: muito cansada, nao aguento"
-audio,termo_critico_dor,atencao,0.6,00:11.44,Queixa de categoria 'dor' relatada pelo paciente: dor aumentou
-audio,sentimento_negativo,informativo,0.667,,Sentimento predominante negativo na fala do paciente
+video,profissional_ausente,atencao,0.9,00:00.00,Paciente executou o exercicio sem profissional em cena por 20.0 s
+audio,fala_entrecortada,atencao,0.95,00:00.79,"Fala entrecortada com frases curtas e pausas longas, compativel com esforco respiratorio"
+audio,instabilidade_vocal,atencao,0.9,,"Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria)"
+audio,termo_critico_respiratorio,critico,0.9,00:05.03,"Queixa de categoria 'respiratorio' relatada pelo paciente: chiado no peito, sem ar"
+audio,termo_critico_dor_toracica,critico,0.9,00:08.87,"Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito, dor no peito, peso no peito, pontada no peito"
+audio,termo_critico_infeccao,critico,0.8,00:12.71,Queixa de categoria 'infeccao' relatada pelo paciente: febre
+audio,termo_critico_fadiga,atencao,0.6,00:00.51,"Queixa de categoria 'fadiga' relatada pelo paciente: muito cansada, muito cansado, nao aguento"
+audio,termo_critico_dor,atencao,0.6,00:17.21,"Queixa de categoria 'dor' relatada pelo paciente: doendo muito, dor aumentou, dor demais, dor forte, dor insuportavel"
+audio,termo_critico_sintoma_relatado_azure,informativo,0.45,00:21.71,Queixa de categoria 'sintoma_relatado_azure' relatada pelo paciente: parar um pouco para respirar
+audio,termo_critico_sono_humor,informativo,0.4,,"Queixa de categoria 'sono_humor' relatada pelo paciente: muito ansiosa, muito ansioso, nao consigo dormir"
+audio,sentimento_negativo,informativo,0.98,,Sentimento predominante negativo na fala do paciente
 sinais_vitais,desvio_pontual_nao_confirmado_pressao_sistolica,informativo,0.204,2025-06-10T09:49:00,Leitura isolada de pressao sistolica fora do padrao recente (117.8); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
 sinais_vitais,desvio_pontual_nao_confirmado_pressao_sistolica,informativo,0.216,2025-06-10T10:06:00,Leitura isolada de pressao sistolica fora do padrao recente (135.6); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
 sinais_vitais,desvio_pontual_nao_confirmado_frequencia_cardiaca,informativo,0.6,2025-06-10T10:30:00,Leitura isolada de frequencia cardiaca fora do padrao recente (185); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor
@@ -44,5 +36,4 @@ movimentacao,agitacao_noturna,atencao,0.81,2025-06-10T02:00:00,"Atividade elevad
 multimodal,sindrome_deterioracao_respiratoria,critico,0.99,2025-06-10T16:51:00,Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao
 multimodal,sindrome_suspeita_infeccao,critico,0.945,2025-06-10T16:51:00,Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica
 multimodal,sindrome_risco_medicamentoso,critico,0.99,2025-06-10T14:05:00,Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor
-multimodal,sindrome_reabilitacao_insegura,critico,0.99,00:13.20,Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela
 multimodal,sindrome_risco_de_imobilidade,critico,0.945,2025-06-10T02:00:00,Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitacao noturna

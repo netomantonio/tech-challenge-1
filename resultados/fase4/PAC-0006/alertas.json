@@ -4,14 +4,14 @@
     "paciente_id": "PAC-0006",
     "prioridade": "vermelho",
     "titulo": "Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao",
-    "mensagem": "Paciente PAC-0006: Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao em 2025-06-10T16:51:00. Modalidade: multimodal. Confianca: 0.99. Evidencias: modalidades=audio, sinais_vitais, quantidade_achados=17, tipos_de_achado=fadiga_vocal, fala_entrecortada, instabilidade_vocal, limite_critico_frequencia_respiratoria, limite_critico_temperatura, padrao_disartrico, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, acao=Avaliar o paciente presencialmente, repetir oximetria e considerar suporte de oxigenio conforme protocolo.",
+    "mensagem": "Paciente PAC-0006: Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao em 2025-06-10T16:51:00. Modalidade: multimodal. Confianca: 0.99. Evidencias: modalidades=audio, sinais_vitais, quantidade_achados=17, tipos_de_achado=fala_entrecortada, instabilidade_vocal, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, termo_critico_sintoma_relatado_azure, termo_critico_sono_humor, acao=Avaliar o paciente presencialmente, repetir oximetria e considerar suporte de oxigenio conforme protocolo.",
     "destino": "Medico de plantao e enfermagem do leito; Medico assistente da consulta; Equipe de plantao do leito",
     "acao_recomendada": "Avaliar o paciente presencialmente, repetir oximetria e considerar suporte de oxigenio conforme protocolo",
     "modalidades": [
       "multimodal"
     ],
     "score": 0.99,
-    "criado_em": "2026-11-03T01:30:26.470175+00:00",
+    "criado_em": "2026-11-03T01:42:54.763069+00:00",
     "achados": [
       {
         "modalidade": "multimodal",
@@ -23,13 +23,14 @@
         "evidencias": {
           "modalidades": "audio, sinais_vitais",
           "quantidade_achados": 17,
-          "tipos_de_achado": "fadiga_vocal, fala_entrecortada, instabilidade_vocal, limite_critico_frequencia_respiratoria, limite_critico_temperatura, padrao_disartrico, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+          "tipos_de_achado": "fala_entrecortada, instabilidade_vocal, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, termo_critico_sintoma_relatado_azure, termo_critico_sono_humor",
           "acao": "Avaliar o paciente presencialmente, repetir oximetria e considerar suporte de oxigenio conforme protocolo"
         }
       }
     ],
     "canais_entrega": [
-      "fila_jsonl"
+      "fila_jsonl",
+      "painel_web"
     ]
   },
   {
@@ -37,14 +38,14 @@
     "paciente_id": "PAC-0006",
     "prioridade": "vermelho",
     "titulo": "Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor",
-    "mensagem": "Paciente PAC-0006: Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor em 2025-06-10T14:05:00. Modalidade: multimodal. Confianca: 0.99. Evidencias: modalidades=prescricao, audio, sinais_vitais, quantidade_achados=17, tipos_de_achado=anomalia_multivariada, duplicidade_terapeutica, limite_critico_frequencia_respiratoria, limite_critico_temperatura, salto_de_dose, suspensao_precoce_antimicrobiano, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, acao=Revisar a prescricao com a farmacia clinica antes da proxima administracao e registrar a justificativa no prontuario.",
+    "mensagem": "Paciente PAC-0006: Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor em 2025-06-10T14:05:00. Modalidade: multimodal. Confianca: 0.99. Evidencias: modalidades=prescricao, audio, sinais_vitais, quantidade_achados=19, tipos_de_achado=anomalia_multivariada, duplicidade_terapeutica, limite_critico_frequencia_respiratoria, limite_critico_temperatura, salto_de_dose, suspensao_precoce_antimicrobiano, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, termo_critico_sintoma_relatado_azure, termo_critico_sono_humor, acao=Revisar a prescricao com a farmacia clinica antes da proxima administracao e registrar a justificativa no prontuario.",
     "destino": "Medico de plantao e enfermagem do leito; Farmacia clinica e medico prescritor; Medico assistente da consulta; Equipe de plantao do leito",
     "acao_recomendada": "Revisar a prescricao com a farmacia clinica antes da proxima administracao e registrar a justificativa no prontuario",
     "modalidades": [
       "multimodal"
     ],
     "score": 0.99,
-    "criado_em": "2026-11-03T01:30:26.470175+00:00",
+    "criado_em": "2026-11-03T01:42:54.763069+00:00",
     "achados": [
       {
         "modalidade": "multimodal",
@@ -55,47 +56,15 @@
         "instante": "2025-06-10T14:05:00",
         "evidencias": {
           "modalidades": "prescricao, audio, sinais_vitais",
-          "quantidade_achados": 17,
-          "tipos_de_achado": "anomalia_multivariada, duplicidade_terapeutica, limite_critico_frequencia_respiratoria, limite_critico_temperatura, salto_de_dose, suspensao_precoce_antimicrobiano, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+          "quantidade_achados": 19,
+          "tipos_de_achado": "anomalia_multivariada, duplicidade_terapeutica, limite_critico_frequencia_respiratoria, limite_critico_temperatura, salto_de_dose, suspensao_precoce_antimicrobiano, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, termo_critico_sintoma_relatado_azure, termo_critico_sono_humor",
           "acao": "Revisar a prescricao com a farmacia clinica antes da proxima administracao e registrar a justificativa no prontuario"
         }
       }
     ],
     "canais_entrega": [
-      "fila_jsonl"
-    ]
-  },
-  {
-    "alerta_id": "ALERTA-PAC-0006-005",
-    "paciente_id": "PAC-0006",
-    "prioridade": "vermelho",
-    "titulo": "Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela",
-    "mensagem": "Paciente PAC-0006: Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela em 00:13.20. Modalidade: multimodal. Confianca: 0.99. Evidencias: modalidades=video, audio, quantidade_achados=17, tipos_de_achado=amplitude_ombro_esquerdo_excedida, assimetria_entre_ombros, desvio_postural_tronco, fadiga_vocal, fala_entrecortada, instabilidade_vocal, invasao_area_critica, padrao_disartrico, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, acao=Rever o plano de reabilitacao com o fisioterapeuta antes da proxima sessao e reavaliar a liberacao de amplitude.",
-    "destino": "Medico de plantao e enfermagem do leito; Equipe de reabilitacao e cirurgia responsavel; Medico assistente da consulta",
-    "acao_recomendada": "Rever o plano de reabilitacao com o fisioterapeuta antes da proxima sessao e reavaliar a liberacao de amplitude",
-    "modalidades": [
-      "multimodal"
-    ],
-    "score": 0.99,
-    "criado_em": "2026-11-03T01:30:26.470175+00:00",
-    "achados": [
-      {
-        "modalidade": "multimodal",
-        "tipo": "sindrome_reabilitacao_insegura",
-        "descricao": "Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela",
-        "severidade": "critico",
-        "score": 0.99,
-        "instante": "00:13.20",
-        "evidencias": {
-          "modalidades": "video, audio",
-          "quantidade_achados": 17,
-          "tipos_de_achado": "amplitude_ombro_esquerdo_excedida, assimetria_entre_ombros, desvio_postural_tronco, fadiga_vocal, fala_entrecortada, instabilidade_vocal, invasao_area_critica, padrao_disartrico, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
-          "acao": "Rever o plano de reabilitacao com o fisioterapeuta antes da proxima sessao e reavaliar a liberacao de amplitude"
-        }
-      }
-    ],
-    "canais_entrega": [
-      "fila_jsonl"
+      "fila_jsonl",
+      "painel_web"
     ]
   },
   {
@@ -103,14 +72,14 @@
     "paciente_id": "PAC-0006",
     "prioridade": "vermelho",
     "titulo": "Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica",
-    "mensagem": "Paciente PAC-0006: Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica em 2025-06-10T16:51:00. Modalidade: multimodal. Confianca: 0.95. Evidencias: modalidades=audio, sinais_vitais, quantidade_achados=14, tipos_de_achado=anomalia_multivariada, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, acao=Coletar culturas, reavaliar a ferida operatoria e checar o esquema antimicrobiano antes da proxima dose.",
+    "mensagem": "Paciente PAC-0006: Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica em 2025-06-10T16:51:00. Modalidade: multimodal. Confianca: 0.95. Evidencias: modalidades=audio, sinais_vitais, quantidade_achados=16, tipos_de_achado=anomalia_multivariada, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, termo_critico_sintoma_relatado_azure, termo_critico_sono_humor, acao=Coletar culturas, reavaliar a ferida operatoria e checar o esquema antimicrobiano antes da proxima dose.",
     "destino": "Medico de plantao e enfermagem do leito; Medico assistente da consulta; Equipe de plantao do leito",
     "acao_recomendada": "Coletar culturas, reavaliar a ferida operatoria e checar o esquema antimicrobiano antes da proxima dose",
     "modalidades": [
       "multimodal"
     ],
     "score": 0.9450000000000001,
-    "criado_em": "2026-11-03T01:30:26.470175+00:00",
+    "criado_em": "2026-11-03T01:42:54.763069+00:00",
     "achados": [
       {
         "modalidade": "multimodal",
@@ -121,18 +90,19 @@
         "instante": "2025-06-10T16:51:00",
         "evidencias": {
           "modalidades": "audio, sinais_vitais",
-          "quantidade_achados": 14,
-          "tipos_de_achado": "anomalia_multivariada, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+          "quantidade_achados": 16,
+          "tipos_de_achado": "anomalia_multivariada, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, termo_critico_sintoma_relatado_azure, termo_critico_sono_humor",
           "acao": "Coletar culturas, reavaliar a ferida operatoria e checar o esquema antimicrobiano antes da proxima dose"
         }
       }
     ],
     "canais_entrega": [
-      "fila_jsonl"
+      "fila_jsonl",
+      "painel_web"
     ]
   },
   {
-    "alerta_id": "ALERTA-PAC-0006-006",
+    "alerta_id": "ALERTA-PAC-0006-005",
     "paciente_id": "PAC-0006",
     "prioridade": "vermelho",
     "titulo": "Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitacao noturna",
@@ -143,7 +113,7 @@
       "multimodal"
     ],
     "score": 0.9450000000000001,
-    "criado_em": "2026-11-03T01:30:26.470175+00:00",
+    "criado_em": "2026-11-03T01:42:54.763069+00:00",
     "achados": [
       {
         "modalidade": "multimodal",
@@ -161,40 +131,42 @@
       }
     ],
     "canais_entrega": [
-      "fila_jsonl"
+      "fila_jsonl",
+      "painel_web"
     ]
   },
   {
     "alerta_id": "ALERTA-PAC-0006-001",
     "paciente_id": "PAC-0006",
     "prioridade": "laranja",
-    "titulo": "Paciente executou o exercicio sem profissional em cena por 4.0 s",
-    "mensagem": "Paciente PAC-0006: Paciente executou o exercicio sem profissional em cena por 4.0 s em 00:10.00. Modalidade: video. Confianca: 0.75. Evidencias: duracao_s=4.0, limite_s=2.0, janela_s=10.00-13.97, criterio=sem objeto 'profissional'.",
+    "titulo": "Paciente executou o exercicio sem profissional em cena por 20.0 s",
+    "mensagem": "Paciente PAC-0006: Paciente executou o exercicio sem profissional em cena por 20.0 s em 00:00.00. Modalidade: video. Confianca: 0.90. Evidencias: duracao_s=20.0, limite_s=2.0, janela_s=0.00-19.97, criterio=menos de duas pessoas em cena.",
     "destino": "Equipe de reabilitacao e cirurgia responsavel",
     "acao_recomendada": "Revisar a gravacao no instante indicado e corrigir a execucao do exercicio com o paciente antes da proxima serie.",
     "modalidades": [
       "video"
     ],
-    "score": 0.75,
-    "criado_em": "2026-11-03T01:30:26.470175+00:00",
+    "score": 0.9,
+    "criado_em": "2026-11-03T01:42:54.763069+00:00",
     "achados": [
       {
         "modalidade": "video",
         "tipo": "profissional_ausente",
-        "descricao": "Paciente executou o exercicio sem profissional em cena por 4.0 s",
+        "descricao": "Paciente executou o exercicio sem profissional em cena por 20.0 s",
         "severidade": "atencao",
-        "score": 0.75,
-        "instante": "00:10.00",
+        "score": 0.9,
+        "instante": "00:00.00",
         "evidencias": {
-          "duracao_s": 4.0,
+          "duracao_s": 20.0,
           "limite_s": 2.0,
-          "janela_s": "10.00-13.97",
-          "criterio": "sem objeto 'profissional'"
+          "janela_s": "0.00-19.97",
+          "criterio": "menos de duas pessoas em cena"
         }
       }
     ],
     "canais_entrega": [
-      "fila_jsonl"
+      "fila_jsonl",
+      "painel_web"
     ]
   }
 ]

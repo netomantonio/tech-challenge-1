@@ -1,135 +1,16 @@
 [
   {
     "modalidade": "video",
-    "tipo": "desvio_postural_tronco",
-    "descricao": "Compensacao de tronco acima do tolerado durante o exercicio (19.4 graus)",
-    "severidade": "atencao",
-    "score": 0.6240777686560774,
-    "instante": "00:11.40",
-    "evidencias": {
-      "medida": "inclinacao_tronco",
-      "limite_graus": 15.0,
-      "valor_maximo_graus": 19.4,
-      "janela_s": "10.97-12.33",
-      "quadros": 42
-    }
-  },
-  {
-    "modalidade": "video",
-    "tipo": "desvio_postural_tronco",
-    "descricao": "Compensacao de tronco acima do tolerado durante o exercicio (17.8 graus)",
-    "severidade": "atencao",
-    "score": 0.5969961803703939,
-    "instante": "00:15.07",
-    "evidencias": {
-      "medida": "inclinacao_tronco",
-      "limite_graus": 15.0,
-      "valor_maximo_graus": 17.8,
-      "janela_s": "14.57-15.50",
-      "quadros": 29
-    }
-  },
-  {
-    "modalidade": "video",
-    "tipo": "amplitude_ombro_esquerdo_excedida",
-    "descricao": "Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (139.6 graus)",
-    "severidade": "critico",
-    "score": 0.8765948420253484,
-    "instante": "00:11.60",
-    "evidencias": {
-      "medida": "abducao_ombro_esquerdo",
-      "limite_graus": 120.0,
-      "valor_maximo_graus": 139.6,
-      "janela_s": "11.13-12.23",
-      "quadros": 34
-    }
-  },
-  {
-    "modalidade": "video",
-    "tipo": "amplitude_ombro_esquerdo_excedida",
-    "descricao": "Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (133.8 graus)",
-    "severidade": "critico",
-    "score": 0.780694105950081,
-    "instante": "00:14.87",
-    "evidencias": {
-      "medida": "abducao_ombro_esquerdo",
-      "limite_graus": 120.0,
-      "valor_maximo_graus": 133.8,
-      "janela_s": "14.53-15.43",
-      "quadros": 28
-    }
-  },
-  {
-    "modalidade": "video",
-    "tipo": "assimetria_entre_ombros",
-    "descricao": "Assimetria entre os ombros na mesma repeticao (49.2 graus)",
-    "severidade": "atencao",
-    "score": 0.97,
-    "instante": "00:11.77",
-    "evidencias": {
-      "medida": "assimetria_ombros",
-      "limite_graus": 20.0,
-      "valor_maximo_graus": 49.2,
-      "janela_s": "10.53-12.83",
-      "quadros": 70
-    }
-  },
-  {
-    "modalidade": "video",
-    "tipo": "assimetria_entre_ombros",
-    "descricao": "Assimetria entre os ombros na mesma repeticao (25.9 graus)",
-    "severidade": "atencao",
-    "score": 0.6475299099564406,
-    "instante": "00:13.37",
-    "evidencias": {
-      "medida": "assimetria_ombros",
-      "limite_graus": 20.0,
-      "valor_maximo_graus": 25.9,
-      "janela_s": "13.27-13.40",
-      "quadros": 5
-    }
-  },
-  {
-    "modalidade": "video",
-    "tipo": "assimetria_entre_ombros",
-    "descricao": "Assimetria entre os ombros na mesma repeticao (40.1 graus)",
-    "severidade": "atencao",
-    "score": 0.8844017918705518,
-    "instante": "00:14.90",
-    "evidencias": {
-      "medida": "assimetria_ombros",
-      "limite_graus": 20.0,
-      "valor_maximo_graus": 40.1,
-      "janela_s": "14.23-16.03",
-      "quadros": 55
-    }
-  },
-  {
-    "modalidade": "video",
-    "tipo": "invasao_area_critica",
-    "descricao": "Mao do paciente dentro da area critica do dreno durante a sessao",
-    "severidade": "critico",
-    "score": 0.95,
-    "instante": "00:13.20",
-    "evidencias": {
-      "sobreposicao_maxima": 1.0,
-      "duracao_s": 0.93,
-      "janela_s": "13.07-13.97",
-      "origem_mao": "caixa_detector"
-    }
-  },
-  {
-    "modalidade": "video",
     "tipo": "profissional_ausente",
-    "descricao": "Paciente executou o exercicio sem profissional em cena por 4.0 s",
+    "descricao": "Paciente executou o exercicio sem profissional em cena por 20.0 s",
     "severidade": "atencao",
-    "score": 0.75,
-    "instante": "00:10.00",
+    "score": 0.9,
+    "instante": "00:00.00",
     "evidencias": {
-      "duracao_s": 4.0,
+      "duracao_s": 20.0,
       "limite_s": 2.0,
-      "janela_s": "10.00-13.97",
-      "criterio": "sem objeto 'profissional'"
+      "janela_s": "0.00-19.97",
+      "criterio": "menos de duas pessoas em cena"
     }
   },
   {
@@ -137,25 +18,12 @@
     "tipo": "fala_entrecortada",
     "descricao": "Fala entrecortada com frases curtas e pausas longas, compativel com esforco respiratorio",
     "severidade": "atencao",
-    "score": 0.7430217563968788,
-    "instante": "00:00.60",
+    "score": 0.95,
+    "instante": "00:00.79",
     "evidencias": {
-      "proporcao_pausa": 0.515,
-      "duracao_media_frase_s": 1.3,
-      "pausa_maxima_s": 1.42
-    }
-  },
-  {
-    "modalidade": "audio",
-    "tipo": "fadiga_vocal",
-    "descricao": "Sinais vocais de cansaco: queda de energia ao longo da consulta e taxa de fala reduzida",
-    "severidade": "atencao",
-    "score": 0.9500000000000001,
-    "instante": "00:16.05",
-    "evidencias": {
-      "queda_energia_relativa": 0.415,
-      "taxa_fala_silabas_s": 1.31,
-      "energia_media": 0.0881
+      "proporcao_pausa": 0.698,
+      "duracao_media_frase_s": 0.34,
+      "pausa_maxima_s": 2.84
     }
   },
   {
@@ -163,53 +31,38 @@
     "tipo": "instabilidade_vocal",
     "descricao": "Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria)",
     "severidade": "atencao",
-    "score": 0.6292818066054191,
+    "score": 0.9,
     "instante": null,
     "evidencias": {
-      "jitter_f0": 0.0038,
-      "f0_media_hz": 173.4,
-      "f0_desvio_hz": 15.9
-    }
-  },
-  {
-    "modalidade": "audio",
-    "tipo": "padrao_disartrico",
-    "descricao": "Padrao acustico compativel com disartria: taxa de fala reduzida, F0 instavel",
-    "severidade": "atencao",
-    "score": 0.65,
-    "instante": null,
-    "evidencias": {
-      "taxa_fala_silabas_s": 1.31,
-      "jitter_f0": 0.0038,
-      "f0_desvio_hz": 15.9,
-      "limite_taxa_fala": 2.2,
-      "limite_monopitch_hz": 8.0
+      "jitter_f0": 0.0219,
+      "f0_media_hz": 186.7,
+      "f0_desvio_hz": 19.4
     }
   },
   {
     "modalidade": "audio",
     "tipo": "termo_critico_respiratorio",
-    "descricao": "Queixa de categoria 'respiratorio' relatada pelo paciente: sem ar",
+    "descricao": "Queixa de categoria 'respiratorio' relatada pelo paciente: chiado no peito, sem ar",
     "severidade": "critico",
     "score": 0.9,
-    "instante": "00:03.37",
+    "instante": "00:05.03",
     "evidencias": {
-      "trecho": "Quando eu levanto da cama eu fico sem ar. Hoje de manha senti um aperto no",
-      "confianca_transcricao": 0.88,
-      "provedor_transcricao": "offline"
+      "trecho": "Quando eu levanto da cama, eu fico sem ar. Hoje de manhã senti um aperto no",
+      "confianca_transcricao": 0.9,
+      "provedor_transcricao": "azure"
     }
   },
   {
     "modalidade": "audio",
     "tipo": "termo_critico_dor_toracica",
-    "descricao": "Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito",
+    "descricao": "Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito, dor no peito, peso no peito, pontada no peito",
     "severidade": "critico",
     "score": 0.9,
-    "instante": "00:05.75",
+    "instante": "00:08.87",
     "evidencias": {
-      "trecho": "ico sem ar. Hoje de manha senti um aperto no peito. A ferida esta mais quente e tive",
-      "confianca_transcricao": 0.88,
-      "provedor_transcricao": "offline"
+      "trecho": "ico sem ar. Hoje de manhã senti um aperto no peito. Aferida esta mais quente e tive f",
+      "confianca_transcricao": 0.9,
+      "provedor_transcricao": "azure"
     }
   },
   {
@@ -218,37 +71,63 @@
     "descricao": "Queixa de categoria 'infeccao' relatada pelo paciente: febre",
     "severidade": "critico",
     "score": 0.8,
-    "instante": "00:08.65",
+    "instante": "00:12.71",
     "evidencias": {
-      "trecho": ". A ferida esta mais quente e tive febre de noite. A dor aumentou e eu nao",
-      "confianca_transcricao": 0.88,
-      "provedor_transcricao": "offline"
+      "trecho": "o. Aferida esta mais quente e tive febre de noite. A dor aumentou e eu não",
+      "confianca_transcricao": 0.9,
+      "provedor_transcricao": "azure"
     }
   },
   {
     "modalidade": "audio",
     "tipo": "termo_critico_fadiga",
-    "descricao": "Queixa de categoria 'fadiga' relatada pelo paciente: muito cansada, nao aguento",
+    "descricao": "Queixa de categoria 'fadiga' relatada pelo paciente: muito cansada, muito cansado, nao aguento",
     "severidade": "atencao",
     "score": 0.6,
-    "instante": "00:00.60",
+    "instante": "00:00.51",
     "evidencias": {
-      "trecho": "Doutora, desde ontem eu estou muito cansada. Quando eu levanto da cama eu fico",
-      "confianca_transcricao": 0.88,
-      "provedor_transcricao": "offline"
+      "trecho": "Doutora, desde ontem eu estou muito cansada. Quando eu levanto da cama, eu fic",
+      "confianca_transcricao": 0.9,
+      "provedor_transcricao": "azure"
     }
   },
   {
     "modalidade": "audio",
     "tipo": "termo_critico_dor",
-    "descricao": "Queixa de categoria 'dor' relatada pelo paciente: dor aumentou",
+    "descricao": "Queixa de categoria 'dor' relatada pelo paciente: doendo muito, dor aumentou, dor demais, dor forte, dor insuportavel",
     "severidade": "atencao",
     "score": 0.6,
-    "instante": "00:11.44",
+    "instante": "00:17.21",
     "evidencias": {
-      "trecho": "is quente e tive febre de noite. A dor aumentou e eu nao aguento fazer os exercici",
-      "confianca_transcricao": 0.88,
-      "provedor_transcricao": "offline"
+      "trecho": "is quente e tive febre de noite. A dor aumentou e eu não aguento fazer os exercíci",
+      "confianca_transcricao": 0.9,
+      "provedor_transcricao": "azure"
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "termo_critico_sintoma_relatado_azure",
+    "descricao": "Queixa de categoria 'sintoma_relatado_azure' relatada pelo paciente: parar um pouco para respirar",
+    "severidade": "informativo",
+    "score": 0.45,
+    "instante": "00:21.71",
+    "evidencias": {
+      "trecho": "uento fazer os exercícios. Preciso parar um pouco para respirar.",
+      "confianca_transcricao": 0.9,
+      "provedor_transcricao": "azure"
+    }
+  },
+  {
+    "modalidade": "audio",
+    "tipo": "termo_critico_sono_humor",
+    "descricao": "Queixa de categoria 'sono_humor' relatada pelo paciente: muito ansiosa, muito ansioso, nao consigo dormir",
+    "severidade": "informativo",
+    "score": 0.4,
+    "instante": null,
+    "evidencias": {
+      "trecho": "muito",
+      "confianca_transcricao": 0.9,
+      "provedor_transcricao": "azure"
     }
   },
   {
@@ -256,15 +135,15 @@
     "tipo": "sentimento_negativo",
     "descricao": "Sentimento predominante negativo na fala do paciente",
     "severidade": "informativo",
-    "score": 0.6666666666666666,
+    "score": 0.98,
     "instante": null,
     "evidencias": {
       "scores": {
         "positivo": 0.0,
-        "neutro": 0.333,
-        "negativo": 0.667
+        "neutro": 0.02,
+        "negativo": 0.98
       },
-      "provedor": "offline"
+      "provedor": "azure"
     }
   },
   {
@@ -613,7 +492,7 @@
     "evidencias": {
       "modalidades": "audio, sinais_vitais",
       "quantidade_achados": 17,
-      "tipos_de_achado": "fadiga_vocal, fala_entrecortada, instabilidade_vocal, limite_critico_frequencia_respiratoria, limite_critico_temperatura, padrao_disartrico, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+      "tipos_de_achado": "fala_entrecortada, instabilidade_vocal, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, termo_critico_sintoma_relatado_azure, termo_critico_sono_humor",
       "acao": "Avaliar o paciente presencialmente, repetir oximetria e considerar suporte de oxigenio conforme protocolo"
     }
   },
@@ -626,8 +505,8 @@
     "instante": "2025-06-10T16:51:00",
     "evidencias": {
       "modalidades": "audio, sinais_vitais",
-      "quantidade_achados": 14,
-      "tipos_de_achado": "anomalia_multivariada, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+      "quantidade_achados": 16,
+      "tipos_de_achado": "anomalia_multivariada, limite_critico_frequencia_respiratoria, limite_critico_temperatura, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, termo_critico_sintoma_relatado_azure, termo_critico_sono_humor",
       "acao": "Coletar culturas, reavaliar a ferida operatoria e checar o esquema antimicrobiano antes da proxima dose"
     }
   },
@@ -640,23 +519,9 @@
     "instante": "2025-06-10T14:05:00",
     "evidencias": {
       "modalidades": "prescricao, audio, sinais_vitais",
-      "quantidade_achados": 17,
-      "tipos_de_achado": "anomalia_multivariada, duplicidade_terapeutica, limite_critico_frequencia_respiratoria, limite_critico_temperatura, salto_de_dose, suspensao_precoce_antimicrobiano, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
+      "quantidade_achados": 19,
+      "tipos_de_achado": "anomalia_multivariada, duplicidade_terapeutica, limite_critico_frequencia_respiratoria, limite_critico_temperatura, salto_de_dose, suspensao_precoce_antimicrobiano, tendencia_alta_frequencia_cardiaca, tendencia_alta_frequencia_respiratoria, tendencia_alta_temperatura, tendencia_queda_pressao_diastolica, tendencia_queda_pressao_sistolica, tendencia_queda_saturacao_oxigenio, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio, termo_critico_sintoma_relatado_azure, termo_critico_sono_humor",
       "acao": "Revisar a prescricao com a farmacia clinica antes da proxima administracao e registrar a justificativa no prontuario"
-    }
-  },
-  {
-    "modalidade": "multimodal",
-    "tipo": "sindrome_reabilitacao_insegura",
-    "descricao": "Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela",
-    "severidade": "critico",
-    "score": 0.99,
-    "instante": "00:13.20",
-    "evidencias": {
-      "modalidades": "video, audio",
-      "quantidade_achados": 17,
-      "tipos_de_achado": "amplitude_ombro_esquerdo_excedida, assimetria_entre_ombros, desvio_postural_tronco, fadiga_vocal, fala_entrecortada, instabilidade_vocal, invasao_area_critica, padrao_disartrico, termo_critico_dor, termo_critico_dor_toracica, termo_critico_fadiga, termo_critico_infeccao, termo_critico_respiratorio",
-      "acao": "Rever o plano de reabilitacao com o fisioterapeuta antes da proxima sessao e reavaliar a liberacao de amplitude"
     }
   },
   {
