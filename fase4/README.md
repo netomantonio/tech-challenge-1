@@ -5,7 +5,8 @@ de dado — vídeo de sessão de fisioterapia, áudio de consulta e séries
 temporais de sinais vitais, prescrições e movimentação — funde os achados e
 emite alertas para a equipe médica.
 
-Todos os dados são sintéticos e gerados pelo próprio repositório. Nenhum
+Os cenários principais são sintéticos. Há avaliações complementares com
+PhysioNet, fala TTS e vídeos UCF101. Nenhum
 resultado aqui é validado para uso assistencial.
 
 ## Início rápido
@@ -51,8 +52,9 @@ python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real --atraso 0.01
 
 ## Demonstrações sem credencial Azure
 
-Três execuções extras mostram os mesmos módulos em dados que não foram
-gerados pelo projeto. Elas exigem os pacotes de `requirements-fase4.txt`.
+Três execuções complementares avaliam transcrição de fala sintetizada,
+sinais reais e vídeos de ações humanas. Elas exigem os pacotes de
+`requirements-fase4.txt`.
 
 ```powershell
 # 1. Fala inteligível em pt-BR (voz do Windows) e transcrição local (faster-whisper)
@@ -63,14 +65,14 @@ python -m fase4.cli_demo --paciente-id PAC-0006 --audio consulta_fala.wav --prov
 python -m fase4.data.baixar_physionet
 python -m fase4.validacao_physionet
 
-# 3. Estimador de pose e detector reais (MediaPipe + YOLOv8) com área crítica manual
-python -m fase4.cli_demo --paciente-id PAC-0006 --backend-pose mediapipe --backend-detector yolov8 --area-critica 250,178,296,220
+# 3. Estimador de pose e detector reais em clipes UCF101
+python -m fase4.data.baixar_ucf101
+python -m fase4.validacao_ucf101
 ```
 
-Os resultados de 1 e 2 estão versionados em `resultados/fase4/fala_real/` e
-`resultados/fase4/physionet/`. A execução 3 sobre o vídeo sintético prova que
-o caminho real roda de ponta a ponta, mas não detecta pose: o esqueleto
-desenhado não é uma pessoa.
+Os resultados estão em `resultados/fase4/fala_real/`, `physionet/` e
+`ucf101/`. O vídeo sintético do PAC-0006 deve usar os backends anotados;
+o esqueleto desenhado não é uma pessoa para os modelos de percepção.
 
 ## Interface web
 
@@ -147,7 +149,12 @@ O YOLOv8 genérico (classes COCO) não conhece `dreno`, `mao_paciente` nem
 - `--area-critica x1,y1,x2,y2` define a região do dreno manualmente (em
   pixels); a mão do paciente passa a ser o keypoint do punho, com raio de
   11 px (`raio_mao_px`);
-- "profissional presente" vira "duas ou mais pessoas em cena" (`person`).
+- o detector genérico informa contagem, sem atribuir papéis. Zero pessoas
+  indica detecção insuficiente; uma pessoa indica acompanhamento não
+  confirmado. Esses registros não geram alerta nem aumentam o risco.
+  O modo anotado mantém a regra de ausência profissional.
+- medidas ausentes aparecem como “Não avaliado” no relatório e N/A no vídeo,
+  com `null` na API. Os avisos de cobertura também aparecem no painel.
 
 O relatório de vídeo registra de onde veio a área crítica (`anotada`,
 `manual` ou `nenhuma`) e como a mão foi localizada (`caixa_detector`,
@@ -348,7 +355,7 @@ sintetizada) e `physionet/` (validação em dados reais).
 python -m unittest discover -s tests -p "test_fase4*.py" -v
 ```
 
-São 186 testes em oito arquivos, sem rede, sem chave da Azure e sem os
+São 200 testes em onze arquivos, sem rede, sem chave da Azure e sem os
 pacotes opcionais: `test_fase4` (pipeline e regras), `test_fase4_azure`
 (SDKs Speech e Text Analytics simulados), `test_fase4_backends` (MediaPipe e
 YOLOv8 falsos lendo o vídeo real), `test_fase4_audio_local` (disartria, WER,
@@ -357,3 +364,90 @@ whisper falso, TTS), `test_fase4_tempo_real` (Isolation Forest online, NaN),
 `test_fase4_physionet` (conversão do registro) e `test_fase4_web` (API da
 interface: processamento, SSE, jobs, uploads, ROI, webhook). As amostras são
 geradas em diretório temporário.
+
+### Avaliação em vídeos reais — UCF101
+
+Selecionamos o UCF101 a partir do catálogo Awesome-Video-Datasets e do
+relatório CRCV-TR-12-01, de Soomro, Zamir e Shah (2012). A base contém
+13.320 vídeos distribuídos em 101 classes de ações humanas. Nosso recorte
+exploratório reúne um clipe de polichinelo, um de agachamento e um de avanço.
+Não utilizamos esses vídeos para treinar ou ajustar os modelos.
+
+Os arquivos são obtidos do espelho `sumith2425/UCF101`, com revisão fixa e
+SHA-256 em `fase4/data/ucf101_manifesto.json`. Os endereços antigos da UCF
+e o arquivo de distribuição indicado no tutorial TensorFlow estavam
+indisponíveis no momento da coleta. Mantivemos a origem e a revisão do
+espelho nos resultados. A conversão AVI–MP4 preserva os quadros, a resolução
+e a taxa de amostragem; o áudio não é utilizado neste experimento.
+
+| Clipe | Quadros | Quadros com pose | Cobertura |
+| --- | ---: | ---: | ---: |
+| `v_BodyWeightSquats_g01_c01.avi` | 267 | 267 | 100,0% |
+| `v_JumpingJack_g01_c01.avi` | 93 | 93 | 100,0% |
+| `v_Lunges_g01_c01.avi` | 262 | 202 | 77,1% |
+
+Empregamos MediaPipe 1.2.0 e YOLOv8n, com Ultralytics 8.3.0. A cobertura
+expressa a proporção de quadros com pose disponível, não a precisão dos
+pontos articulares. O recorte não oferece rótulos de supervisão profissional
+ou de anomalias clínicas. Por isso, o contexto `exploratorio` mantém as
+medidas descritivas e não aplica os limites de pós-operatório nem produz
+alertas clínicos a partir desses exercícios.
+
+```powershell
+python -m fase4.data.baixar_ucf101
+python -m fase4.validacao_ucf101
+python -m fase4.web_app
+```
+
+Na interface, os clipes aparecem no grupo **UCF101 · ações humanas**. Ao
+selecioná-los, MediaPipe e YOLOv8 são sugeridos; os seletores continuam
+disponíveis. Os pacientes sintéticos continuam usando as anotações por
+padrão. O modo anotado requer arquivos de anotações correspondentes, que
+não acompanham o recorte UCF101. As opções de áudio `offline`, `local`,
+`auto` e `azure` permanecem disponíveis para casos com áudio.
+
+Os relatórios individuais e a síntese estão em `resultados/fase4/ucf101/`.
+Essa execução demonstra percepção em pessoas filmadas, mas não substitui
+uma avaliação em sessões reais de fisioterapia.
+
+### Revisão da análise de linguagem
+
+A validação atual utiliza Speech e Language reais nos dois pacientes: WER
+de 0% no PAC-0006 e 5,7% no PAC-0002. O cruzamento com o
+léxico foi corrigido: somente sintomas/diagnósticos presentes no texto podem
+enriquecer os achados, e expressões não pronunciadas não são inferidas a
+partir de fragmentos. O registro anterior preserva a evidência de uso da
+nuvem. As saídas corrigidas estão em `resultados/fase4/azure_real/`.
+
+O relatório original está em `resultados/fase4/azure_registro/`, identificado
+como histórico. Os relatórios principais e os resultados do front foram
+regenerados pela API com Azure e vídeo anotado. Nesta revisão, a suíte completa teve 273 aprovações e um
+teste ignorado pela ausência de `wfdb`; o teste dos seletores do frontend
+também passou (`node tests/test_fase4_web_ui.mjs`).
+### Validação de queixas e áudios de demonstração
+
+Na integração com o Azure Language, verificamos a presença textual dos termos,
+as negações próximas e a indicação de certeza retornada para entidades clínicas.
+Expressões de melhora presentes no léxico positivo não são acrescentadas como
+queixas. Esses filtros são regras de escopo limitado, não uma interpretação
+clínica completa. Erros de transcrição ainda podem alterar o sentido de uma frase.
+
+Áudios cuja referência declara origem `tts_*` são utilizados para validar a
+transcrição e a análise textual. Seus atributos acústicos permanecem no relatório,
+mas não geram achados de alteração vocal: uma voz sintetizada não fornece evidência
+de disartria, fadiga ou dificuldade respiratória de um paciente. Essa restrição
+depende dos metadados de origem, não de um detector automático de voz sintética.
+## Pendências de entrega e alcance das evidências
+
+A implementação inclui análise das modalidades, fusão e entrega de alertas.
+Para fortalecer a demonstração dos requisitos clínicos, falta avaliar uma
+sessão clínica filmada com desvios de referência e fala natural com alterações
+vocais anotadas. Os três clipes UCF101 demonstram execução dos modelos em
+pessoas filmadas, sem comprovar detecção de falhas clínicas. A reprodução
+incremental dos sinais não corresponde à aquisição contínua de um monitor.
+
+A entrega ainda exige consolidar e publicar as alterações no repositório
+remoto e gravar o vídeo demonstrativo de até 15 minutos no YouTube ou Vimeo.
+O roteiro está em `docs/script_video_demonstracao_fase4.txt`; a publicação
+não foi comprovada nesta revisão. Treinar um modelo próprio não é uma
+exigência explícita do enunciado.

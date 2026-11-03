@@ -355,13 +355,27 @@ class PessoasGenericasTests(unittest.TestCase):
             for i, n in enumerate(pessoas_por_quadro)
         ]
 
-    def test_uma_pessoa_por_tempo_demais_e_profissional_ausente(self) -> None:
+    def test_uma_pessoa_nao_comprova_ausencia_profissional(self) -> None:
         quadros = self._quadros([2] * 30 + [1] * 90 + [2] * 30)
         achados = video_analysis.avaliar_eventos(quadros, 30.0, pessoas_genericas=True)
         tipos = [a.tipo for a in achados]
-        self.assertEqual(tipos, ["profissional_ausente"])
+        self.assertEqual(tipos, ["acompanhamento_nao_confirmado"])
+        self.assertEqual(achados[0].severidade, "informativo")
         self.assertAlmostEqual(achados[0].evidencias["duracao_s"], 3.0, places=2)
-        self.assertIn("duas pessoas", achados[0].evidencias["criterio"])
+        self.assertIn("sem identificacao", achados[0].evidencias["criterio"])
+
+    def test_zero_pessoas_nao_gera_alerta_de_ausencia(self) -> None:
+        from fase4.alertas import MotorDeAlertas
+        achados = video_analysis.avaliar_eventos(self._quadros([0] * 600), 30, pessoas_genericas=True)
+        self.assertEqual([a.tipo for a in achados], ["deteccao_pessoas_insuficiente"])
+        self.assertEqual(MotorDeAlertas().gerar("PAC-X", achados), [])
+
+    def test_lacuna_nao_soma_tempo_de_pessoa_unica(self) -> None:
+        quadros = self._quadros([1] * 45 + [0] * 30 + [1] * 45)
+        self.assertEqual(video_analysis.avaliar_eventos(quadros, 30, pessoas_genericas=True), [])
+
+    def test_duas_pessoas_nao_geram_queixa(self) -> None:
+        self.assertEqual(video_analysis.avaliar_eventos(self._quadros([2] * 90), 30, pessoas_genericas=True), [])
 
     def test_sem_pessoas_genericas_a_classe_person_nao_conta(self) -> None:
         quadros = self._quadros([2] * 150)
@@ -376,6 +390,22 @@ class PessoasGenericasTests(unittest.TestCase):
 
 @unittest.skipUnless(TEM_CV2, "OpenCV nao instalado")
 class SessaoComBackendsReaisTests(AmostraDeVideo):
+    def test_sem_pose_medidas_sao_nulas_e_relatorio_nao_inventa_zero(self) -> None:
+        with patch.object(video_analysis, "extrair_pose_mediapipe", return_value=([QuadroPose(i, i / 30, {}) for i in range(90)], 30)), patch.object(video_analysis, "detectar_objetos_yolov8", return_value=[QuadroObjetos(i, i / 30, []) for i in range(90)]):
+            resultado = analisar_sessao("PAC-X", caminho_video=self.video, backend_pose="mediapipe", backend_detector="yolov8")
+        self.assertTrue(all(v is None for v in resultado.to_dict()["resumo_angulos"].values()))
+        self.assertIn("Não avaliado", video_analysis.relatorio_markdown(resultado))
+        self.assertTrue(resultado.avisos)
+        self.assertNotIn("profissional_ausente", {a.tipo for a in resultado.achados})
+
+    def test_contexto_exploratorio_mede_sem_alerta_clinico(self) -> None:
+        with mediapipe_legado_falso(self.landmarks_do_quadro), ultralytics_falso(_pessoas_no_quadro):
+            resultado = analisar_sessao("UCF-X", caminho_video=self.video, backend_pose="mediapipe", backend_detector="yolov8", contexto="exploratorio")
+        self.assertGreater(resultado.resumo_angulos["abducao_maxima_ombro_esquerdo"], 120)
+        self.assertTrue(all(a.severidade == "informativo" for a in resultado.achados))
+        from fase4.multimodal_fusion import fundir
+        self.assertEqual(fundir("UCF-X", resultado.achados).risco, 0)
+
     def test_mediapipe_e_yolov8_com_roi_manual_reproduzem_os_eventos(self) -> None:
         with mediapipe_legado_falso(self.landmarks_do_quadro), ultralytics_falso(_pessoas_no_quadro):
             resultado = analisar_sessao(
@@ -395,11 +425,11 @@ class SessaoComBackendsReaisTests(AmostraDeVideo):
             "amplitude_ombro_esquerdo_excedida",
             "assimetria_entre_ombros",
             "invasao_area_critica",
-            "profissional_ausente",
+            "acompanhamento_nao_confirmado",
         ):
             self.assertIn(esperado, tipos)
-        ausente = next(a for a in resultado.achados if a.tipo == "profissional_ausente")
-        self.assertIn("duas pessoas", ausente.evidencias["criterio"])
+        ausente = next(a for a in resultado.achados if a.tipo == "acompanhamento_nao_confirmado")
+        self.assertIn("sem identificacao", ausente.evidencias["criterio"])
         self.assertAlmostEqual(ausente.evidencias["duracao_s"], 4.0, delta=0.1)
 
     def test_yolov8_sem_roi_nao_tem_como_avaliar_area_critica(self) -> None:

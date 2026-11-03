@@ -111,6 +111,7 @@ class ResultadoAudio:
     # real (azure ou local). None quando nao ha referencia ou no modo offline,
     # em que a transcricao *e* a referencia.
     wer_referencia: float | None = None
+    avisos: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -121,6 +122,7 @@ class ResultadoAudio:
             "analise_texto": self.analise_texto.to_dict(),
             "wer_referencia": None if self.wer_referencia is None else round(self.wer_referencia, 4),
             "achados": [a.to_dict() for a in self.achados],
+            "avisos": self.avisos,
         }
 
 
@@ -565,7 +567,17 @@ def analisar_consulta(
         )
         achados_conteudo = []
 
-    achados = avaliar_alteracoes_vocais(atributos, limiares) + achados_conteudo
+    avisos = []
+    referencia_audio = caminho.with_suffix(".transcricao.json")
+    origem = ""
+    if referencia_audio.exists():
+        origem = str(json.loads(referencia_audio.read_text(encoding="utf-8")).get("origem", ""))
+    if origem.startswith("tts_"):
+        achados = achados_conteudo
+        avisos.append("Audio de fala sintetizada (TTS): atributos acusticos apenas descritivos; "
+                      "a avaliacao de alteracoes vocais clinicas nao foi aplicada.")
+    else:
+        achados = avaliar_alteracoes_vocais(atributos, limiares) + achados_conteudo
 
     wer = None
     if transcricao.provedor != "offline":
@@ -581,6 +593,7 @@ def analisar_consulta(
         analise_texto=analise,
         achados=achados,
         wer_referencia=wer,
+        avisos=avisos,
     )
 
 
@@ -670,4 +683,5 @@ def relatorio_markdown(resultado: ResultadoAudio) -> str:
         "substitui avaliação clínica.",
         "",
     ]
+    linhas.extend(["", *[f"> {aviso}" for aviso in resultado.avisos]])
     return "\n".join(linhas)

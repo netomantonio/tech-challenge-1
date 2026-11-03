@@ -29,7 +29,7 @@
   }
 
   function selectPacientes(filtro, selecionado, aoMudar) {
-    const grupos = { sinteticos: [], enviados: [], physionet: [] };
+    const grupos = { sinteticos: [], enviados: [], physionet: [], ucf101: [] };
     estado.pacientes.filter(filtro || (() => true)).forEach((p) => grupos[p.origem].push(p));
     const select = el("select", { onchange: () => aoMudar(select.value) });
     select.appendChild(el("option", { value: "", text: "Selecione um paciente" }));
@@ -123,6 +123,13 @@
     if (!id) { renderPainel(); return; }
     try {
       p.detalhe = await api.get(`/api/pacientes/${encodeURIComponent(id)}`);
+      if (p.detalhe.origem === "ucf101") {
+        p.opcoes.backend_pose = "mediapipe";
+        p.opcoes.backend_detector = "yolov8";
+      } else if (p.detalhe.origem === "sinteticos") {
+        p.opcoes.backend_pose = "anotado";
+        p.opcoes.backend_detector = "anotado";
+      }
       if (p.detalhe.audios && p.detalhe.audios.length && !p.detalhe.audios.includes(p.opcoes.arquivo_audio)) p.opcoes.arquivo_audio = p.detalhe.audios[0];
       if (p.detalhe.resultado_disponivel) {
         p.resultado = await api.get(`/api/pacientes/${encodeURIComponent(id)}/resultado`);
@@ -246,7 +253,8 @@
       campo("Transcrição e linguagem", provedor, "Azure Speech/Text Analytics, substituto offline ou whisper local."),
       campo("Áudio da consulta", audio),
       campo("Estimador de pose", pose, temVideo ? null : "Este paciente não tem vídeo."),
-      campo("Detector de objetos", detector),
+      campo("Detector de objetos", detector, p.opcoes.backend_detector === "yolov8" ? "Conta pessoas; não identifica quem é profissional. Sem detecção, o acompanhamento fica não avaliado." : null),
+      p.detalhe && p.detalhe.origem === "ucf101" ? el("p", { class: "nota", text: "UCF101: ações humanas para avaliação de postura e detecção. Estes clipes não são sessões clínicas; os limites de pós-operatório não são aplicados." }) : null,
       campo("Área crítica (ROI)", el("div", { class: "linha" }, [
         area,
         el("button", { type: "button", class: "secondary-button", text: "Desenhar", onclick: () => { estado.dados.roiPaciente = p.pacienteId; location.hash = "#/dados"; } }),
@@ -289,6 +297,7 @@
     } else {
       const r = p.resultado;
       centro.appendChild(F4.render.cartaoRisco(r));
+      ((r.video && r.video.avisos) || []).forEach((aviso) => centro.appendChild(el("p", { class: "nota", text: aviso })));
       centro.appendChild(F4.render.cartoesQuadros(r));
       centro.appendChild(F4.render.cartoesAlertas(r.alertas || []));
       centro.appendChild(F4.render.tabelaAchados(r.achados || []));

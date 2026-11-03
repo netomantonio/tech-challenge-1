@@ -515,6 +515,7 @@ def _entidades_azure(cliente: Any, documentos: list[str], codigo_idioma: str) ->
                         "categoria": str(entidade.category),
                         "confianca": float(getattr(entidade, "confidence_score", 0.0) or 0.0),
                         "origem": "text_analytics_for_health",
+                        "certeza": str(getattr(getattr(entidade, "assertion", None), "certainty", "") or ""),
                     }
                 )
         return entidades
@@ -540,6 +541,15 @@ def _entidades_azure(cliente: Any, documentos: list[str], codigo_idioma: str) ->
     return entidades
 
 
+def _ocorrencia_afirmada(texto: str, alvo: str) -> bool:
+    """Exige uma ocorrencia nao negada, sem atravessar limites de oracao."""
+    for ocorrencia in re.finditer(r"(?<!\w)" + re.escape(alvo) + r"(?!\w)", texto):
+        prefixo = re.split(r"[.!?;,]|\b(?:mas|porem)\b", texto[:ocorrencia.start()])[-1]
+        if not re.search(r"\b(?:sem|nega|nego|negou|nao)\b(?:\s+\w+){0,3}\s*$", prefixo):
+            return True
+    return False
+
+
 def _termos_a_partir_de_entidades(
     entidades: list[dict[str, Any]], texto: str, ja_encontrados: list[TermoCritico]
 ) -> list[TermoCritico]:
@@ -558,13 +568,27 @@ def _termos_a_partir_de_entidades(
 
     for entidade in entidades:
         alvo = normalizar_texto(entidade["texto"]).strip()
-        if not alvo:
+        if not alvo or not re.search(r"(?<!\w)" + re.escape(alvo) + r"(?!\w)", normalizado):
+            continue
+        if entidade.get("categoria") not in ("SymptomOrSign", "Diagnosis"):
+            continue
+        if "negative" in entidade.get("certeza", "").lower():
+            continue
+        if not _ocorrencia_afirmada(normalizado, alvo):
+            continue
+        if any(re.search(r"(?<!\w)" + re.escape(normalizar_texto(t)) + r"(?!\w)", alvo)
+               for t in lexico.get("termos_positivos", [])):
             continue
         casou = False
         for categoria, dados in lexico.get("categorias", {}).items():
             for termo in dados.get("termos", []):
                 termo_norm = normalizar_texto(termo)
-                if alvo == termo_norm or alvo in termo_norm or termo_norm in alvo:
+                # Uma entidade curta ("dor") nao autoriza ampliar a queixa
+                # para "dor insuportavel". A expressao precisa estar no texto.
+                if (
+                    (alvo == termo_norm or alvo in termo_norm or termo_norm in alvo)
+                    and _ocorrencia_afirmada(normalizado, termo_norm)
+                ):
                     casou = True
                     chave = (termo_norm, categoria)
                     if chave in vistos:
@@ -687,7 +711,7 @@ def _buscar_termos_criticos(texto: str) -> list[TermoCritico]:
         for termo in dados.get("termos", []):
             alvo = normalizar_texto(termo)
             posicao = normalizado.find(alvo)
-            if posicao < 0:
+            if posicao < 0 or not _ocorrencia_afirmada(normalizado, alvo):
                 continue
             inicio = max(0, posicao - 35)
             fim = min(len(texto), posicao + len(alvo) + 35)

@@ -1,474 +1,127 @@
-SCRIPT - VIDEO DE DEMONSTRACAO
-Tech Challenge Fase 4 - Monitoramento Multimodal de Pacientes
-Duracao estimada: 13 a 15 minutos
-
-PREPARO ANTES DE GRAVAR
--------------------------------------------------------------------------------
-1. Ambiente ativado e dependencias da Fase 1/2 instaladas:
-     .\.venv\Scripts\Activate.ps1
-     pip install -r requirements.txt -r requirements-fase4.txt
-
-2. Gerar as amostras (deixar pronto antes da gravacao, demora alguns segundos):
-     python -m fase4.data.gerar_dados_sinteticos
-
-3. Conferir as amostras e as pastas de saida antes de gravar.
-
-4. Abrir em abas do editor, na ordem das cenas:
-     fase4/config.py
-     fase4/video_analysis.py
-     fase4/audio_analysis.py
-     fase4/anomaly_detection.py
-     fase4/multimodal_fusion.py
-     fase4/alertas.py
-
-5. Deixar o player de video aberto com:
-     fase4/data/amostras/PAC-0006/fisioterapia.mp4
-
-===============================================================================
-CENA 1 - ABERTURA (1 min)
-===============================================================================
+ROTEIRO DE DEMONSTRAÇÃO — TECH CHALLENGE FASE 4
+Duração planejada: 13 minutos, com margem até o limite de 15 minutos.
 
-"Nesta Fase 4 o hospital passa a monitorar os pacientes continuamente a partir
-de dados multimodais. O sistema analisa video de sessoes de fisioterapia, audio
-de consultas medicas e series temporais de sinais vitais, prescricoes e
-movimentacao no leito; funde os achados das tres modalidades; e emite alertas
-automaticos para a equipe medica.
+PREPARAÇÃO
 
-O modulo fica isolado em fase4, como fizemos na Fase 3, e as fases anteriores
-continuam funcionando. Todos os dados sao sinteticos e gerados pelo proprio
-repositorio. O projeto e academico: nenhum alerta substitui avaliacao clinica."
+Gerar as amostras sintéticas e preparar o recorte UCF101:
+  python -m fase4.data.gerar_dados_sinteticos
+  python -m fase4.data.baixar_ucf101
+  python -m fase4.validacao_ucf101
+  python -m fase4.web_app
 
-===============================================================================
-CENA 2 - DADOS E OS DOIS CASOS (1 min 30 s)
-===============================================================================
+Os modelos e os vídeos devem estar baixados antes da gravação. Abrir o
+painel e a aba Equipe em janelas lado a lado. Para a cena Azure, usar
+consulta_fala.wav e conferir as credenciais sem exibi-las. A execução
+corrigida já comprovou os dois serviços: WER de 0% no PAC-0006 e 5,7%
+no PAC-0002. As evidências estão em resultados/fase4/azure_real/.
 
-[Tela: fase4/data/gerar_dados_sinteticos.py e a pasta fase4/data/amostras]
+CENA 1 — PROBLEMA E ESCOPO (1 minuto)
 
-"Usamos amostras sinteticas no formato do projeto para repetir os testes. Isso
-custou realismo, mas trouxe uma vantagem: sabemos exatamente o que injetamos em
-cada amostra, e por isso podemos medir o que o pipeline detectou e o que deixou
-passar. Cada paciente tem um arquivo eventos_plantados.json que serve de
-gabarito.
+“Desenvolvemos um protótipo para reunir sinais de risco que aparecem em
+modalidades diferentes. Ele recebe vídeo, áudio, sinais vitais, prescrições
+e movimentação, combina os achados e encaminha alertas à equipe.
 
-Sao dois pacientes, os mesmos da Fase 3. O PAC-0006 e um pos-operatorio de
-mastectomia com deterioracao progressiva ao longo do turno, e tem as cinco
-modalidades. O PAC-0002 e um caso estavel, e esta aqui de proposito: um sistema
-que acerta a deterioracao mas tambem alerta o paciente estavel treina a equipe
-a ignorar o painel. Ele tambem nao tem video, o que exercita o pipeline com uma
-modalidade faltando."
+Os cenários principais são sintéticos, para que possamos repetir os testes.
+Também utilizamos um registro do PhysioNet e três vídeos do UCF101.
+Esses experimentos têm objetivos distintos e serão apresentados separadamente.”
 
-[Mostrar rapidamente: sinais_vitais.csv, prescricoes.json, movimentacao.csv,
- consulta.wav, fisioterapia.mp4]
+CENA 2 — CASO SINTÉTICO E ANÁLISE DE VÍDEO (2 minutos)
 
-===============================================================================
-CENA 3 - ANALISE DE VIDEO (2 min 30 s)
-===============================================================================
+Selecionar PAC-0006, pose anotada e detector anotado. Processar e abrir
+o relatório de vídeo. Mostrar o intervalo de 10 a 14 segundos.
 
-[Tela: o player com fisioterapia.mp4 rodando]
+“Nesse caso, as posições do corpo e os papéis das pessoas vêm das anotações.
+Identificamos desvios de postura, amplitude excessiva e quatro segundos sem
+o profissional. O alerta refere-se a esse intervalo, não à sessão inteira.
+O exemplo permite verificar as regras porque conhecemos os eventos inseridos.”
 
-"Esta e a sessao de fisioterapia: seis repeticoes de abducao de ombro. O
-retangulo laranja marca a area critica, que e a regiao do dreno cirurgico, e a
-caixa da esquerda e o profissional que supervisiona.
+Selecionar UCF-JumpingJack_g01_c01 e depois UCF-Lunges_g01_c01.
+Mostrar MediaPipe e YOLOv8 selecionados e o relatório de cada clipe.
 
-Repare na quarta e na quinta repeticao: o tronco inclina para compensar, o
-braco esquerdo sobe mais do que deveria, e em um trecho a mao vai para a regiao
-do dreno. O profissional tambem sai de cena por quatro segundos."
+“O UCF101 contém ações humanas filmadas em ambientes comuns. Escolhemos
+polichinelo, agachamento e avanço para testar a percepção visual.
+No agachamento e no polichinelo houve pose em todos os quadros; no avanço,
+em 202 de 262, ou 77,1%. Isso mede cobertura, não precisão clínica.
 
-[Tela: fase4/video_analysis.py]
+Não aplicamos os limites de pós-operatório aos exercícios esportivos.
+O detector conta pessoas, mas não identifica profissão. Sem detecção,
+o sistema informa que não foi possível avaliar; uma pessoa sozinha não
+comprova ausência de um profissional. Medidas ausentes não viram zero.”
 
-"A percepcao esta separada da analise. Existe um estimador de pose, que devolve
-keypoints por quadro, e um detector de objetos, que devolve caixas. Os dois tem
-backend trocavel: nas amostras sinteticas lemos as anotacoes de um JSON; em
-video clinico real roda MediaPipe Pose e YOLOv8.
+CENA 3 — ÁUDIO E AZURE (2 minutos e 30 segundos)
 
-O enunciado sugere OpenPose. Usamos MediaPipe Pose porque entrega o mesmo tipo
-de saida, keypoints 2D do corpo com confianca por ponto, e instala por pip,
-enquanto o OpenPose exige compilar Caffe com CUDA. A analise a jusante nao
-muda, porque ela consome apenas coordenadas de articulacoes.
+Voltar ao PAC-0006. Selecionar consulta_fala.wav e provedor azure;
+manter pose e objetos anotados para este vídeo sintético. Processar.
+Mostrar transcrição, sentimento, entidades e provedores efetivos.
 
-Sobre os keypoints calculamos tres angulos: abducao de cada ombro, com zero
-grau no braco ao longo do corpo e 180 acima da cabeca, que e a convencao
-clinica; inclinacao lateral do tronco; e assimetria entre os dois ombros. Cinco
-regras usam esses angulos e as caixas.
+“A análise acústica extrai pausas, energia, velocidade da fala e variação
+da frequência fundamental. A Azure transcreve a consulta e analisa o texto.
+Na execução corrigida do PAC-0006, a taxa de erro de palavras foi de 0%.
+O valor desta execução aparece no relatório.
 
-Duas salvaguardas contra ruido de estimacao: keypoint com confianca abaixo de
-0,35 nao entra na conta, e um desvio so vira achado depois de persistir por
-cinco quadros seguidos."
+O léxico define quais expressões exigem atenção. Corrigimos um problema
+identificado na inspeção: a entidade ‘dor’ não pode criar a expressão
+‘dor insuportável’. O termo precisa estar presente na transcrição.
 
-[Terminal]
-python -m fase4.cli_demo --paciente-id PAC-0006
+A voz deste exemplo foi sintetizada por TTS. Ela permite testar transcrição
+e linguagem. As regras clínicas de alteração vocal ficam desativadas para
+TTS; as medidas acústicas continuam disponíveis apenas como descrição.”
 
-[Pausar na secao "Analise de video" e ler a tabela de angulos]
+Se a Azure estiver indisponível, não apresentar offline/local como nuvem.
+Reagendar essa cena ou mostrar o registro anterior com a data e a limitação.
 
-"Os cinco tipos de evento que injetamos foram todos detectados, e nas
-repeticoes certas: a quarta e a quinta. As tres primeiras repeticoes e a ultima
-estavam dentro do protocolo e nao geraram nada. O ombro direito, que nunca
-passou de 97 graus, tambem nao.
+CENA 4 — ANOMALIAS E MONITOR INCREMENTAL (2 minutos e 30 segundos)
 
-O relatorio automatico da sessao fica em resultados/fase4/PAC-0006/
-relatorio_video.md, e tem tambem uma copia do video com os angulos e os desvios
-sobrepostos, em fisioterapia_anotado.mp4."
+Abrir Monitor ao vivo, PAC-0006, com Isolation Forest habilitado.
 
-[Abrir relatorio_video.md e fisioterapia_anotado.mp4]
+“Comparamos cada leitura com a referência do paciente, observamos tendências
+e aplicamos limites. O Isolation Forest acrescenta a análise multivariada.
+Uma leitura isolada de 185 bpm não vira alerta crítico sem confirmação.
+O objetivo é reconhecer mudanças persistentes e reduzir ruído.
 
-===============================================================================
-CENA 4 - ANALISE DE AUDIO E AZURE (2 min 30 s)
-===============================================================================
+O monitor reproduz o CSV em sequência. Os detectores utilizam o passado
+disponível em cada instante; não estamos conectados a um equipamento de leito.”
 
-[Tocar fase4/data/amostras/PAC-0006/consulta.wav por uns 8 segundos]
+Mostrar o relatório PhysioNet: 48 achados, 25 notificáveis e quatro alertas
+consolidados no registro examinado. Explicar que não há rótulo de desfecho
+para calcular sensibilidade e especificidade. Mostrar também os exemplos
+de salto de dose, suspensão precoce, duplicidade e imobilidade.
 
-"Este e o audio da consulta. Nao e fala humana: e um sinal vozeado
-sintetizado, com frequencia fundamental, jitter, taxa silabica e ruido
-respiratorio controlados. Serve para verificar se o extrator de atributos
-reage ao que deveria."
+CENA 5 — FUSÃO E CHEGADA À EQUIPE (2 minutos)
 
-[Tela: fase4/audio_analysis.py]
+Mostrar os quadros multimodais e a aba Equipe recebendo os alertas.
 
-"A modalidade tem duas camadas, e a separacao foi deliberada.
+“A fusão exige evidências de pelo menos duas modalidades. Uma queixa
+respiratória, por exemplo, pode ser relacionada à piora dos sinais vitais.
+O alerta reúne as evidências, indica a equipe responsável e sugere uma
+ação para avaliação. Consolidação e supressão temporal reduzem repetições.
 
-A camada acustica nao usa nuvem. Os atributos saem direto da forma de onda, com
-wave da biblioteca padrao e numpy: janelas de 25 milissegundos, RMS por quadro,
-deteccao de voz por limiar adaptado ao piso de ruido, F0 por autocorrelacao,
-contagem de nucleos silabicos e centroide espectral.
+O painel representa o destino demonstrativo. Há fila JSONL e webhook para
+integração, mas não implantamos essa conexão em um sistema hospitalar.”
 
-O motivo e que o Speech to Text devolve texto, nao fisiologia da voz. Quem
-indica fadiga ou esforco respiratorio e a energia da fala, o tamanho das
-pausas, a taxa de fala e a estabilidade da F0 - e isso se perde na transcricao.
-
-A camada de linguagem usa os servicos pedidos no enunciado: Azure Speech to
-Text para transcrever e Azure Text Analytics para sentimento e frases-chave."
-
-[Tela: fase4/azure_services.py, mostrar transcrever_audio e analisar_texto]
-
-"Cada servico tem dois provedores com o mesmo contrato. O provedor azure chama
-o servico real; o provedor offline e um substituto deterministico, no mesmo
-espirito do FakeLLM da Fase 3. O resto do pipeline nao sabe qual esta em uso.
-
-Nos dois provedores, quem decide alerta de conteudo e o lexico clinico em
-fase4/data/termos_criticos_audio.json, com oito categorias e peso por
-categoria. As frases-chave da Azure dizem o que e saliente no texto, nao o que
-e clinicamente critico - isso e uma decisao institucional, nao estatistica.
-
-Tem ainda uma salvaguarda: se a transcricao vier vazia ou com confianca abaixo
-de 0,50, as regras de texto nao rodam. Alertar a equipe com base numa palavra
-que o reconhecedor pode ter errado e pior que nao alertar. Os atributos
-acusticos continuam valendo, porque nao dependem da transcricao."
-
-[Voltar ao terminal, secao "Analise de audio"]
-
-"Aqui estao os atributos e os achados. A paciente fala com pausas que ocupam
-52 por cento da gravacao, frases de 1,3 segundo em media, taxa de fala de 1,31
-silaba por segundo e perda de 42 por cento da energia do inicio para o fim.
-Isso disparou as tres regras vocais. E na transcricao o lexico encontrou
-'sem ar', 'aperto no peito' e 'febre', que sao criticos, mais 'muito cansada',
-'nao aguento' e 'dor aumentou'.
-
-Compare com o PAC-0002: pausa de 17 por cento, frases de 3,35 segundos, taxa
-de 3,62 silabas por segundo. Nenhuma regra vocal disparou, e nenhum termo
-critico foi encontrado."
-
-[Terminal]
-python -m fase4.cli_demo --paciente-id PAC-0002
-
-[Mostrar o status dos servicos no topo da saida]
-
-"Esta execucao usou o provedor offline, sem credenciais Azure disponiveis nesta execucao. O relatorio registra isso explicitamente, em vez de omitir. Com
-as variaveis AZURE_SPEECH_KEY, AZURE_SPEECH_REGION, AZURE_LANGUAGE_KEY e
-AZURE_LANGUAGE_ENDPOINT definidas e os SDKs de requirements-fase4.txt
-instalados, o provedor auto passa a usar a nuvem sem nenhuma outra mudanca. E
-se alguem pedir --provedor-azure azure sem credencial, o pipeline falha com
-mensagem explicita: uma execucao que diz ter usado a Azure precisa ter usado a
-Azure.
-
-Na Azure, a identificacao de termos criticos tambem passa pelo servico: as
-entidades clinicas do Text Analytics for health sao cruzadas com o lexico, e
-textos longos sao divididos em documentos de ate cinco mil caracteres, o
-limite do servico."
-
-[Tocar fase4/data/amostras/PAC-0006/consulta_fala.wav por uns 6 segundos]
-
-"Para mostrar a camada de linguagem em fala de verdade, geramos a mesma
-consulta com a voz em portugues do Windows a partir da transcricao de
-referencia, e transcrevemos com um reconhecedor local, o faster-whisper, que
-e o terceiro provedor, pedido explicitamente."
-
-[Terminal]
-python -m fase4.cli_demo --paciente-id PAC-0006 --audio consulta_fala.wav --provedor-azure local --dir-saida resultados/fase4/fala_real
-
-[Mostrar a secao "Analise de audio": transcricao, WER e termos criticos]
-
-"A transcricao reproduziu a referencia com zero por cento de erro de
-palavras, e o lexico encontrou os seis termos criticos na fala reconhecida:
-sem ar, aperto no peito, febre, muito cansada, nao aguento, dor aumentou. No
-PAC-0002 a transcricao teve onze por cento de erro e nenhum falso termo
-critico. E esse o comportamento que a Azure deve ter com a mesma gravacao.
-
-Repare que as regras acusticas de fadiga nao disparam na voz sintetizada, e
-a instabilidade vocal dispara nas duas: a voz do TTS e estavel por
-construcao e o nosso jitter nao e o da acustica clinica. Esta e uma
-limitacao declarada no relatorio, e o resultado a confirma."
-
-===============================================================================
-CENA 5 - DETECCAO DE ANOMALIAS (3 min)
-===============================================================================
-
-[Tela: fase4/anomaly_detection.py, docstring do modulo]
-
-"Comecamos com um unico detector, o z-score robusto com mediana e MAD moveis, e
-descobrimos testando que ele nao pegava a piora gradual. O motivo e estrutural:
-quando a piora e lenta, ela entra na propria janela de referencia, a mediana
-movel acompanha o paciente e o desvio desaparece.
-
-Chegamos a quatro detectores complementares. O z-score robusto pega mudanca
-abrupta. O desvio de tendencia compara a mediana dos ultimos 30 minutos com a
-mediana das duas primeiras horas de internacao, que servem de basal, e e esse
-que percebe a piora gradual. O limite clinico usa as faixas criticas por canal.
-E um Isolation Forest avalia os seis canais em conjunto, capturando combinacoes
-anomalas que nenhum canal isolado denunciaria.
-
-Tres decisoes aqui. Primeira: os tres primeiros detectores sao incrementais,
-recebem uma amostra por vez e decidem com o que ja passou. Isso permitiu usar o
-mesmo codigo no processamento em lote e no monitoramento em tempo real, e um
-teste verifica que os dois caminhos dao exatamente os mesmos achados.
-
-Segunda: todos exigem tres leituras consecutivas e tem histerese. A confirmacao
-e o que separa deterioracao de artefato de sensor; a histerese e o que impede o
-detector de emitir um achado por minuto durante as tres horas de piora.
-
-Terceira: o Isolation Forest e treinado so no basal, nao na serie inteira.
-Treinar com a serie completa usaria informacao do futuro para decidir o
-presente e inflaria o resultado. No monitoramento real, o que existe quando o
-paciente e admitido e o basal dele. E ele tambem roda no modo em tempo real:
-treina nas duas primeiras horas e pontua cada leitura seguinte, confirmando o
-episodio no minuto em que ele completa quinze minutos."
-
-[Navegador: http://127.0.0.1:8020/#/monitor/PAC-0006, velocidade "rapido",
-"Incluir Isolation Forest" marcado, clicar em Iniciar]
-(alternativa em terminal: python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real --atraso 0.005)
-
-"O modo tempo real percorre a serie minuto a minuto, como se as leituras
-estivessem chegando do monitor do leito. Na interface, os seis canais
-avancam no grafico com as faixas normal e critica sombreadas, e a linha do
-tempo a direita recebe as notas, os episodios e os alertas conforme surgem."
-
-[Deixar rodar e apontar os momentos conforme aparecem]
-
-"Repare no que acontece as 10h30. O monitor registra 185 batimentos por minuto,
-que passa do limite critico de 130. O sistema nao alerta: registra uma nota
-dizendo que a leitura nao se repetiu e foi tratada como artefato de sensor. Esse
-pico foi colocado na serie de proposito, e tem um teste automatizado que
-verifica exatamente isso.
-
-A piora comeca as 16h. Primeiro alerta: 16h23, o Isolation Forest online
-confirma um episodio de combinacao anomala de frequencia cardiaca,
-temperatura e frequencia respiratoria que comecou as 16h09 - nove minutos
-depois da piora injetada. 16h51, tendencia de alta da frequencia cardiaca.
-Depois vem frequencia respiratoria, pressao sistolica e o restante. Cada
-alerta sai com a marca do canal por onde foi entregue: a fila de alertas.
-
-O primeiro limite clinico so e cruzado as 18h03, quando a temperatura passa de
-38 graus. Ou seja: a analise multivariada antecipou em uma hora e quarenta
-minutos, e a tendencia em uma hora e doze, o momento em que um monitor com
-limiar fixo - que e o mais comum - teria disparado. Essa e a margem que
-importa num monitoramento preventivo."
-
-[Abrir resultados/fase4/physionet/p044083-2112-05-04-19-50n/relatorio_physionet.md]
-
-"O enunciado sugere o PhysioNet, e nos usamos. Este e um registro real de
-monitor de leito do MIMIC-III, de acesso aberto, com frequencia cardiaca,
-pressao arterial invasiva, saturacao e frequencia respiratoria a cada
-segundo. Convertemos para uma leitura por minuto, no mesmo formato das
-amostras, e rodamos os mesmos detectores com os mesmos limiares.
-
-Em onze horas de um paciente de UTI: 48 achados, dos quais 23 sao leituras
-isoladas nao confirmadas - artefato de sensor, que em dados reais e a regra -
-e 25 notificaveis, que viraram 4 alertas depois da consolidacao. Quatro
-episodios multivariados, identicos no lote e no modo online. E nenhum erro
-com os 42 minutos de buraco de sensor que o registro tem. Nao ha rotulo de
-desfecho, entao isso nao mede acuracia: mede que os detectores se comportam
-em dados reais como se comportaram nos sinteticos."
-
-[Tela: a parte de prescricoes do anomaly_detection.py]
-
-"Nas prescricoes sao tres regras: salto de dose acima de 50 por cento,
-suspensao de antimicrobiano antes de 80 por cento do esquema previsto, e
-duplicidade terapeutica na mesma classe. As tres alteracoes que injetamos foram
-detectadas: a morfina que saltou de 2 para 10 miligramas, a ceftriaxona
-suspensa no dia 2 de 7, e cetoprofeno com ibuprofeno ativos ao mesmo tempo.
-
-Na movimentacao, duas regras: imobilidade diurna prolongada e agitacao noturna.
-A regra de imobilidade so olha horario diurno, porque dormir a noite nao e
-imobilidade."
-
-===============================================================================
-CENA 6 - FUSAO MULTIMODAL (2 min)
-===============================================================================
-
-[Tela: fase4/multimodal_fusion.py]
-
-"Esta e a parte que justifica chamar a solucao de multimodal. Sem fusao
-teriamos tres sistemas independentes avisando a equipe em paralelo.
-
-Cinco regras combinam achados de modalidades diferentes em quadros clinicos. Um
-quadro so e formado se os achados vierem de pelo menos duas modalidades; senao
-nao e fusao, e repetir o que uma modalidade sozinha ja disse.
-
-Escolhemos regras escritas, e nao um modelo de fusao treinado. Nao temos dados
-rotulados de desfecho clinico para treinar fusao supervisionada, e um escore
-aprendido a partir de dados que nos mesmos geramos daria uma falsa impressao de
-validade. Regras explicitas podem ser conferidas e corrigidas por um medico, o
-que e o que faz sentido num trabalho academico."
-
-[Terminal, secao "Fusao multimodal" da saida do PAC-0006]
-
-"Cinco quadros identificados. Olhe o primeiro, deterioracao respiratoria.
-Isoladamente, a queixa 'fico sem ar' na consulta e informacao subjetiva, e a
-queda de saturacao de 97 para 95 por cento esta numa faixa que muitos monitores
-nem sinalizam. Juntas, na mesma janela de plantao, formam um quadro com conduta
-definida: repetir a oximetria e considerar suporte de oxigenio.
-
-O risco do paciente fica em 100 de 100, nivel alto. O PAC-0002 fica em 6,5,
-nivel baixo, com os cinco achados dele todos informativos."
-
-===============================================================================
-CENA 7 - ALERTAS PARA A EQUIPE (1 min 30 s)
-===============================================================================
-
-[Tela: fase4/alertas.py]
-
-"Usamos tres mecanismos para reduzir avisos repetidos. Consolidacao: achados da mesma familia viram um
-alerta so, que lista todos. Absorcao: quando a fusao identifica um quadro, as
-familias que o sustentam nao geram alerta proprio, porque quem avisa e o alerta
-do quadro, que e mais informativo e tem prioridade maior. E supressao temporal:
-o mesmo grupo nao e reenviado dentro de 15 minutos.
-
-Duas garantias acompanham a absorcao: o alerta do quadro nunca e menos grave
-que o pior achado que ele absorveu, e ele vai para as equipes de todas as
-modalidades envolvidas - foi a soma delas que levantou o quadro, e cada uma tem
-uma parte da conduta."
-
-[Terminal, secao "Alertas para a equipe medica"]
-
-"Com os tres mecanismos, os 37 achados notificaveis produzem 6 alertas. Cinco
-sao quadros multimodais; o sexto e o unico achado de video que nenhum quadro
-explicava.
-
-E veja o roteamento: cada alerta vai para quem responde por aquilo. Quem
-acompanha a sessao de fisioterapia nao e quem responde por uma alteracao de
-prescricao. O alerta de prescricao chega na farmacia clinica e no medico
-prescritor; o de execucao do exercicio, na equipe de reabilitacao.
-
-Nenhuma informacao se perdeu: cada alerta carrega os achados que o sustentam, e
-o relatorio consolidado lista todos os 47 com instante e evidencia."
-
-[Abrir resultados/fase4/PAC-0006/relatorio_monitoramento.md e rolar]
-[Abrir resultados/fase4/PAC-0006/alertas.json]
-
-"E o alerta nao termina no terminal. Cada um e entregue por canais: uma fila
-em JSON Lines, que e o contrato mais simples que um sistema hospitalar
-consome, e um webhook HTTP para um painel ou pager. Vamos ver o fluxo final."
-
-[Navegador, segunda janela lado a lado: http://127.0.0.1:8020/#/equipe]
-[Na primeira janela, o Monitor ao vivo do PAC-0006 rodando; ou, no terminal:
-$env:FASE4_WEBHOOK_URL = "http://127.0.0.1:8020/api/webhook/alertas"
-python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real --atraso 0.005]
-
-[Mostrar as duas janelas: os alertas aparecendo na aba Equipe conforme o
-turno avanca, agrupados por destino, com prioridade, conduta e canal]
-
-"Esta aba e o painel da equipe medica: recebe os alertas do proprio painel,
-do monitor ao vivo e de qualquer processo que aponte o webhook para ela -
-inclusive a linha de comando. Cada alerta chega com prioridade, destino,
-conduta sugerida e os achados que o sustentam. Se um canal falhar, o
-pipeline nao para: a falha vira um evento na auditoria e a fila continua
-recebendo."
-
-===============================================================================
-CENA 8 - TESTES E ENCERRAMENTO (1 min 30 s)
-===============================================================================
-
-[Terminal]
-python -m unittest discover -s tests -v
-
-"Sao 158 testes: os 74 das fases anteriores, que continuam passando, e 84 desta
-fase. Nenhum depende de rede ou de chave da Azure - os servicos sao sempre
-chamados com provedor offline e as amostras sao geradas em diretorio
-temporario.
-
-Os testes verificam, entre outras coisas: os angulos articulares contra casos
-de referencia conhecidos; que pico isolado de pose nao vira desvio; que a voz
-cansada difere da estavel em cada atributo; que o provedor azure falha
-explicitamente sem credencial; que o artefato de 185 bpm nao gera alerta
-critico; que a tendencia dispara antes do limite clinico; que o lote e o tempo
-real dao os mesmos achados; e que o paciente estavel nao recebe alerta nenhum."
-
-[Terminal]
-python -m fase4.cli_demo --todos
-
-"Fechando com os dois resultados que nos parecem mais relevantes.
-
-Primeiro, a antecipacao: a analise multivariada em tempo real sinalizou a
-deterioracao uma hora e quarenta minutos antes de qualquer limiar fixo ser
-cruzado, e a deteccao por tendencia confirmou uma hora e doze minutos antes.
-
-Segundo, a reducao de ruido: a fusao multimodal transformou 37 achados
-notificaveis em 6 alertas contextualizados, roteados e entregues, sem
-descartar informacao.
-
-Terceiro, dados reais: em onze horas de um paciente de UTI do MIMIC-III os
-mesmos detectores deram 4 alertas e nenhum erro.
-
-E as limitacoes, que estao no relatorio tecnico e vale dizer aqui. Os dados
-principais sao sinteticos, e os limiares foram calibrados contra amostras que
-nos mesmos geramos: eles nao tem validade clinica. O video nao e gravacao de
-pessoa - os backends reais rodam, mas nao foram validados com pessoa filmada.
-A fala e sintetizada: valida a transcricao e os termos criticos, nao as
-regras acusticas. A integracao com a Azure esta implementada e testada quanto
-ao contrato, mas os numeros deste video vieram dos provedores offline e local.
-E no registro real nao ha rotulo de desfecho, entao nao e possivel estimar
-sensibilidade e especificidade.
-
-Obrigado."
-
-===============================================================================
-CHECKLIST DE GRAVACAO
-===============================================================================
-
-[ ] Terminal com fonte grande (14 pt ou mais) e tema de alto contraste
-[ ] Amostras geradas antes de comecar
-[ ] resultados/fase4 limpo no inicio
-[ ] Audio do sistema habilitado para tocar o consulta.wav e o consulta_fala.wav
-[ ] consulta_fala.wav gerado (python -m fase4.data.gerar_fala_tts) e
-    resultados/fase4/fala_real/ atualizado com --provedor-azure local
-[ ] Registro do PhysioNet baixado e validado (baixar_physionet + validacao_physionet)
-[ ] Mostrar o status "provedor offline" sem esconder
-[ ] Cena 3: mostrar o video original e o anotado
-[ ] Cena 5: usar --atraso 0.005 para o tempo real caber na cena
-[ ] Cena 7: receptor_webhook_demo aberto num segundo terminal antes de rodar
-[ ] Cena 8: deixar a suite de testes terminar em tela (OK, 237 testes)
-[ ] Duracao total abaixo de 15 minutos
-[ ] Upload no YouTube ou Vimeo como publico ou nao listado
-[ ] Link do video adicionado ao README.md
-
-ETAPA PENDENTE - DEMONSTRACAO REAL DA AZURE
--------------------------------------------------------------------------------
-O modo offline nao comprova o requisito de nuvem. Antes de concluir o video:
-1. Definir as quatro variaveis Azure no ambiente, sem mostra-las na gravacao.
-2. Usar o consulta_fala.wav ja gerado (fala inteligivel em pt-BR, WAV PCM mono
-   de 16 bits) ou uma consulta autorizada em dados/PAC-REAL/consulta.wav.
-   Para o primeiro caso:
-   python -m fase4.cli_demo --paciente-id PAC-0006 --audio consulta_fala.wav --provedor-azure azure --dir-saida resultados/fase4/azure_real
-   Esperado: WER proximo de zero e os mesmos seis termos criticos do provedor
-   local, agora com sentimento, frases-chave e entidades clinicas da Azure.
-3. Colocar o video autorizado em dados/PAC-REAL/fisioterapia.mp4 e informar a
-   regiao do dreno com --area-critica x1,y1,x2,y2 (pixels).
-4. Executar:
-   python -m fase4.cli_demo --paciente-id PAC-REAL --raiz-amostras dados --dir-saida resultados/fase4_real --provedor-azure azure --backend-pose mediapipe --backend-detector yolov8 --area-critica X1,Y1,X2,Y2
-5. Mostrar transcricao, sentimento, frases-chave, entidades e provedores azure
-   no relatorio. Mostrar os desvios posturais realmente detectados e o
-   relatorio de video com "pose detectada em N quadros".
-6. Explicar que o YOLO padrao nao reconhece drenos nem papeis profissionais:
-   a area critica veio da ROI manual, a mao do keypoint do punho e o
-   profissional de "duas pessoas em cena".
-7. Manter o video final em ate 15 minutos e publicar no YouTube ou Vimeo.
-   A publicacao ainda nao foi realizada.
+CENA 6 — VERIFICAÇÕES, LIMITES E ENCERRAMENTO (3 minutos)
+
+Mostrar os comandos e o resumo da execução:
+  python -m unittest discover -s tests -p "test_fase4*.py" -v
+  node tests/test_fase4_web_ui.mjs
+
+“A suíte inclui 200 testes Python da fase 4. As verificações da interface
+cobrem a troca entre UCF101 e casos sintéticos e preservam os quatro
+provedores de áudio. Respostas de SDKs são simuladas nos testes unitários;
+os resultados dos vídeos reais estão registrados separadamente.
+
+As principais limitações são a quantidade de casos, os ângulos em duas
+dimensões e a ausência de validação assistencial. O UCF101 demonstra a
+execução dos modelos em pessoas filmadas, não a detecção de erro clínico.
+Como continuação, propomos avaliar sessões de fisioterapia com anotação
+de especialistas e recalibrar os critérios acústicos em voz natural.”
+
+CHECKLIST FINAL
+
+[ ] Demonstrar áudio, vídeo, anomalias, serviços Azure e chegada do alerta.
+[ ] Mostrar somente resultados da configuração identificada na tela.
+[ ] Não exibir credenciais nem dados pessoais.
+[ ] Conferir os termos críticos da nova execução Azure.
+[ ] Conferir os avisos de detecção insuficiente e os valores não avaliados.
+[ ] Manter duração total de até 15 minutos.
+[ ] Publicar no YouTube ou Vimeo e adicionar o link ao README.

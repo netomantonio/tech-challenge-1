@@ -92,7 +92,7 @@ class BaseWeb(unittest.TestCase):
     def deps(self, **extras) -> Deps:
         return Deps(
             dir_amostras=self.amostras, dir_enviados=self.enviados, dir_physionet=self.physionet,
-            dir_resultados=self.resultados, sse_keepalive_s=0.5, ffmpeg=None, **extras,
+            dir_ucf101=self.raiz / "ucf101", dir_resultados=self.resultados, sse_keepalive_s=0.5, ffmpeg=None, **extras,
         )
 
     def cliente(self, **extras) -> TestClient:
@@ -105,6 +105,22 @@ class BaseWeb(unittest.TestCase):
 
 
 class EsqueletoTests(BaseWeb):
+    def test_ucf101_listado_com_fonte_sem_remover_sinteticos(self) -> None:
+        pasta = self.raiz / "ucf101" / "UCF-JumpingJack_g01_c01"
+        pasta.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(self.amostras / "PAC-0006" / "fisioterapia.mp4", pasta / "fisioterapia.mp4")
+        (pasta / "fonte.json").write_text('{"dataset": "UCF101"}', encoding="utf-8")
+        client = self.cliente()
+        lista = client.get("/api/pacientes").json()
+        self.assertIn("ucf101", {p["origem"] for p in lista})
+        self.assertIn("sinteticos", {p["origem"] for p in lista})
+        detalhe = client.get(f"/api/pacientes/{pasta.name}").json()
+        self.assertEqual(detalhe["fonte"]["dataset"], "UCF101")
+        resposta = client.post(f"/api/pacientes/{pasta.name}/processar", json={"backend_pose": "anotado", "provedor_azure": "offline"})
+        self.assertEqual(resposta.status_code, 422)
+        self.assertIn("MediaPipe", resposta.json()["detail"])
+        shutil.rmtree(pasta)
+
     def test_interface_status_e_cabecalhos_de_seguranca(self) -> None:
         client = self.cliente()
         pagina = client.get("/")

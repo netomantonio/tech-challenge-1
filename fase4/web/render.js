@@ -48,7 +48,7 @@ window.F4 = window.F4 || {};
       pressao_diastolica: "Pressão diastólica", saturacao_oxigenio: "Saturação de O₂",
       temperatura: "Temperatura", frequencia_respiratoria: "Frequência respiratória",
     },
-    origem: { sinteticos: "Sintético", enviados: "Enviado", physionet: "PhysioNet" },
+    origem: { sinteticos: "Sintético", enviados: "Enviado", physionet: "PhysioNet", ucf101: "UCF101 · ações humanas" },
     canalEntrega: { fila_jsonl: "fila JSONL", webhook: "webhook", painel_web: "painel web" },
   };
 
@@ -102,6 +102,13 @@ window.F4 = window.F4 || {};
   /* --- Painel ------------------------------------------------------------ */
 
   function cartaoRisco(resultado) {
+    if (resultado.video && resultado.video.contexto === "exploratorio") {
+      return el("section", { class: "bloco" }, [
+        el("h3", { text: "Avaliação de movimento — UCF101" }),
+        el("p", { text: `Pose detectada em ${resultado.video.quadros_com_pose} de ${resultado.video.quadros_analisados} quadros.` }),
+        el("p", { class: "nota", text: "Ações humanas sem rótulos clínicos. Risco clínico não avaliado; consulte as medidas e a cobertura no relatório de vídeo." }),
+      ]);
+    }
     const fusao = resultado.fusao || {};
     const risco = Number(fusao.risco || 0);
     const nivel = fusao.nivel_risco || "sem_achados";

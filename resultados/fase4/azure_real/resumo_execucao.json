@@ -1,0 +1,89 @@
+{
+  "executado_em": "2026-11-03T02:58:14.529722+00:00",
+  "servicos_azure": {
+    "PAC-0006": {
+      "speech_to_text": "azure",
+      "text_analytics": "azure"
+    },
+    "PAC-0002": {
+      "speech_to_text": "azure",
+      "text_analytics": "azure"
+    }
+  },
+  "backend_pose": "anotado",
+  "backend_detector": "anotado",
+  "arquivo_audio": "consulta_fala.wav",
+  "pacientes": [
+    {
+      "paciente_id": "PAC-0006",
+      "servicos_azure": {
+        "speech_to_text": "azure",
+        "text_analytics": "azure"
+      },
+      "risco": 100.0,
+      "nivel_risco": "alto",
+      "modalidades_processadas": [
+        "video",
+        "audio",
+        "sinais_vitais",
+        "prescricoes",
+        "movimentacao"
+      ],
+      "modalidades_ausentes": [],
+      "achados_por_modalidade": {
+        "video": 9,
+        "audio": 7,
+        "sinais_vitais": 18,
+        "prescricao": 3,
+        "movimentacao": 2
+      },
+      "achados_por_severidade": {
+        "informativo": 11,
+        "atencao": 16,
+        "critico": 12
+      },
+      "sindromes": [
+        "deterioracao_respiratoria",
+        "suspeita_infeccao",
+        "risco_medicamentoso",
+        "reabilitacao_insegura",
+        "risco_de_imobilidade"
+      ],
+      "total_alertas": 6,
+      "alertas_por_prioridade": {
+        "vermelho": 5,
+        "laranja": 1
+      }
+    },
+    {
+      "paciente_id": "PAC-0002",
+      "servicos_azure": {
+        "speech_to_text": "azure",
+        "text_analytics": "azure"
+      },
+      "risco": 8.8,
+      "nivel_risco": "baixo",
+      "modalidades_processadas": [
+        "audio",
+        "sinais_vitais",
+        "prescricoes",
+        "movimentacao"
+      ],
+      "modalidades_ausentes": [
+        "video"
+      ],
+      "achados_por_modalidade": {
+        "audio": 1,
+        "sinais_vitais": 5
+      },
+      "achados_por_severidade": {
+        "informativo": 6,
+        "atencao": 0,
+        "critico": 0
+      },
+      "sindromes": [],
+      "total_alertas": 0,
+      "alertas_por_prioridade": {}
+    }
+  ]
+}

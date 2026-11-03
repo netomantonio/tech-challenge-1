@@ -357,6 +357,7 @@ def calcular_risco(achados: list[Achado], sindromes: list[Sindrome]) -> float:
     modalidades. Cada sindrome adiciona um bonus, porque concordancia entre
     modalidades e justamente o que aumenta a confianca no quadro.
     """
+    achados = [a for a in achados if a.tipo not in ("deteccao_pessoas_insuficiente", "acompanhamento_nao_confirmado")]
     if not achados:
         return 0.0
 

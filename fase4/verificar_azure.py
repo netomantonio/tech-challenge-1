@@ -66,7 +66,7 @@ def _testar_text_analytics() -> bool:
         resultado = analisar_texto(FRASE_TESTE, provedor="azure", idioma=IDIOMA_PADRAO)
     except ServicoAzureIndisponivelError as erro:
         print(f"  nao configurado: {erro}")
-        return True
+        return False
     except Exception as erro:  # noqa: BLE001 - mostra o erro do servico ao usuario
         print(f"  FALHOU: {type(erro).__name__}: {erro}")
         return False
@@ -83,12 +83,12 @@ def _testar_speech(caminho: Path) -> bool:
     if not caminho.is_file():
         print("  arquivo nao encontrado; gere com `python -m fase4.data.gerar_fala_tts` "
               "ou informe --audio")
-        return True
+        return False
     try:
         resultado = transcrever_audio(caminho, provedor="azure", idioma=IDIOMA_PADRAO)
     except ServicoAzureIndisponivelError as erro:
         print(f"  nao configurado: {erro}")
-        return True
+        return False
     except Exception as erro:  # noqa: BLE001
         print(f"  FALHOU: {type(erro).__name__}: {erro}")
         return False

@@ -1,5 +1,18 @@
 [
   {
+    "modalidade": "audio",
+    "tipo": "termo_critico_sintoma_relatado_azure",
+    "descricao": "Queixa de categoria 'sintoma_relatado_azure' relatada pelo paciente: enjoo",
+    "severidade": "informativo",
+    "score": 0.45,
+    "instante": "00:00.51",
+    "evidencias": {
+      "trecho": "o remédio nos horários inau, tive enjoo. Estou mais animada e dormindo tra",
+      "confianca_transcricao": 0.84,
+      "provedor_transcricao": "azure"
+    }
+  },
+  {
     "modalidade": "sinais_vitais",
     "tipo": "desvio_pontual_nao_confirmado_pressao_sistolica",
     "descricao": "Leitura isolada de pressao sistolica fora do padrao recente (117.8); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",

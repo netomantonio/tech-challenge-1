@@ -189,6 +189,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         paciente = resolver(paciente_id)
         opcoes = pedido.model_dump()
         video = caminho_video(paciente, "original")
+        if video and pedido.backend_pose == "anotado" and not (paciente.pasta_amostras / "fisioterapia.keypoints.json").exists():
+            raise HTTPException(status_code=422, detail="Este video nao possui keypoints anotados. Selecione MediaPipe ou envie as anotacoes correspondentes.")
         try:
             info = await run_in_threadpool(descrever_video, video, deps) if video else None
             opcoes["area_critica"] = validar_area_critica(pedido.area_critica, info)

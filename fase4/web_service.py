@@ -33,6 +33,7 @@ from fase4.config import (
     LIMIARES_ANOMALIA,
 )
 from fase4.data.baixar_physionet import preparar_registro
+from fase4.data.baixar_ucf101 import DIR_UCF101
 from fase4.data.gerar_dados_sinteticos import DIR_AMOSTRAS
 from fase4.pipeline import ARQUIVO_AUDIO_PADRAO, ResultadoPaciente, localizar_amostras, processar_paciente
 from fase4.validacao_physionet import validar_registro
@@ -41,7 +42,7 @@ from fase4.web_jobs import JobManager
 
 PADRAO_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{1,39}$")
 PADRAO_AUDIO = re.compile(r"^consulta[a-z0-9_-]*\.wav$")
-ORIGENS = ("sinteticos", "enviados", "physionet")
+ORIGENS = ("sinteticos", "enviados", "physionet", "ucf101")
 RELATORIOS = ("relatorio_monitoramento", "relatorio_audio", "relatorio_video", "relatorio_physionet")
 MIDIAS_RESULTADO = {"fisioterapia_anotado.mp4", "fisioterapia_anotado.h264.mp4"}
 ARQUIVO_RESULTADO_WEB = "resultado_web.json"
@@ -172,6 +173,7 @@ class Deps:
     dir_amostras: Path = DIR_AMOSTRAS
     dir_enviados: Path = DIR_ENVIADOS
     dir_physionet: Path = DIR_PHYSIONET
+    dir_ucf101: Path = DIR_UCF101
     dir_resultados: Path = DIR_RESULTADOS
     jobs: JobManager = field(default_factory=JobManager)
     barramento: BarramentoAlertas = field(default_factory=BarramentoAlertas)
@@ -226,6 +228,7 @@ class RepositorioPacientes:
             "sinteticos": (d.dir_amostras, d.dir_resultados),
             "enviados": (d.dir_enviados, d.dir_resultados / "enviados"),
             "physionet": (d.dir_physionet, d.dir_resultados / "physionet"),
+            "ucf101": (d.dir_ucf101, d.dir_resultados / "ucf101"),
         }
 
     def _existe(self, origem: str, pasta: Path) -> bool:
@@ -233,6 +236,8 @@ class RepositorioPacientes:
             return False
         if origem == "physionet":
             return (pasta / "sinais_vitais.csv").exists()
+        if origem == "ucf101":
+            return (pasta / "fisioterapia.mp4").exists()
         return True
 
     def resolver(self, paciente_id: str) -> Paciente:

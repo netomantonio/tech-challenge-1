@@ -322,7 +322,9 @@ class ServicosAzureOfflineTests(AmostrasTemporarias):
         self.assertEqual(analise.termos_criticos, [])
         self.assertEqual(analise.sentimento, "positivo")
 
-    def test_provedor_azure_sem_credencial_falha_explicitamente(self) -> None:
+    @patch("fase4.azure_services.azure_speech_configurada", return_value=False)
+    @patch("fase4.azure_services.azure_language_configurada", return_value=False)
+    def test_provedor_azure_sem_credencial_falha_explicitamente(self, *_mocks) -> None:
         with self.assertRaises(ServicoAzureIndisponivelError):
             analisar_texto("texto qualquer", provedor="azure")
         with self.assertRaises(ServicoAzureIndisponivelError):

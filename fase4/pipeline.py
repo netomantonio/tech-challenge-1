@@ -120,8 +120,12 @@ def processar_paciente(
     resultado_audio = None
 
     # --- Video ------------------------------------------------------------
+    if "video" in amostras and backend_pose == "anotado" and "keypoints" not in amostras:
+        raise ValueError("Video sem keypoints anotados: selecione mediapipe ou forneca as anotacoes correspondentes")
     tem_video = "keypoints" in amostras or ("video" in amostras and backend_pose != "anotado")
     if tem_video:
+        fonte_path = amostras.get("video", amostras.get("keypoints")).parent / "fonte.json"
+        fonte = json.loads(fonte_path.read_text(encoding="utf-8")) if fonte_path.exists() else {}
         resultado_video = video_analysis.analisar_sessao(
             paciente_id=paciente_id,
             caminho_video=amostras.get("video"),
@@ -130,6 +134,7 @@ def processar_paciente(
             backend_pose=backend_pose,
             backend_detector=backend_detector,
             area_critica=area_critica,
+            contexto="exploratorio" if fonte.get("dataset") == "UCF101" else "clinico",
         )
         achados.extend(resultado_video.achados)
         processadas.append("video")
@@ -318,7 +323,9 @@ def relatorio_markdown(resultado: ResultadoPaciente) -> str:
         "",
         f"Gerado em {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
         "",
-        f"**Risco calculado:** {fusao.risco:.1f}/100 (nível **{fusao.nivel_risco}**)",
+        ("**Risco clínico:** não avaliado (vídeo de ações humanas, contexto exploratório)."
+         if resultado.resultado_video and resultado.resultado_video.contexto == "exploratorio"
+         else f"**Risco calculado:** {fusao.risco:.1f}/100 (nível **{fusao.nivel_risco}**)"),
         "",
         f"Modalidades processadas: {', '.join(resultado.modalidades_processadas) or 'nenhuma'}  ",
         f"Modalidades ausentes: {', '.join(resultado.modalidades_ausentes) or 'nenhuma'}",

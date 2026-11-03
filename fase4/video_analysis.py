@@ -137,7 +137,9 @@ class ResultadoVideo:
     duracao_s: float
     medidas: list[MedidasQuadro]
     achados: list[Achado]
-    resumo_angulos: dict[str, float] = field(default_factory=dict)
+    resumo_angulos: dict[str, float | None] = field(default_factory=dict)
+    avisos: list[str] = field(default_factory=list)
+    contexto: str = "clinico"
     # Quantos quadros tiveram pose detectada (igual a quadros_analisados nas
     # anotacoes; menor em video real quando o estimador perde a pessoa).
     quadros_com_pose: int = 0
@@ -162,7 +164,9 @@ class ResultadoVideo:
             "origem_area_critica": self.origem_area_critica,
             "regra_mao": self.regra_mao,
             "area_critica_manual": list(self.area_critica_manual) if self.area_critica_manual else None,
-            "resumo_angulos": {k: round(v, 2) for k, v in self.resumo_angulos.items()},
+            "resumo_angulos": {k: _arredondar(v) for k, v in self.resumo_angulos.items()},
+            "avisos": self.avisos,
+            "contexto": self.contexto,
             "achados": [a.to_dict() for a in self.achados],
         }
 
@@ -765,9 +769,8 @@ def avaliar_eventos(
 ) -> list[Achado]:
     """Regras sobre objetos: invasao de area critica e ausencia do profissional.
 
-    Com `pessoas_genericas=True` (detector COCO, sem classe `profissional`),
-    o profissional e considerado presente quando ha duas ou mais pessoas em
-    cena: o paciente e quem o acompanha.
+    O detector generico conta pessoas, mas nao identifica papeis. Seus
+    resultados sao informativos e nao confirmam ausencia de profissional.
     """
     achados: list[Achado] = []
     if not quadros:
@@ -791,9 +794,32 @@ def avaliar_eventos(
     if not avaliar_profissional:
         return achados
 
+    if pessoas_genericas:
+        # Sem identidade/funcao anotada nao ha evidencia de supervisao.
+        # Zero pessoas interrompe a janela de pessoa unica: falta de deteccao
+        # nao pode ser somada ao tempo de acompanhamento nao confirmado.
+        for quantidade, tipo, descricao in (
+            (0, "deteccao_pessoas_insuficiente", "Nenhuma pessoa detectada; presenca e acompanhamento nao avaliaveis"),
+            (1, "acompanhamento_nao_confirmado", "Uma pessoa detectada; acompanhamento profissional nao confirmado"),
+        ):
+            serie = [
+                (q.quadro, q.instante_s, float(sum(o.classe == CLASSE_PESSOA_GENERICA for o in q.objetos) == quantidade))
+                for q in quadros
+            ]
+            for janela in _janelas_acima(serie, 0.5, max(1, int(limiares.segundos_max_sem_profissional * fps))):
+                achados.append(Achado(
+                    modalidade="video", tipo=tipo, descricao=descricao,
+                    severidade="informativo", score=0.0,
+                    instante=_formatar_instante(janela["instante_inicial_s"]),
+                    evidencias={
+                        "duracao_s": round(janela["quadros"] / fps, 2),
+                        "pessoas_detectadas": quantidade,
+                        "criterio": "contagem de pessoas sem identificacao de papeis",
+                    },
+                ))
+        return achados
+
     def _profissional_presente(objetos: list[Objeto]) -> bool:
-        if pessoas_genericas:
-            return sum(1 for o in objetos if o.classe == CLASSE_PESSOA_GENERICA) >= 2
         return any(o.classe == classe_profissional for o in objetos)
 
     ausencias: list[tuple[int, float, float]] = [
@@ -875,6 +901,7 @@ def analisar_sessao(
     backend_detector: str = "anotado",
     limiares: LimiaresVideo = LIMIARES_VIDEO,
     area_critica: tuple[float, float, float, float] | None = None,
+    contexto: str = "clinico",
 ) -> ResultadoVideo:
     """Analisa uma sessao clinica gravada e devolve medidas e achados.
 
@@ -887,6 +914,8 @@ def analisar_sessao(
         raise ValueError(f"backend de pose invalido: {backend_pose}")
     if backend_detector not in BACKENDS_DETECTOR:
         raise ValueError(f"backend de detector invalido: {backend_detector}")
+    if contexto not in ("clinico", "exploratorio"):
+        raise ValueError("contexto de video invalido")
 
     if backend_pose == "anotado":
         if caminho_keypoints is None:
@@ -929,17 +958,26 @@ def analisar_sessao(
 
     pessoas_genericas = backend_detector == "yolov8"
     medidas = medir_quadros(quadros_pose, limiares)
-    achados = avaliar_postura(medidas, limiares)
+    achados = avaliar_postura(medidas, limiares) if contexto == "clinico" else []
     achados += avaliar_eventos(
         quadros_objetos, fps, limiares,
         pessoas_genericas=pessoas_genericas,
-        avaliar_mao=(regra_mao == "caixa_detector"),
-        avaliar_profissional=detector_ativo,
+        avaliar_mao=(regra_mao == "caixa_detector" and contexto == "clinico"),
+        avaliar_profissional=detector_ativo and (pessoas_genericas or contexto == "clinico"),
     )
-    if regra_mao == "keypoint_punho":
+    if regra_mao == "keypoint_punho" and contexto == "clinico":
         achados += avaliar_area_critica_por_punhos(quadros_pose, quadros_objetos, fps, limiares)
 
     duracao = (len(quadros_pose) / fps) if fps else 0.0
+    avisos = []
+    if contexto == "exploratorio":
+        avisos.append("Avaliacao exploratoria de acoes humanas: medidas descritivas, sem aplicar limites de pos-operatorio ou inferir anomalias clinicas.")
+    if not any(v is not None for m in medidas for v in (m.abducao_ombro_esquerdo, m.abducao_ombro_direito, m.inclinacao_tronco, m.assimetria_ombros)):
+        avisos.append("Postura nao avaliavel: nao foram obtidas medidas articulares validas.")
+    if pessoas_genericas:
+        avisos.append("YOLOv8 identifica pessoas, mas nao distingue paciente, acompanhante ou profissional. Supervisao nao avaliavel por este detector.")
+    if not detector_ativo:
+        avisos.append("Sem dados de objetos: acompanhamento nao avaliado.")
     return ResultadoVideo(
         paciente_id=paciente_id,
         caminho_video=str(caminho_video or caminho_keypoints or ""),
@@ -951,6 +989,8 @@ def analisar_sessao(
         medidas=medidas,
         achados=achados,
         resumo_angulos=_resumo_angulos(medidas),
+        avisos=avisos,
+        contexto=contexto,
         quadros_com_pose=sum(1 for q in quadros_pose if q.articulacoes),
         origem_area_critica=origem_area,
         regra_mao=regra_mao,
@@ -958,10 +998,10 @@ def analisar_sessao(
     )
 
 
-def _resumo_angulos(medidas: list[MedidasQuadro]) -> dict[str, float]:
-    def maximo(valores: list[float | None]) -> float:
+def _resumo_angulos(medidas: list[MedidasQuadro]) -> dict[str, float | None]:
+    def maximo(valores: list[float | None]) -> float | None:
         validos = [v for v in valores if v is not None]
-        return max(validos) if validos else 0.0
+        return max(validos) if validos else None
 
     return {
         "abducao_maxima_ombro_esquerdo": maximo([m.abducao_ombro_esquerdo for m in medidas]),
@@ -973,6 +1013,13 @@ def _resumo_angulos(medidas: list[MedidasQuadro]) -> dict[str, float]:
 
 def relatorio_markdown(resultado: ResultadoVideo) -> str:
     """Relatorio automatico da sessao, conforme pedido no enunciado."""
+    def graus(chave: str) -> str:
+        valor = resultado.resumo_angulos.get(chave)
+        return f"{valor:.1f}°" if valor is not None else "Não avaliado"
+
+    def limite(valor: float) -> str:
+        return f"{valor:.0f}°" if resultado.contexto == "clinico" else "Não aplicado"
+
     linhas = [
         f"# Relatório de análise de vídeo - {resultado.paciente_id}",
         "",
@@ -988,22 +1035,24 @@ def relatorio_markdown(resultado: ResultadoVideo) -> str:
         )
         + f"; mão do paciente por `{resultado.regra_mao}`",
         "",
+        *[f"> {aviso}" for aviso in resultado.avisos],
+        "",
         "## Amplitudes observadas",
         "",
         "| Medida | Máximo | Limite |",
         "| --- | ---: | ---: |",
         f"| Abdução do ombro esquerdo | "
-        f"{resultado.resumo_angulos['abducao_maxima_ombro_esquerdo']:.1f}° | "
-        f"{LIMIARES_VIDEO.abducao_ombro_max_graus:.0f}° |",
+        f"{graus('abducao_maxima_ombro_esquerdo')} | "
+        f"{limite(LIMIARES_VIDEO.abducao_ombro_max_graus)} |",
         f"| Abdução do ombro direito | "
-        f"{resultado.resumo_angulos['abducao_maxima_ombro_direito']:.1f}° | "
-        f"{LIMIARES_VIDEO.abducao_ombro_max_graus:.0f}° |",
+        f"{graus('abducao_maxima_ombro_direito')} | "
+        f"{limite(LIMIARES_VIDEO.abducao_ombro_max_graus)} |",
         f"| Inclinação lateral do tronco | "
-        f"{resultado.resumo_angulos['inclinacao_maxima_tronco']:.1f}° | "
-        f"{LIMIARES_VIDEO.inclinacao_tronco_max_graus:.0f}° |",
+        f"{graus('inclinacao_maxima_tronco')} | "
+        f"{limite(LIMIARES_VIDEO.inclinacao_tronco_max_graus)} |",
         f"| Assimetria entre ombros | "
-        f"{resultado.resumo_angulos['assimetria_maxima_ombros']:.1f}° | "
-        f"{LIMIARES_VIDEO.assimetria_ombros_max_graus:.0f}° |",
+        f"{graus('assimetria_maxima_ombros')} | "
+        f"{limite(LIMIARES_VIDEO.assimetria_ombros_max_graus)} |",
         "",
         "## Desvios e eventos detectados",
         "",
@@ -1018,11 +1067,11 @@ def relatorio_markdown(resultado: ResultadoVideo) -> str:
                 f"{achado.descricao} | {evidencias} |"
             )
     else:
-        linhas.append("Nenhum desvio acima dos limites do protocolo foi detectado.")
+        linhas.append("Nenhum evento registrado nas medidas disponíveis. Ausência de achados não comprova normalidade quando faltam detecções.")
 
     linhas += [
         "",
-        "> Relatório gerado automaticamente a partir de vídeo sintético. Não "
+        "> Relatório gerado por um protótipo acadêmico. Não "
         "substitui a avaliação do fisioterapeuta responsável.",
         "",
     ]
@@ -1078,10 +1127,12 @@ def renderizar_video_anotado(
 
         medida = por_quadro.get(indice)
         if medida is not None:
+            def formatar_medida(valor: float | None) -> str:
+                return f"{valor:.1f}" if valor is not None else "N/A"
             texto = (
-                f"ombro E {medida.abducao_ombro_esquerdo or 0:5.1f}  "
-                f"ombro D {medida.abducao_ombro_direito or 0:5.1f}  "
-                f"tronco {medida.inclinacao_tronco or 0:4.1f}"
+                f"ombro E {formatar_medida(medida.abducao_ombro_esquerdo)}  "
+                f"ombro D {formatar_medida(medida.abducao_ombro_direito)}  "
+                f"tronco {formatar_medida(medida.inclinacao_tronco)}"
             )
             cv2.putText(
                 imagem, texto, (8, altura - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.38,

@@ -175,6 +175,20 @@ class DivisaoEmDocumentosTests(unittest.TestCase):
 
 
 class TextAnalyticsTests(unittest.TestCase):
+    def test_entidades_curtas_nao_inventam_queixas(self):
+        texto = "Estou muito cansada. A dor aumentou e senti aperto no peito."
+        entidades = [_entidade("muito", "ConditionQualifier"), _entidade("dor", "SymptomOrSign"), _entidade("peito", "BodyStructure")]
+        with text_analytics_falso(entidades_saude=entidades):
+            analise = analisar_texto(texto, provedor="azure")
+        termos = {t.termo for t in analise.termos_criticos}
+        self.assertTrue({"muito cansada", "dor aumentou", "aperto no peito"} <= termos)
+        self.assertTrue(termos.isdisjoint({"dor insuportavel", "chiado no peito", "nao consigo dormir", "muito ansioso"}))
+
+    def test_entidade_ausente_da_transcricao_nao_vira_queixa(self):
+        with text_analytics_falso(entidades_saude=[_entidade("formigamento", "SymptomOrSign", 0.99)]):
+            analise = analisar_texto("Estou bem.", provedor="azure")
+        self.assertEqual(analise.termos_criticos, [])
+
     def test_texto_longo_vai_em_varios_documentos_e_lotes_de_dez(self):
         frase = "Hoje acordei com dor no peito e muito cansada, doutora. "
         texto = frase * 1100  # ~61.000 caracteres -> 13 documentos -> 2 lotes

@@ -1,8 +1,8 @@
 # Relatório de monitoramento multimodal - PAC-0002
 
-Gerado em 2026-11-03 01:30 UTC
+Gerado em 2026-11-03 03:20 UTC
 
-**Risco calculado:** 6.5/100 (nível **baixo**)
+**Risco calculado:** 8.8/100 (nível **baixo**)
 
 Modalidades processadas: audio, sinais_vitais, prescricoes, movimentacao  
 Modalidades ausentes: video
@@ -11,11 +11,12 @@ Modalidades ausentes: video
 
 | Modalidade | Achados |
 | --- | ---: |
+| audio | 1 |
 | sinais_vitais | 5 |
 
 | Severidade | Achados |
 | --- | ---: |
-| informativo | 5 |
+| informativo | 6 |
 | atencao | 0 |
 | critico | 0 |
 
@@ -31,6 +32,7 @@ Nenhum alerta foi emitido: não houve achado de atenção ou crítico.
 
 | Modalidade | Severidade | Instante | Achado |
 | --- | --- | --- | --- |
+| audio | informativo | `00:00.51` | Queixa de categoria 'sintoma_relatado_azure' relatada pelo paciente: enjoo |
 | sinais_vitais | informativo | `2025-06-10T09:49:00` | Leitura isolada de pressao sistolica fora do padrao recente (117.8); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor |
 | sinais_vitais | informativo | `2025-06-10T10:06:00` | Leitura isolada de pressao sistolica fora do padrao recente (135.6); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor |
 | sinais_vitais | informativo | `2025-06-10T12:07:00` | Leitura isolada de frequencia respiratoria fora do padrao recente (18.4); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor |
@@ -41,7 +43,7 @@ Nenhum alerta foi emitido: não houve achado de atenção ou crítico.
 
 | Serviço | Provedor efetivo |
 | --- | --- |
-| speech_to_text | `offline` |
-| text_analytics | `offline` |
+| speech_to_text | `azure` |
+| text_analytics | `azure` |
 
 > Protótipo acadêmico. Nenhum alerta deste relatório substitui avaliação clínica.

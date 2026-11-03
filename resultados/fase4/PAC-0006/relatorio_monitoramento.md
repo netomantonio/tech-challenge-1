@@ -1,8 +1,8 @@
 # Relatório de monitoramento multimodal - PAC-0006
 
-Gerado em 2026-11-03 01:42 UTC
+Gerado em 2026-11-03 03:20 UTC
 
-**Risco calculado:** 99.9/100 (nível **alto**)
+**Risco calculado:** 100.0/100 (nível **alto**)
 
 Modalidades processadas: video, audio, sinais_vitais, prescricoes, movimentacao  
 Modalidades ausentes: nenhuma
@@ -11,17 +11,17 @@ Modalidades ausentes: nenhuma
 
 | Modalidade | Achados |
 | --- | ---: |
-| audio | 10 |
+| audio | 7 |
 | movimentacao | 2 |
 | prescricao | 3 |
 | sinais_vitais | 18 |
-| video | 1 |
+| video | 9 |
 
 | Severidade | Achados |
 | --- | ---: |
-| informativo | 12 |
-| atencao | 13 |
-| critico | 9 |
+| informativo | 11 |
+| atencao | 16 |
+| critico | 12 |
 
 ## Quadros identificados pela fusão
 
@@ -33,7 +33,7 @@ Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventil
 
 - Severidade: **critico**
 - Modalidades envolvidas: audio, sinais_vitais
-- Famílias que sustentam (17 achados): `queixas_criticas` (7), `tendencia_sinais_vitais` (6), `alteracoes_vocais` (2), `limite_critico_sinais_vitais` (2)
+- Famílias que sustentam (14 achados): `queixas_criticas` (6), `tendencia_sinais_vitais` (6), `limite_critico_sinais_vitais` (2)
 - Conduta sugerida: Avaliar o paciente presencialmente, repetir oximetria e considerar suporte de oxigenio conforme protocolo
 
 ### suspeita infeccao
@@ -42,7 +42,7 @@ Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemo
 
 - Severidade: **critico**
 - Modalidades envolvidas: audio, sinais_vitais
-- Famílias que sustentam (16 achados): `queixas_criticas` (7), `tendencia_sinais_vitais` (6), `limite_critico_sinais_vitais` (2), `anomalia_multivariada` (1)
+- Famílias que sustentam (15 achados): `queixas_criticas` (6), `tendencia_sinais_vitais` (6), `limite_critico_sinais_vitais` (2), `anomalia_multivariada` (1)
 - Conduta sugerida: Coletar culturas, reavaliar a ferida operatoria e checar o esquema antimicrobiano antes da proxima dose
 
 ### risco medicamentoso
@@ -51,8 +51,17 @@ Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou
 
 - Severidade: **critico**
 - Modalidades envolvidas: prescricao, audio, sinais_vitais
-- Famílias que sustentam (19 achados): `queixas_criticas` (7), `tendencia_sinais_vitais` (6), `alteracao_prescricao` (3), `limite_critico_sinais_vitais` (2), `anomalia_multivariada` (1)
+- Famílias que sustentam (18 achados): `queixas_criticas` (6), `tendencia_sinais_vitais` (6), `alteracao_prescricao` (3), `limite_critico_sinais_vitais` (2), `anomalia_multivariada` (1)
 - Conduta sugerida: Revisar a prescricao com a farmacia clinica antes da proxima administracao e registrar a justificativa no prontuario
+
+### reabilitacao insegura
+
+Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela.
+
+- Severidade: **critico**
+- Modalidades envolvidas: video, audio
+- Famílias que sustentam (14 achados): `execucao_exercicio` (7), `queixas_criticas` (6), `invasao_area_critica` (1)
+- Conduta sugerida: Rever o plano de reabilitacao com o fisioterapeuta antes da proxima sessao e reavaliar a liberacao de amplitude
 
 ### risco de imobilidade
 
@@ -67,26 +76,32 @@ Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitac
 
 | Prioridade | Alerta | Destino | Instante | Entregue via |
 | --- | --- | --- | --- | --- |
-| vermelho | Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao | Medico de plantao e enfermagem do leito; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T16:51:00` | fila_jsonl, painel_web |
 | vermelho | Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor | Medico de plantao e enfermagem do leito; Farmacia clinica e medico prescritor; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T14:05:00` | fila_jsonl, painel_web |
+| vermelho | Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela | Medico de plantao e enfermagem do leito; Equipe de reabilitacao e cirurgia responsavel; Medico assistente da consulta | `00:13.20` | fila_jsonl, painel_web |
+| vermelho | Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao | Medico de plantao e enfermagem do leito; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T16:51:00` | fila_jsonl, painel_web |
 | vermelho | Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica | Medico de plantao e enfermagem do leito; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T16:51:00` | fila_jsonl, painel_web |
 | vermelho | Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitacao noturna | Medico de plantao e enfermagem do leito; Equipe de plantao do leito; Equipe de enfermagem do leito | `2025-06-10T02:00:00` | fila_jsonl, painel_web |
-| laranja | Paciente executou o exercicio sem profissional em cena por 20.0 s | Equipe de reabilitacao e cirurgia responsavel | `00:00.00` | fila_jsonl, painel_web |
+| laranja | Paciente executou o exercicio sem profissional em cena por 4.0 s | Equipe de reabilitacao e cirurgia responsavel | `00:10.00` | fila_jsonl, painel_web |
 
 ## Todos os achados
 
 | Modalidade | Severidade | Instante | Achado |
 | --- | --- | --- | --- |
-| video | atencao | `00:00.00` | Paciente executou o exercicio sem profissional em cena por 20.0 s |
-| audio | atencao | `00:00.79` | Fala entrecortada com frases curtas e pausas longas, compativel com esforco respiratorio |
-| audio | atencao | `-` | Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria) |
-| audio | critico | `00:05.03` | Queixa de categoria 'respiratorio' relatada pelo paciente: chiado no peito, sem ar |
-| audio | critico | `00:08.87` | Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito, dor no peito, peso no peito, pontada no peito |
-| audio | critico | `00:12.71` | Queixa de categoria 'infeccao' relatada pelo paciente: febre |
-| audio | atencao | `00:00.51` | Queixa de categoria 'fadiga' relatada pelo paciente: muito cansada, muito cansado, nao aguento |
-| audio | atencao | `00:17.21` | Queixa de categoria 'dor' relatada pelo paciente: doendo muito, dor aumentou, dor demais, dor forte, dor insuportavel |
-| audio | informativo | `00:21.71` | Queixa de categoria 'sintoma_relatado_azure' relatada pelo paciente: parar um pouco para respirar |
-| audio | informativo | `-` | Queixa de categoria 'sono_humor' relatada pelo paciente: muito ansiosa, muito ansioso, nao consigo dormir |
+| video | atencao | `00:11.40` | Compensacao de tronco acima do tolerado durante o exercicio (19.4 graus) |
+| video | atencao | `00:15.07` | Compensacao de tronco acima do tolerado durante o exercicio (17.8 graus) |
+| video | critico | `00:11.60` | Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (139.6 graus) |
+| video | critico | `00:14.87` | Amplitude de abducao do ombro esquerdo acima da liberada no pos-operatorio (133.8 graus) |
+| video | atencao | `00:11.77` | Assimetria entre os ombros na mesma repeticao (49.2 graus) |
+| video | atencao | `00:13.37` | Assimetria entre os ombros na mesma repeticao (25.9 graus) |
+| video | atencao | `00:14.90` | Assimetria entre os ombros na mesma repeticao (40.1 graus) |
+| video | critico | `00:13.20` | Mao do paciente dentro da area critica do dreno durante a sessao |
+| video | atencao | `00:10.00` | Paciente executou o exercicio sem profissional em cena por 4.0 s |
+| audio | critico | `00:05.75` | Queixa de categoria 'respiratorio' relatada pelo paciente: sem ar |
+| audio | critico | `00:10.23` | Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito |
+| audio | critico | `00:14.63` | Queixa de categoria 'infeccao' relatada pelo paciente: febre |
+| audio | atencao | `00:00.51` | Queixa de categoria 'fadiga' relatada pelo paciente: muito cansada, nao aguento |
+| audio | atencao | `00:19.87` | Queixa de categoria 'dor' relatada pelo paciente: dor aumentou |
+| audio | informativo | `00:14.63` | Queixa de categoria 'sintoma_relatado_azure' relatada pelo paciente: ferida, parar um pouco para respirar |
 | audio | informativo | `-` | Sentimento predominante negativo na fala do paciente |
 | sinais_vitais | informativo | `2025-06-10T09:49:00` | Leitura isolada de pressao sistolica fora do padrao recente (117.8); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor |
 | sinais_vitais | informativo | `2025-06-10T10:06:00` | Leitura isolada de pressao sistolica fora do padrao recente (135.6); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor |
@@ -114,6 +129,7 @@ Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitac
 | multimodal | critico | `2025-06-10T16:51:00` | Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao |
 | multimodal | critico | `2025-06-10T16:51:00` | Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica |
 | multimodal | critico | `2025-06-10T14:05:00` | Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor |
+| multimodal | critico | `00:13.20` | Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela |
 | multimodal | critico | `2025-06-10T02:00:00` | Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitacao noturna |
 
 ## Serviços utilizados

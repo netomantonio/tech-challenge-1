@@ -709,12 +709,14 @@ isolado em `fase4/`, como na Fase 3.
 ### Dados
 
 Os dados principais são sintéticos e gerados pelo repositório para repetir os
-mesmos cenários de teste. Duas execuções complementares usam dados que não
-geramos: um registro real de monitor de leito do PhysioNet (MIMIC-III
+mesmos cenários de teste. As avaliações complementares incluem: um registro real de monitor de leito do PhysioNet (MIMIC-III
 Waveform Matched Subset, acesso aberto) e uma consulta com fala inteligível
 em pt-BR sintetizada pela voz do Windows e transcrita por um reconhecedor
-local. Ainda faltam a execução real na Azure, a validação dos backends de
-vídeo com pessoa filmada e a publicação do vídeo de demonstração. Instruções
+local e pelos serviços Azure. Na validação Azure de 3 de novembro de 2026,
+obtivemos WER de 0% no PAC-0006 e 5,7% no PAC-0002, com seis e zero
+alertas, respectivamente. A voz TTS não é usada para inferir alterações vocais clínicas. Acrescentamos um
+recorte de três vídeos reais do UCF101, com avaliação exploratória e origem
+registrada. A publicação do vídeo de demonstração permanece pendente. Instruções
 em `fase4/README.md`.
 
 | Paciente | Situação | Modalidades |
@@ -782,19 +784,32 @@ Pose e YOLOv8), instale `requirements-fase4.txt` e defina as variáveis
 substituto local determinístico e o relatório registra qual provedor foi
 usado em cada execução.
 
-Os resultados ficam em `resultados/fase4/` (incluindo `fala_real/` e
-`physionet/`). O guia completo está em [fase4/README.md](fase4/README.md).
+Os resultados ficam em `resultados/fase4/` (incluindo `fala_real/`,
+`physionet/` e `ucf101/`). O guia completo está em [fase4/README.md](fase4/README.md).
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-São 260 testes no total, sendo 186 da Fase 4. Nenhum depende de rede, de
+São 274 testes no total, sendo 200 da Fase 4. Nenhum depende de rede, de
 chave da Azure ou dos pacotes opcionais.
 
 Detalhes: [relatorio_tecnico_fase4.md](relatorio_tecnico_fase4.md). O roteiro
 do vídeo está em `docs/script_video_demonstracao_fase4.txt`. A gravação e a
 publicação do vídeo ainda serão realizadas pela equipe antes da entrega final.
+
+### Vídeos reais UCF101
+
+```powershell
+python -m fase4.data.baixar_ucf101
+python -m fase4.validacao_ucf101
+```
+
+Os clipes ficam disponíveis no frontend no grupo UCF101. MediaPipe e YOLOv8
+extraem medidas em pessoas filmadas; como a base não é clínica, os limites
+de pós-operatório não são aplicados. As opções anotadas e os provedores de
+áudio permanecem disponíveis. Procedência, resultados e limites do estudo
+estão em `relatorio_tecnico_fase4.md`, seção 5.12.
 
 ## Autores
 

@@ -113,7 +113,10 @@ def demonstrar_paciente(
             + f"; mao do paciente por {video.regra_mao}"
         )
         for medida, valor in video.resumo_angulos.items():
-            print(f"  {medida:34s} {valor:6.1f} graus")
+            texto_valor = f"{valor:6.1f} graus" if valor is not None else "nao avaliado"
+            print(f"  {medida:34s} {texto_valor}")
+        for aviso in video.avisos:
+            print(f"  Aviso: {aviso}")
         for achado in video.achados:
             print(f"  [{achado.severidade:11s}] {achado.instante or '-':>8s}  {achado.descricao}")
 

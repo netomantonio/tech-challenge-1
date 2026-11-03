@@ -156,6 +156,7 @@ fase4/data/amostras/
 fase4/data/physionet/
 fase4/data/modelos/
 fase4/data/enviados/
+fase4/data/ucf101/
 
 # Sobras de validacao manual e PDFs rasterizados.
 tmp/

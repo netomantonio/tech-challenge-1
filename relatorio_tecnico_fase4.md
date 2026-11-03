@@ -10,11 +10,11 @@ alertas automáticos para a equipe médica.
 
 Mantivemos o módulo isolado em `fase4/`, como fizemos com a Fase 3, para não
 alterar o funcionamento das fases anteriores. As 74 verificações automatizadas
-que já existiam continuam passando, e acrescentamos 163 testes específicos
+que já existiam continuam passando, e acrescentamos 200 testes específicos
 desta fase.
 
-Os dados principais são sintéticos e gerados pelo próprio repositório. Duas
-execuções complementares usam dados que não geramos: um registro real de
+Os dados principais são sintéticos e gerados pelo próprio repositório. As
+execuções complementares incluem vídeos UCF101, um registro real de
 monitor de leito do PhysioNet (§5.10) e uma consulta com fala inteligível
 sintetizada pela voz do sistema operacional, transcrita por um reconhecedor
 real (§5.11). Nenhum resultado foi validado para uso assistencial: qualquer
@@ -26,7 +26,7 @@ conduta exige avaliação do profissional responsável.
 
 O enunciado sugere o PhysioNet e o AudioSet. Neste protótipo usamos dados
 sintéticos para reproduzir os mesmos casos durante os testes, sem depender
-de arquivos externos. Não avaliamos o desempenho nas bases sugeridas.
+de arquivos externos. Posteriormente, avaliamos o comportamento dos detectores em um registro do PhysioNet (§5.10) e a percepção visual em um recorte do UCF101 (§5.12).
 
 A alternativa foi gerar amostras sintéticas no formato do projeto,
 em `fase4/data/gerar_dados_sinteticos.py`. Isso trouxe uma vantagem
@@ -157,7 +157,7 @@ baixado uma vez.
 
 O YOLOv8 genérico (classes COCO) não conhece `dreno`, `mao_paciente` nem
 `profissional`, e sem isso as regras de evento nunca disparariam em vídeo
-real. Três adaptações resolvem isso sem treinar um detector:
+real. Adotamos duas aproximações espaciais e explicitamos o limite da contagem de pessoas:
 
 - a área crítica pode ser informada manualmente (`--area-critica x1,y1,x2,y2`,
   em pixels), pelo fisioterapeuta que conhece a posição do dreno naquela
@@ -166,16 +166,20 @@ real. Três adaptações resolvem isso sem treinar um detector:
   o keypoint do punho do estimador de pose, com um raio de 11 px (metade da
   caixa de mão das amostras); um teste verifica que, com a ROI manual e os
   punhos anotados, o achado de invasão reproduz o da caixa anotada;
-- com o detector genérico, "profissional presente" passa a ser "duas ou mais
-  pessoas em cena".
+- a classe `person` informa apenas a contagem de pessoas. Uma pessoa gera
+  acompanhamento não confirmado; nenhuma pessoa gera detecção insuficiente.
+  Ambos são registros informativos, sem alerta nem contribuição ao risco.
+  A regra de ausência profissional continua válida no modo anotado, no qual
+  os papéis estão explicitamente identificados.
 
 Os dois backends reais foram exercitados em testes com módulos `mediapipe` e
 `ultralytics` falsos — que leem o `fisioterapia.mp4` sintético de verdade com
 o OpenCV e devolvem landmarks e caixas controlados — e numa execução real
 sobre o mesmo vídeo (MediaPipe 1.2, Ultralytics 8.4). A execução real roda de
 ponta a ponta e registra zero quadros com pose: o esqueleto desenhado não é
-uma pessoa, e isso é o resultado esperado. A validação com uma pessoa
-filmada continua pendente (§8).
+uma pessoa, e isso é o resultado esperado. A avaliação complementar com pessoas filmadas está descrita na seção 5.12.
+Sem medidas válidas, os campos numéricos são nulos e o relatório apresenta
+“Não avaliado”; o vídeo anotado usa N/A, sem substituir ausência de dados por zero.
 
 Sobre os keypoints calculamos três ângulos:
 
@@ -436,6 +440,10 @@ pipeline segue, com as falhas contadas e a fila intacta.
 
 ## 5. Resultados
 
+As seções 5.1–5.8 registram o experimento de referência com dados sintéticos
+e provedores anotado/offline. As execuções Azure, PhysioNet e UCF101 são
+apresentadas separadamente, pois têm entradas e objetivos distintos.
+
 ### 5.1 Consolidado
 
 | Métrica | `PAC-0006` (deterioração) | `PAC-0002` (controle) |
@@ -610,35 +618,34 @@ um registra `canais_entrega = ["fila_jsonl"]`.
 
 ### 5.9 Integração com a Azure
 
-A integração com Azure Speech to Text e Azure Text Analytics está
-implementada em `fase4/azure_services.py`. Os provedores usam as estruturas
-`ResultadoTranscricao` e `ResultadoAnaliseTexto`. Os testes executam o modo
-offline e simulam as respostas dos dois SDKs: no Speech, sucesso,
-cancelamento, ausência de fala e tempo limite; no Text Analytics, a divisão
-de um texto de 61 mil caracteres em 13 documentos e 2 lotes, a média
-ponderada do sentimento, a herança de categoria e peso por uma entidade que
-casa com o léxico, o sintoma fora do léxico que vira termo informativo, a
-queda para o NER genérico quando o recurso de saúde não existe e a falha
-explícita quando um documento retorna erro. Isso não comprova a execução dos
-serviços em nuvem.
+Executamos Azure Speech to Text e Azure Text Analytics sobre
+`consulta_fala.wav` do PAC-0006. O relatório registrado apresenta erro de
+palavras de 4,0%, sentimento negativo e entidades clínicas por segmento.
+Essa execução comprova o uso dos serviços de nuvem; os testes unitários
+dos SDKs, por sua vez, verificam contratos e cenários de erro.
 
-Os resultados numéricos deste relatório foram produzidos com o provedor
-`offline`, sem credenciais Azure disponíveis nesta execução. O relatório
-gerado registra isso explicitamente, em vez de omitir:
+A inspeção do resultado revelou uma falha no cruzamento entre entidades
+e léxico: fragmentos como “dor” e “muito” expandiam a lista para expressões
+não pronunciadas. Restringimos o enriquecimento a sintomas e diagnósticos
+presentes na transcrição. Uma expressão do léxico só recebe categoria e
+peso se também ocorrer integralmente no texto. Assim, “dor” não passa a
+significar “dor insuportável”, e qualificadores não geram queixas.
 
-```text
-| Serviço          | Provedor efetivo |
-| speech_to_text   | offline          |
-| text_analytics   | offline          |
-```
+O relatório Azure anterior à correção é evidência de conectividade, não
+uma referência válida para a lista final de sintomas. A regressão é
+verificada com respostas controladas do SDK e com execuções reais separadas.
+Em 3 de novembro de 2026, Speech e Language processaram os dois pacientes.
+Obtivemos WER de 0% no PAC-0006 e 5,7% no PAC-0002. Os resultados estão
+em `resultados/fase4/azure_real/`; os testes automatizados continuam sem rede.
 
-Com as variáveis `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION` e
-`AZURE_LANGUAGE_KEY`/`AZURE_LANGUAGE_ENDPOINT` definidas e os SDKs de
-`requirements-fase4.txt` instalados, o provedor `auto` passa a usar a nuvem
-sem nenhuma outra mudança. Se `--provedor-azure azure` for pedido sem
-credencial, o pipeline falha com mensagem explícita — preferimos isso a cair
-silenciosamente para o modo local, porque uma execução que diz ter usado a
-Azure precisa ter usado a Azure.
+O registro anterior foi preservado em `resultados/fase4/azure_registro/`.
+Os relatórios principais e os resultados do front foram regenerados pela API
+com Azure e backends de vídeo anotados: seis alertas no PAC-0006 e nenhum
+no PAC-0002. Acrescentamos filtros de negação e de expressões positivas.
+Áudios identificados por origem `tts_*` mantêm atributos acústicos descritivos,
+mas não geram achados vocais clínicos. O erro de transcrição envolvendo
+“enjoo” permanece como achado informativo, sem alerta; evidencia a limitação
+de interpretar texto cujo reconhecimento pode alterar uma negação.
 
 ### 5.10 Validação dos detectores em dados reais (PhysioNet)
 
@@ -720,6 +727,51 @@ Segundo, a fala entrecortada disparou no `PAC-0006` porque as pausas da
 referência foram preservadas — a regra responde ao padrão temporal da fala,
 e não à voz.
 
+### 5.12 Avaliação em vídeos reais — UCF101
+
+Selecionamos o UCF101 a partir do catálogo Awesome-Video-Datasets e do
+relatório CRCV-TR-12-01, de Soomro, Zamir e Shah (2012). A base contém
+13.320 vídeos distribuídos em 101 classes de ações humanas. Nosso recorte
+exploratório reúne um clipe de polichinelo, um de agachamento e um de avanço.
+Não utilizamos esses vídeos para treinar ou ajustar os modelos.
+
+Os arquivos são obtidos do espelho `sumith2425/UCF101`, com revisão fixa e
+SHA-256 em `fase4/data/ucf101_manifesto.json`. Os endereços antigos da UCF
+e o arquivo de distribuição indicado no tutorial TensorFlow estavam
+indisponíveis no momento da coleta. Mantivemos a origem e a revisão do
+espelho nos resultados. A conversão AVI–MP4 preserva os quadros, a resolução
+e a taxa de amostragem; o áudio não é utilizado neste experimento.
+
+| Clipe | Quadros | Quadros com pose | Cobertura |
+| --- | ---: | ---: | ---: |
+| `v_BodyWeightSquats_g01_c01.avi` | 267 | 267 | 100,0% |
+| `v_JumpingJack_g01_c01.avi` | 93 | 93 | 100,0% |
+| `v_Lunges_g01_c01.avi` | 262 | 202 | 77,1% |
+
+Empregamos MediaPipe 1.2.0 e YOLOv8n, com Ultralytics 8.3.0. A cobertura
+expressa a proporção de quadros com pose disponível, não a precisão dos
+pontos articulares. O recorte não oferece rótulos de supervisão profissional
+ou de anomalias clínicas. Por isso, o contexto `exploratorio` mantém as
+medidas descritivas e não aplica os limites de pós-operatório nem produz
+alertas clínicos a partir desses exercícios.
+
+```powershell
+python -m fase4.data.baixar_ucf101
+python -m fase4.validacao_ucf101
+python -m fase4.web_app
+```
+
+Na interface, os clipes aparecem no grupo **UCF101 · ações humanas**. Ao
+selecioná-los, MediaPipe e YOLOv8 são sugeridos; os seletores continuam
+disponíveis. Os pacientes sintéticos continuam usando as anotações por
+padrão. O modo anotado requer arquivos de anotações correspondentes, que
+não acompanham o recorte UCF101. As opções de áudio `offline`, `local`,
+`auto` e `azure` permanecem disponíveis para casos com áudio.
+
+Os relatórios individuais e a síntese estão em `resultados/fase4/ucf101/`.
+Essa execução demonstra percepção em pessoas filmadas, mas não substitui
+uma avaliação em sessões reais de fisioterapia.
+
 ## 6. Monitoramento em tempo real
 
 O modo `--tempo-real` percorre a série minuto a minuto, como se as leituras
@@ -777,8 +829,8 @@ objetivo de "detecção em tempo real para monitoramento preventivo".
 python -m unittest discover -s tests -v
 ```
 
-São 237 testes no total: os 74 das fases anteriores, que continuam passando, e
-163 desta fase, em sete arquivos. Nenhum depende de rede, de chave da Azure
+São 274 testes no total: os 74 das fases anteriores, que continuam passando, e
+200 desta fase, em onze arquivos. Nenhum depende de rede, de chave da Azure
 nem dos pacotes opcionais: o pipeline usa o modo offline, os SDKs da Azure, o
 MediaPipe, o YOLOv8 e o faster-whisper são substituídos por módulos falsos
 injetados em `sys.modules`, e o webhook é testado contra um servidor HTTP
@@ -786,12 +838,18 @@ local. As amostras são geradas em diretório temporário.
 
 Os testes da Fase 4 cobrem, entre outros:
 
+Na execução desta revisão, 273 testes passaram e um foi ignorado porque o
+pacote opcional `wfdb` não estava instalado. O teste de interface em
+`tests/test_fase4_web_ui.mjs` também passou, verificando as opções dos
+seletores e os valores enviados à API. As execuções reais do UCF101 são
+registradas separadamente dos testes com modelos simulados.
+
 | Grupo | Verificações |
 | --- | --- |
 | Geração de amostras | reprodutibilidade por `seed`, estrutura das séries, modalidade ausente |
 | Ângulos articulares | casos de referência conhecidos (0°, 45°, 90°, 140°), braço cruzando o corpo |
 | Filtro de ruído de pose | pico isolado não vira desvio; keypoint de baixa confiança é ignorado |
-| Backends reais de vídeo | MediaPipe (API legada e Tasks) e YOLOv8 falsos lendo o vídeo real; ROI manual reproduz a invasão anotada; "duas pessoas em cena"; sessão completa com os dois backends |
+| Backends reais de vídeo | MediaPipe (API legada e Tasks) e YOLOv8 falsos lendo o vídeo real; ROI manual reproduz a invasão anotada; detecção insuficiente e acompanhamento não confirmado; sessão completa com os dois backends |
 | Atributos acústicos | voz cansada contra voz estável em cada atributo; padrão disartrico dispara só com fala lenta |
 | WER e transcrição local | distância de edição por palavra; whisper falso com confiança por `avg_logprob`; `auto` nunca escolhe `local` |
 | Serviços Azure | Speech: sucesso, cancelamento, sem fala, tempo limite; Text Analytics: chunking, lotes de 10, sentimento ponderado, entidades, NER de reserva, erro por documento |
@@ -805,78 +863,47 @@ Os testes da Fase 4 cobrem, entre outros:
 
 ## 8. Limitações
 
-São limitações do trabalho, não detalhes a ajustar:
+O trabalho é um protótipo acadêmico. Os limiares clínicos foram definidos
+para casos sintéticos e não passaram por validação assistencial. O recorte
+UCF101 amplia a avaliação para pessoas filmadas, mas contém ações comuns
+e esportivas, não sessões de fisioterapia nem rótulos de falha clínica.
+Três clipes não permitem estimar sensibilidade ou especificidade.
 
-1. **Os dados principais são sintéticos.** Os limiares foram calibrados
-   contra amostras que nós mesmos geramos. Eles não têm validade clínica e
-   serviriam apenas de ponto de partida num estudo com dados reais. A
-   validação no registro do PhysioNet (§5.10) mostra comportamento e taxa de
-   alertas em dados reais, mas sem rótulo de desfecho não mede acurácia.
-2. **O vídeo não é uma gravação de pessoa.** É um esqueleto articulado
-   desenhado programaticamente. Os keypoints vêm de anotação, não de inferência
-   sobre pixels. Os backends MediaPipe e YOLOv8 rodam de ponta a ponta sobre
-   esse vídeo (e são testados com módulos falsos), mas não foram exercitados
-   com uma pessoa filmada, porque não temos vídeo clínico autorizado. A área
-   crítica em vídeo real depende de ROI informada manualmente.
-3. **O áudio principal não é fala humana.** É um sinal vozeado sintetizado
-   com F0, jitter, taxa silábica e ruído respiratório controlados. A fala
-   gerada por TTS (§5.11) é inteligível e foi transcrita por um reconhecedor
-   real, mas é uma voz sintética estável: valida a camada de linguagem, não
-   as regras acústicas de fadiga e disartria, cujos limiares não se transferem
-   para voz natural sem recalibração.
-4. **A Azure não foi executada de fato.** A integração está implementada e
-   testada quanto ao contrato (incluindo entidades clínicas e divisão em
-   documentos), mas os números deste relatório vieram dos provedores
-   `offline` e `local`. O `consulta_fala.wav` deixa a execução com a Azure
-   pronta para quando houver credencial.
-5. **A fusão é baseada em regras.** Sem dados rotulados de desfecho não há
-   como treinar nem avaliar uma fusão supervisionada. As cinco regras cobrem
-   os quadros que os dados sintéticos contêm, e não um conjunto exaustivo de
-   apresentações clínicas.
-6. **O jitter medido não é o jitter da literatura.** É a variação relativa da
-   F0 entre quadros de 10 ms, numa escala própria, calibrada nas nossas
-   amostras.
-7. **Não há avaliação de sensibilidade e especificidade em população.** Com
-   dois pacientes é possível dizer que o sistema detectou tudo o que foi
-   injetado em um e não alertou o outro; não é possível estimar taxas.
+Os ângulos são projeções bidimensionais e dependem do enquadramento e da
+visibilidade das articulações. O YOLOv8 genérico não identifica profissão;
+contagem de pessoas não comprova supervisão. Uma ROI manual indica a área
+de interesse, mas não equivale à detecção automática de um dreno.
+
+A fala inteligível usada no experimento é sintetizada por TTS. Ela permite
+avaliar transcrição e linguagem, mas não valida os critérios acústicos de
+fadiga ou disartria em voz natural. O indicador de variação de F0 também
+não equivale a uma medida clínica de jitter ciclo a ciclo.
+
+O monitor incremental reproduz sinais gravados. Áudio, vídeo, prescrições
+e fusão são processados em lote; não há integração com um monitor de leito
+ou prontuário hospitalar em produção. Os alertas chegam à fila e ao painel
+demonstrativo, com webhook opcional.
 
 ## 9. Conclusão
 
-O protótipo implementa os módulos de vídeo, áudio, detecção de anomalias,
-fusão multimodal e entrega de alertas. A execução principal deste relatório
-usa dados sintéticos, poses anotadas e transcrições de referência; as
-execuções complementares usam um registro real de monitor de leito do
-PhysioNet e uma consulta com fala inteligível transcrita por reconhecedor
-real. As integrações com a Azure e os modelos de percepção em pessoa filmada
-ainda precisam ser executados com gravações autorizadas para completar a
-demonstração exigida no enunciado.
+Implementamos as modalidades de vídeo, áudio e séries temporais, a análise
+de prescrições e movimentação, a fusão por regras e a entrega de alertas.
+Os experimentos combinam cenários sintéticos reproduzíveis, um registro
+PhysioNet, fala transcrita por serviços locais e Azure e três vídeos UCF101.
 
-Os alertas são entregues numa fila JSON Lines e, quando configurado, por
-webhook HTTP a um receptor; não há integração com um sistema hospitalar real.
-O modo incremental reproduz uma série gravada; não está conectado a um
-monitor. Também está pendente a gravação e publicação do vídeo de até 15
-minutos no YouTube ou Vimeo.
+A revisão dos resultados levou a duas mudanças: exigir suporte textual
+para os termos críticos e separar falta de detecção de ausência de
+acompanhamento. Essas decisões tornam a interpretação mais fiel ao que os
+dados permitem observar. Permanecem como etapas de entrega a consolidação no repositório remoto
+e a gravação/publicação do vídeo de até 15 minutos. Para demonstrar os
+requisitos clínicos com evidências mais fortes, faltam uma sessão clínica
+filmada e uma avaliação vocal com fala natural e referências anotadas.
+Os clipes UCF101 não substituem essa avaliação, e a reprodução incremental
+de sinais gravados não equivale à integração com um monitor hospitalar. A avaliação clínica com pacientes reais é trabalho futuro.
 
-O YOLOv8 padrão reconhece classes genéricas e não identifica drenos nem
-distingue paciente e profissional; em vídeo real a área crítica vem de ROI
-manual e a mão do keypoint do punho. O áudio sintético principal não contém
-fala inteligível; a fala por TTS cobre a camada de linguagem.
+## Referências
 
-Três resultados nos parecem os mais relevantes. O primeiro é a antecipação:
-no modo em tempo real, o Isolation Forest online sinaliza a combinação
-anômala às 16:23, 1 h 40 min antes de qualquer limiar fixo ser cruzado, e a
-detecção por tendência confirma às 16:51 — exatamente o tipo de margem que
-importa num monitoramento preventivo. O segundo é a redução de ruído: a
-fusão multimodal transformou 37 achados notificáveis em 6 alertas
-contextualizados, roteados e entregues, sem descartar informação — sem isso,
-o sistema teria o defeito que mais inviabiliza painéis clínicos na prática,
-que é alertar tanto que ninguém olha. O terceiro é que os detectores se
-comportaram em dados reais como se comportaram nos sintéticos: 11 horas de
-um paciente de UTI do MIMIC-III produziram 4 alertas consolidados, quatro
-episódios multivariados idênticos em lote e online, e nenhum erro diante dos
-buracos de sensor que dados reais sempre têm.
-
----
-
-**Autores:** Antonio Miranda, Elaine, Marcos Mol, Lucas da Costa, Ricardo
-Loureiro — AI for Devs (8IADT)
+- SOOMRO, K.; ZAMIR, A. R.; SHAH, M. *UCF101: A Dataset of 101 Human Actions Classes From Videos in The Wild*. CRCV-TR-12-01, 2012. https://arxiv.org/abs/1212.0402.
+- Catálogo consultado: https://github.com/xiaobai1217/Awesome-Video-Datasets.
+- Espelho dos clipes: https://huggingface.co/datasets/sumith2425/UCF101. Revisão e hashes em `fase4/data/ucf101_manifesto.json`.
+- MOODY, B. et al. *MIMIC-III Waveform Database Matched Subset*, v1.0, 2020. https://doi.org/10.13026/c2294b.
