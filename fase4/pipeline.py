@@ -269,7 +269,8 @@ def processar_paciente(
     return resultado
 
 
-def _salvar_achados_csv(achados: list[Achado], destino: Path) -> None:
+def salvar_achados_csv(achados: list[Achado], destino: Path) -> None:
+    """Tabela plana dos achados, para abrir em planilha ou BI."""
     pd.DataFrame(
         [
             {
@@ -283,6 +284,9 @@ def _salvar_achados_csv(achados: list[Achado], destino: Path) -> None:
             for a in achados
         ]
     ).to_csv(destino, index=False)
+
+
+_salvar_achados_csv = salvar_achados_csv  # nome antigo
 
 
 def _descrever_familias(sindrome) -> str:
