@@ -132,6 +132,8 @@ resultados/fase4/auditoria_monitoramento.jsonl
 resultados/fase4/**/*.mp4
 resultados/fase4/**/sinais_vitais_scores.csv
 resultados/fase4/**/fila_alertas.jsonl
+resultados/fase4/**/resultado_web.json
+resultados/fase4/enviados/
 
 # Base SQLite mock de prontuarios e regenerada a partir do JSON sintetico.
 fase3/data/*.db
