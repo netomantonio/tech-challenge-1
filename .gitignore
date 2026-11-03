@@ -153,6 +153,7 @@ fase4/data/amostras/
 # execucao dos backends reais. Ambos sao refeitos pelos scripts.
 fase4/data/physionet/
 fase4/data/modelos/
+fase4/data/enviados/
 
 # Sobras de validacao manual e PDFs rasterizados.
 tmp/

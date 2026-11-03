@@ -22,8 +22,44 @@ DIR_RESULTADOS = RAIZ_PROJETO / "resultados" / "fase4"
 DIR_MODELOS = DIR_DADOS / "modelos"
 # Registros do PhysioNet convertidos para o esquema do projeto. Fora do git.
 DIR_PHYSIONET = DIR_DADOS / "physionet"
+# Gravacoes enviadas pela interface web (um paciente por pasta). Fora do git.
+DIR_ENVIADOS = DIR_DADOS / "enviados"
 
 CAMINHO_TERMOS_CRITICOS = DIR_DADOS / "termos_criticos_audio.json"
+
+
+def carregar_dotenv(caminho: Path | None = None) -> dict[str, str]:
+    """Le o `.env` da raiz do projeto para `os.environ`, sem sobrescrever.
+
+    Variaveis ja definidas no ambiente tem prioridade (o `.env` e so um
+    atalho local para as chaves da Azure, fora do git). Nao depende de
+    python-dotenv: aceita `CHAVE=valor`, `export CHAVE=valor`, aspas simples
+    ou duplas em volta do valor, linhas vazias e comentarios com `#`.
+    """
+    caminho = caminho or RAIZ_PROJETO / ".env"
+    carregadas: dict[str, str] = {}
+    if not caminho.is_file():
+        return carregadas
+    for linha in caminho.read_text(encoding="utf-8-sig").splitlines():
+        linha = linha.strip()
+        if not linha or linha.startswith("#") or "=" not in linha:
+            continue
+        if linha.startswith("export "):
+            linha = linha[len("export "):].lstrip()
+        chave, valor = linha.split("=", 1)
+        chave = chave.strip()
+        valor = valor.strip()
+        if len(valor) >= 2 and valor[0] == valor[-1] and valor[0] in "\"'":
+            valor = valor[1:-1]
+        elif " #" in valor:
+            valor = valor.split(" #", 1)[0].rstrip()
+        if chave and chave not in os.environ:
+            os.environ[chave] = valor
+            carregadas[chave] = valor
+    return carregadas
+
+
+carregar_dotenv()
 
 # Nomes das variaveis de ambiente dos servicos gerenciados da Azure.
 ENV_SPEECH_KEY = "AZURE_SPEECH_KEY"

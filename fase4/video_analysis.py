@@ -218,6 +218,77 @@ def carregar_objetos_anotados(caminho_json: Path | str) -> list[QuadroObjetos]:
     ]
 
 
+def parse_area_critica(texto: str | None) -> tuple[float, float, float, float] | None:
+    """Converte "x1,y1,x2,y2" (pixels) na ROI manual; ValueError se invalida."""
+    if texto is None or not str(texto).strip():
+        return None
+    partes = [p.strip() for p in str(texto).split(",")]
+    if len(partes) != 4:
+        raise ValueError("area critica espera quatro numeros: x1,y1,x2,y2")
+    try:
+        x1, y1, x2, y2 = (float(p) for p in partes)
+    except ValueError as erro:
+        raise ValueError("area critica espera numeros") from erro
+    if x2 <= x1 or y2 <= y1:
+        raise ValueError("area critica exige x2 > x1 e y2 > y1")
+    return (x1, y1, x2, y2)
+
+
+def info_video(caminho_video: Path | str) -> dict[str, Any]:
+    """Metadados do arquivo: fps, quadros, duracao, dimensoes e codec (fourcc)."""
+    import cv2
+
+    captura = cv2.VideoCapture(str(caminho_video))
+    try:
+        if not captura.isOpened():
+            raise BackendIndisponivelError(f"nao foi possivel abrir o video {caminho_video}")
+        fps = float(captura.get(cv2.CAP_PROP_FPS) or 0.0)
+        quadros = int(captura.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        largura = int(captura.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+        altura = int(captura.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+        codigo = int(captura.get(cv2.CAP_PROP_FOURCC) or 0)
+    finally:
+        captura.release()
+    fourcc = "".join(chr((codigo >> (8 * i)) & 0xFF) for i in range(4)).strip("\x00 ")
+    return {
+        "fps": fps,
+        "quadros": quadros,
+        "duracao_s": round(quadros / fps, 3) if fps else 0.0,
+        "largura": largura,
+        "altura": altura,
+        "fourcc": fourcc,
+    }
+
+
+def extrair_quadro_jpeg(caminho_video: Path | str, instante_s: float = 0.0) -> tuple[bytes, int, int]:
+    """Quadro do video em `instante_s` como JPEG; devolve (bytes, largura, altura)."""
+    import cv2
+
+    captura = cv2.VideoCapture(str(caminho_video))
+    try:
+        if not captura.isOpened():
+            raise BackendIndisponivelError(f"nao foi possivel abrir o video {caminho_video}")
+        fps = float(captura.get(cv2.CAP_PROP_FPS) or 30.0)
+        total = int(captura.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        indice = int(max(0.0, instante_s) * fps)
+        if total:
+            indice = min(indice, total - 1)
+        captura.set(cv2.CAP_PROP_POS_FRAMES, indice)
+        ok, imagem = captura.read()
+        if not ok and indice > 0:
+            captura.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ok, imagem = captura.read()
+        if not ok:
+            raise BackendIndisponivelError("nao foi possivel ler um quadro do video")
+    finally:
+        captura.release()
+    altura, largura = imagem.shape[:2]
+    ok, codificado = cv2.imencode(".jpg", imagem, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+    if not ok:
+        raise BackendIndisponivelError("falha ao codificar o quadro em JPEG")
+    return codificado.tobytes(), int(largura), int(altura)
+
+
 def _fps_do_video(caminho_video: Path | str, padrao: float = 30.0) -> float:
     """Le o fps do arquivo. A taxa importa porque as regras de evento medem tempo."""
     try:

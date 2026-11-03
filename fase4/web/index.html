@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Interface local do monitoramento multimodal de pacientes (Fase 4)." />
+    <title>Monitoramento multimodal | Fase 4</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="#/painel" aria-label="Monitoramento multimodal, inicio">
+        <span class="brand-mark" aria-hidden="true">+</span>
+        <span><strong>Monitoramento multimodal</strong><small>Projeto academico | Fase 4</small></span>
+      </a>
+      <nav class="view-tabs" aria-label="Areas da aplicacao">
+        <button class="view-tab active" type="button" data-view="painel">Painel</button>
+        <button class="view-tab" type="button" data-view="monitor">Monitor ao vivo</button>
+        <button class="view-tab" type="button" data-view="equipe">Equipe</button>
+        <button class="view-tab" type="button" data-view="dados">Dados</button>
+      </nav>
+      <div class="header-tools">
+        <div class="runtime-status" id="runtime-status" aria-live="polite">
+          <span class="status-dot"></span>
+          <span id="runtime-status-text">Verificando servico</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-shell" id="app"></main>
+
+    <footer class="app-footer">
+      Prototipo academico: nenhum alerta substitui avaliacao clinica. Dados sinteticos, exceto os marcados como PhysioNet ou enviados.
+    </footer>
+
+    <script src="/assets/api.js" defer></script>
+    <script src="/assets/render.js" defer></script>
+    <script src="/assets/grafico.js" defer></script>
+    <script src="/assets/roi.js" defer></script>
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

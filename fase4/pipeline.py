@@ -17,11 +17,12 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Iterable
 
 import pandas as pd
 
 from fase4 import anomaly_detection, audio_analysis, video_analysis
-from fase4.alertas import Achado, Alerta, MotorDeAlertas, canais_padrao, grupo_do_achado
+from fase4.alertas import Achado, Alerta, CanalEntrega, MotorDeAlertas, canais_padrao, grupo_do_achado
 from fase4.config import DIR_RESULTADOS, LIMIARES_ANOMALIA, LimiaresAnomalia
 from fase4.data.gerar_dados_sinteticos import DIR_AMOSTRAS
 from fase4.logging_utils import registrar_evento
@@ -99,8 +100,13 @@ def processar_paciente(
     gravar_video_anotado: bool = True,
     area_critica: tuple[float, float, float, float] | None = None,
     arquivo_audio: str = ARQUIVO_AUDIO_PADRAO,
+    canais: Iterable[CanalEntrega] | None = None,
 ) -> ResultadoPaciente:
-    """Executa o monitoramento completo de um paciente."""
+    """Executa o monitoramento completo de um paciente.
+
+    `canais` substitui os canais de entrega padrao (fila JSONL e webhook);
+    a interface web usa isso para acrescentar o seu canal em memoria.
+    """
     amostras = localizar_amostras(paciente_id, raiz_amostras, arquivo_audio=arquivo_audio)
     saida = (dir_saida or DIR_RESULTADOS) / paciente_id
     if gravar_relatorios:
@@ -198,8 +204,13 @@ def processar_paciente(
     # A fila fica na raiz da execucao (uma para todos os pacientes), nao na
     # pasta do paciente: quem consome a fila e o sistema da equipe, nao o
     # relatorio individual.
-    canais = canais_padrao(dir_saida or DIR_RESULTADOS) if gravar_relatorios else []
-    motor = MotorDeAlertas(canais=canais)
+    if canais is not None:
+        canais_ativos = list(canais)
+    elif gravar_relatorios:
+        canais_ativos = canais_padrao(dir_saida or DIR_RESULTADOS)
+    else:
+        canais_ativos = []
+    motor = MotorDeAlertas(canais=canais_ativos)
     alertas = motor.gerar(
         paciente_id, todos, grupos_absorvidos=fusao.grupos_absorvidos
     )

@@ -31,6 +31,7 @@ from fase4.pipeline import (
     processar_lote,
     processar_paciente,
 )
+from fase4.video_analysis import parse_area_critica
 
 LARGURA = 74
 
@@ -63,18 +64,10 @@ def mostrar_servicos() -> None:
 
 def _parse_area_critica(texto: str | None) -> tuple[float, float, float, float] | None:
     """Converte "x1,y1,x2,y2" (pixels) na ROI manual da area critica."""
-    if not texto:
-        return None
-    partes = [p.strip() for p in texto.split(",")]
-    if len(partes) != 4:
-        raise argparse.ArgumentTypeError("--area-critica espera quatro numeros: x1,y1,x2,y2")
     try:
-        x1, y1, x2, y2 = (float(p) for p in partes)
+        return parse_area_critica(texto)
     except ValueError as erro:
-        raise argparse.ArgumentTypeError("--area-critica espera numeros") from erro
-    if x2 <= x1 or y2 <= y1:
-        raise argparse.ArgumentTypeError("--area-critica exige x2 > x1 e y2 > y1")
-    return (x1, y1, x2, y2)
+        raise argparse.ArgumentTypeError(f"--area-critica: {erro}") from erro
 
 
 def demonstrar_paciente(

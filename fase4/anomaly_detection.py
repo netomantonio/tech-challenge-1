@@ -903,6 +903,31 @@ def _valores_da_linha(linha: pd.Series, canais: list[str]) -> dict[str, float]:
     return valores
 
 
+def monitorar_leituras(
+    df: pd.DataFrame,
+    limiares: LimiaresAnomalia = LIMIARES_ANOMALIA,
+    incluir_multivariado: bool = True,
+) -> Iterator[tuple[datetime, dict[str, float], list[Achado]]]:
+    """Percorre a serie leitura a leitura, rendendo todas as leituras.
+
+    Rende `(instante, valores, achados)` para cada minuto, com `achados`
+    vazio na maioria deles. E o que a interface web usa para desenhar os
+    sinais avancando; `monitorar_em_tempo_real` filtra so os minutos com
+    achado.
+    """
+    detector = DetectorSinaisVitais(limiares)
+    multivariado = DetectorMultivariadoOnline(limiares) if incluir_multivariado else None
+    canais = [c for c in limiares.canais if c in df.columns]
+
+    for _, linha in df.iterrows():
+        instante = linha["timestamp"].to_pydatetime()
+        valores = _valores_da_linha(linha, canais)
+        achados = detector.atualizar(instante, valores)
+        if multivariado is not None:
+            achados = achados + multivariado.atualizar(instante, valores)
+        yield instante, valores, achados
+
+
 def monitorar_em_tempo_real(
     df: pd.DataFrame,
     limiares: LimiaresAnomalia = LIMIARES_ANOMALIA,
@@ -916,15 +941,6 @@ def monitorar_em_tempo_real(
     que treina no basal e pontua cada leitura seguinte; `incluir_multivariado=False`
     reproduz o comportamento so com as regras por canal.
     """
-    detector = DetectorSinaisVitais(limiares)
-    multivariado = DetectorMultivariadoOnline(limiares) if incluir_multivariado else None
-    canais = [c for c in limiares.canais if c in df.columns]
-
-    for _, linha in df.iterrows():
-        instante = linha["timestamp"].to_pydatetime()
-        valores = _valores_da_linha(linha, canais)
-        achados = detector.atualizar(instante, valores)
-        if multivariado is not None:
-            achados = achados + multivariado.atualizar(instante, valores)
+    for instante, _valores, achados in monitorar_leituras(df, limiares, incluir_multivariado):
         if achados:
             yield instante, achados
