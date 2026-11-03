@@ -182,7 +182,12 @@ class DetectorSinaisVitais:
             estado = self._estados.get(canal)
             if estado is None:
                 continue
-            achados.extend(self._avaliar_canal(canal, estado, instante, float(valor)))
+            numero = float(valor)
+            # Leitura ausente (NaN) nao entra em nenhuma regra: ela nao e
+            # "normal" nem "anormal", e um buraco no sensor.
+            if math.isnan(numero):
+                continue
+            achados.extend(self._avaliar_canal(canal, estado, instante, numero))
 
         return achados
 
@@ -387,7 +392,7 @@ def avaliar_serie(
     canais = [c for c in limiares.canais if c in df.columns]
 
     for _, linha in df.iterrows():
-        valores = {canal: float(linha[canal]) for canal in canais}
+        valores = _valores_da_linha(linha, canais)
         achados.extend(detector.atualizar(linha["timestamp"].to_pydatetime(), valores))
     return achados
 
@@ -417,9 +422,11 @@ def detectar_isolation_forest(
     from sklearn.preprocessing import StandardScaler
 
     canais = [c for c in limiares.canais if c in df.columns]
-    matriz = df[canais].to_numpy(dtype=float)
+    # Buracos de sensor sao preenchidos com a leitura vizinha so para o
+    # modelo nao quebrar; a serie original gravada no CSV de scores nao muda.
+    matriz = df[canais].ffill().bfill().to_numpy(dtype=float)
     treino = matriz[:minutos_referencia]
-    if treino.shape[0] < 30:
+    if treino.shape[0] < 30 or np.isnan(treino).any():
         return [], df.assign(score_isolation_forest=np.nan, anomalia_multivariada=False)
 
     escalador = StandardScaler().fit(treino)
@@ -448,7 +455,9 @@ def detectar_isolation_forest(
             continue
         trecho = resultado.iloc[inicio:fim]
         pior = trecho["score_isolation_forest"].idxmin()
-        canais_alterados = _canais_mais_alterados(df, canais, inicio, fim, minutos_referencia)
+        canais_alterados = _canais_mais_alterados(
+            df[canais].ffill().bfill(), canais, inicio, fim, minutos_referencia
+        )
         achados.append(
             Achado(
                 modalidade="sinais_vitais",
@@ -507,15 +516,165 @@ def _canais_mais_alterados(
     df: pd.DataFrame, canais: list[str], inicio: int, fim: int, minutos_referencia: int
 ) -> list[str]:
     """Ordena os canais pelo quanto se afastaram do basal no trecho anomalo."""
+    return _canais_mais_alterados_matriz(
+        df[canais].iloc[:minutos_referencia].to_numpy(dtype=float),
+        df[canais].iloc[inicio:fim].to_numpy(dtype=float),
+        canais,
+    )
+
+
+def _canais_mais_alterados_matriz(
+    basal: np.ndarray, trecho: np.ndarray, canais: list[str]
+) -> list[str]:
+    """Mesma ordenacao de `_canais_mais_alterados`, sobre matrizes (uso online)."""
     desvios = []
-    for canal in canais:
-        base = df[canal].iloc[:minutos_referencia]
-        mediana = float(base.median())
-        escala = float((base - mediana).abs().median()) or 1.0
-        trecho = df[canal].iloc[inicio:fim]
-        desvios.append((abs(float(trecho.median()) - mediana) / escala, canal))
+    for coluna, canal in enumerate(canais):
+        base = basal[:, coluna]
+        mediana = float(np.median(base))
+        escala = float(np.median(np.abs(base - mediana))) or 1.0
+        desvios.append((abs(float(np.median(trecho[:, coluna])) - mediana) / escala, canal))
     desvios.sort(reverse=True)
     return [canal for _, canal in desvios[:3]]
+
+
+class DetectorMultivariadoOnline:
+    """Isolation Forest treinado no basal e aplicado leitura a leitura.
+
+    E a versao incremental de `detectar_isolation_forest`, para o modo de
+    monitoramento em tempo real: acumula as primeiras `minutos_referencia`
+    leituras, ajusta o modelo uma unica vez e, dai em diante, pontua cada
+    leitura assim que ela chega. O episodio e reconstruido com a mesma
+    regra do lote (uniao de pontos anomalos separados por ate
+    `minutos_uniao_episodio` minutos), e o achado e emitido no minuto em que
+    o episodio completa `minutos_minimos_episodio` - ou seja, com 15 minutos
+    de atraso em relacao ao inicio, que e o preco de nao olhar o futuro.
+    """
+
+    def __init__(
+        self,
+        limiares: LimiaresAnomalia = LIMIARES_ANOMALIA,
+        minutos_referencia: int = MINUTOS_REFERENCIA,
+    ) -> None:
+        self.limiares = limiares
+        self.minutos_referencia = minutos_referencia
+        self._canais: list[str] | None = None
+        self._basal: list[list[float]] = []
+        self._escalador = None
+        self._modelo = None
+        self._corte: float | None = None
+        self._indice = -1
+        self._reiniciar_episodio()
+
+    def _reiniciar_episodio(self) -> None:
+        self._inicio: int | None = None
+        self._inicio_instante: datetime | None = None
+        self._ultimo_anomalo: int | None = None
+        self._emitido = False
+        self._vetores: list[list[float]] = []
+        self._scores: list[tuple[float, datetime]] = []
+
+    @property
+    def pronto(self) -> bool:
+        return self._modelo is not None
+
+    @property
+    def corte(self) -> float | None:
+        return self._corte
+
+    def _ajustar(self) -> None:
+        from sklearn.ensemble import IsolationForest
+        from sklearn.preprocessing import StandardScaler
+
+        treino = np.asarray(self._basal, dtype=float)
+        if treino.shape[0] < 30:
+            return
+        self._escalador = StandardScaler().fit(treino)
+        self._modelo = IsolationForest(
+            n_estimators=200,
+            contamination=self.limiares.contaminacao_isolation_forest,
+            random_state=self.limiares.seed,
+        ).fit(self._escalador.transform(treino))
+        scores_basal = self._modelo.decision_function(self._escalador.transform(treino))
+        self._corte = float(np.percentile(scores_basal, 1))
+
+    def pontuar(self, valores: dict[str, float]) -> float | None:
+        """Score da leitura (menor = mais isolada); None antes do modelo existir."""
+        if not self.pronto or self._canais is None:
+            return None
+        vetor = [float(valores[c]) for c in self._canais]
+        return float(self._modelo.decision_function(self._escalador.transform([vetor]))[0])
+
+    def atualizar(self, instante: datetime, valores: dict[str, float]) -> list[Achado]:
+        """Processa uma leitura; devolve o achado do episodio quando ele se confirma."""
+        self._indice += 1
+        indice = self._indice
+        if self._canais is None:
+            self._canais = [c for c in self.limiares.canais if c in valores]
+        try:
+            vetor = [float(valores[c]) for c in self._canais]
+        except KeyError:
+            return []
+        if any(math.isnan(v) for v in vetor):
+            return []
+
+        if indice < self.minutos_referencia:
+            self._basal.append(vetor)
+            if indice == self.minutos_referencia - 1:
+                self._ajustar()
+            return []
+        if not self.pronto:
+            return []
+
+        score = float(self._modelo.decision_function(self._escalador.transform([vetor]))[0])
+        anomalo = score < (self._corte or 0.0)
+        uniao = self.limiares.minutos_uniao_episodio
+
+        if not anomalo:
+            if self._inicio is not None and self._ultimo_anomalo is not None:
+                if indice - self._ultimo_anomalo - 1 > uniao:
+                    self._reiniciar_episodio()
+            return []
+
+        if self._inicio is not None and self._ultimo_anomalo is not None:
+            if indice - self._ultimo_anomalo - 1 > uniao:
+                self._reiniciar_episodio()
+        if self._inicio is None:
+            self._inicio = indice
+            self._inicio_instante = instante
+        self._ultimo_anomalo = indice
+        self._vetores.append(vetor)
+        self._scores.append((score, instante))
+
+        duracao = indice - self._inicio + 1
+        if self._emitido or duracao < self.limiares.minutos_minimos_episodio:
+            return []
+        self._emitido = True
+
+        pior_score, pior_instante = min(self._scores, key=lambda item: item[0])
+        canais_alterados = _canais_mais_alterados_matriz(
+            np.asarray(self._basal, dtype=float), np.asarray(self._vetores, dtype=float), self._canais
+        )
+        return [
+            Achado(
+                modalidade="sinais_vitais",
+                tipo="anomalia_multivariada",
+                descricao=(
+                    "Combinacao anomala de sinais vitais em relacao ao basal do paciente "
+                    f"({', '.join(canais_alterados)})"
+                ),
+                severidade="critico",
+                score=0.85,
+                instante=pior_instante.isoformat(),
+                evidencias={
+                    "inicio": (self._inicio_instante or instante).isoformat(),
+                    "fim": instante.isoformat(),
+                    "minutos": int(duracao),
+                    "score_minimo": round(pior_score, 4),
+                    "corte_basal": round(self._corte or 0.0, 4),
+                    "modo": "tempo_real",
+                },
+            )
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -730,23 +889,42 @@ def detectar_anomalias_movimentacao(
 # ---------------------------------------------------------------------------
 
 
+def _valores_da_linha(linha: pd.Series, canais: list[str]) -> dict[str, float]:
+    """Celulas numericas validas da leitura; NaN e descartado, nao propagado."""
+    valores: dict[str, float] = {}
+    for canal in canais:
+        valor = linha[canal]
+        try:
+            numero = float(valor)
+        except (TypeError, ValueError):
+            continue
+        if not math.isnan(numero):
+            valores[canal] = numero
+    return valores
+
+
 def monitorar_em_tempo_real(
     df: pd.DataFrame,
     limiares: LimiaresAnomalia = LIMIARES_ANOMALIA,
+    incluir_multivariado: bool = True,
 ) -> Iterator[tuple[datetime, list[Achado]]]:
     """Percorre a serie como se as amostras estivessem chegando do monitor.
 
     O gerador existe para deixar claro que as regras dos sinais vitais nao
-    dependem de ver a serie inteira: a cada minuto o detector decide com o
-    que ja passou. O Isolation Forest, por depender de um modelo treinado,
-    roda separado em `detectar_isolation_forest`.
+    dependem de ver a serie inteira: a cada minuto os detectores decidem com
+    o que ja passou. O Isolation Forest entra pelo `DetectorMultivariadoOnline`,
+    que treina no basal e pontua cada leitura seguinte; `incluir_multivariado=False`
+    reproduz o comportamento so com as regras por canal.
     """
     detector = DetectorSinaisVitais(limiares)
+    multivariado = DetectorMultivariadoOnline(limiares) if incluir_multivariado else None
     canais = [c for c in limiares.canais if c in df.columns]
 
     for _, linha in df.iterrows():
         instante = linha["timestamp"].to_pydatetime()
-        valores = {canal: float(linha[canal]) for canal in canais}
+        valores = _valores_da_linha(linha, canais)
         achados = detector.atualizar(instante, valores)
+        if multivariado is not None:
+            achados = achados + multivariado.atualizar(instante, valores)
         if achados:
             yield instante, achados

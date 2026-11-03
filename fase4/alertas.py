@@ -10,9 +10,16 @@ monitoramento em tempo real.
 
 from __future__ import annotations
 
+import json
+import os
+import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Iterable
+from pathlib import Path
+from typing import Any, Iterable, Protocol
+
+from fase4.config import DIR_RESULTADOS, ENV_FILA_ALERTAS, ENV_WEBHOOK_URL, NOME_FILA_ALERTAS
+from fase4.logging_utils import registrar_evento
 
 SEVERIDADES = ("informativo", "atencao", "critico")
 
@@ -119,12 +126,102 @@ class Alerta:
     score: float
     criado_em: str
     achados: list[dict] = field(default_factory=list)
+    # Nomes dos canais que receberam este alerta (preenchido pelo motor).
+    canais_entrega: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     def resumo(self) -> str:
         return f"[{self.prioridade.upper()}] {self.titulo} -> {self.destino}"
+
+
+# ---------------------------------------------------------------------------
+# Canais de entrega
+# ---------------------------------------------------------------------------
+
+
+class CanalEntrega(Protocol):
+    """Destino concreto de um alerta: fila, webhook, e-mail, pager..."""
+
+    nome: str
+
+    def entregar(self, alerta: Alerta) -> None: ...
+
+
+class FilaJsonl:
+    """Fila append-only em JSON Lines, um alerta por linha.
+
+    E o contrato mais simples que um sistema hospitalar consegue consumir: o
+    integrador le o arquivo (ou o diretorio) e processa as linhas novas. Cada
+    linha e o `Alerta.to_dict()` completo, com os achados que o sustentam.
+    """
+
+    nome = "fila_jsonl"
+
+    def __init__(self, caminho: Path | str) -> None:
+        self.caminho = Path(caminho)
+
+    def entregar(self, alerta: Alerta) -> None:
+        self.caminho.parent.mkdir(parents=True, exist_ok=True)
+        registro = {"entregue_em": datetime.now(timezone.utc).isoformat(), **alerta.to_dict()}
+        with self.caminho.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(registro, ensure_ascii=False, default=str) + "\n")
+
+
+class WebhookHttp:
+    """POST do alerta em JSON para uma URL (painel, Teams, pager, HIS).
+
+    Usa apenas a biblioteca padrao. Qualquer falha de rede e levantada para
+    o motor registrar `entrega_falhou`; o pipeline nunca para por causa do
+    canal.
+    """
+
+    nome = "webhook"
+
+    def __init__(self, url: str, timeout_s: float = 5.0) -> None:
+        self.url = url
+        self.timeout_s = timeout_s
+
+    def entregar(self, alerta: Alerta) -> None:
+        corpo = json.dumps(alerta.to_dict(), ensure_ascii=False, default=str).encode("utf-8")
+        requisicao = urllib.request.Request(
+            self.url,
+            data=corpo,
+            method="POST",
+            headers={"Content-Type": "application/json; charset=utf-8", "User-Agent": "fase4-alertas/1.0"},
+        )
+        with urllib.request.urlopen(requisicao, timeout=self.timeout_s) as resposta:
+            if resposta.status >= 300:
+                raise RuntimeError(f"webhook respondeu HTTP {resposta.status}")
+
+
+def canais_padrao(dir_saida: Path | str | None = None) -> list[CanalEntrega]:
+    """Canais ativos nesta execucao.
+
+    A fila JSONL e sempre gravada (em `FASE4_FILA_ALERTAS` ou em
+    `<dir_saida>/fila_alertas.jsonl`); o webhook so quando `FASE4_WEBHOOK_URL`
+    esta definida.
+    """
+    caminho_fila = os.getenv(ENV_FILA_ALERTAS)
+    base = Path(dir_saida) if dir_saida is not None else DIR_RESULTADOS
+    canais: list[CanalEntrega] = [FilaJsonl(caminho_fila or base / NOME_FILA_ALERTAS)]
+    url = os.getenv(ENV_WEBHOOK_URL, "").strip()
+    if url:
+        canais.append(WebhookHttp(url))
+    return canais
+
+
+def descrever_canais(canais: Iterable[CanalEntrega]) -> list[str]:
+    descricoes = []
+    for canal in canais:
+        if isinstance(canal, FilaJsonl):
+            descricoes.append(f"fila JSONL em {canal.caminho}")
+        elif isinstance(canal, WebhookHttp):
+            descricoes.append(f"webhook POST {canal.url}")
+        else:
+            descricoes.append(getattr(canal, "nome", type(canal).__name__))
+    return descricoes
 
 
 ACOES_RECOMENDADAS = {
@@ -170,10 +267,45 @@ class MotorDeAlertas:
       cada minuto enquanto a deterioracao continua.
     """
 
-    def __init__(self, janela_supressao: timedelta = JANELA_SUPRESSAO) -> None:
+    def __init__(
+        self,
+        janela_supressao: timedelta = JANELA_SUPRESSAO,
+        canais: Iterable[CanalEntrega] = (),
+    ) -> None:
         self.janela_supressao = janela_supressao
+        self.canais: list[CanalEntrega] = list(canais)
         self._ultimo_envio: dict[tuple[str, str], datetime] = {}
         self._contador = 0
+        self.entregas_falhas = 0
+
+    def _entregar(self, alertas: list[Alerta]) -> None:
+        """Envia cada alerta a cada canal; falha de canal vira auditoria, nao excecao."""
+        for alerta in alertas:
+            for canal in self.canais:
+                nome = getattr(canal, "nome", type(canal).__name__)
+                # O canal e marcado antes do envio para o proprio registro
+                # entregue (linha da fila, corpo do POST) dizer por onde passou.
+                alerta.canais_entrega.append(nome)
+                try:
+                    canal.entregar(alerta)
+                except Exception as erro:  # noqa: BLE001 - o canal nao pode derrubar o monitoramento
+                    alerta.canais_entrega.remove(nome)
+                    self.entregas_falhas += 1
+                    registrar_evento(
+                        "entrega_falhou",
+                        paciente_id=alerta.paciente_id,
+                        alerta_id=alerta.alerta_id,
+                        canal=nome,
+                        erro=str(erro)[:200],
+                    )
+                    continue
+                registrar_evento(
+                    "alerta_entregue",
+                    paciente_id=alerta.paciente_id,
+                    alerta_id=alerta.alerta_id,
+                    canal=getattr(canal, "nome", type(canal).__name__),
+                    prioridade=alerta.prioridade,
+                )
 
     def _proximo_id(self, paciente_id: str) -> str:
         self._contador += 1
@@ -217,6 +349,7 @@ class MotorDeAlertas:
         alertas.sort(
             key=lambda a: (list(PRIORIDADE_POR_SEVERIDADE.values()).index(a.prioridade), -a.score)
         )
+        self._entregar(alertas)
         return alertas
 
     def _montar(

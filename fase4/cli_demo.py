@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 
 from fase4 import anomaly_detection
-from fase4.alertas import MotorDeAlertas
+from fase4.alertas import MotorDeAlertas, canais_padrao, descrever_canais
 from fase4.azure_services import status_servicos
 from fase4.data.gerar_dados_sinteticos import PACIENTES_PADRAO
 from fase4.pipeline import (
@@ -172,7 +172,8 @@ def demonstrar_paciente(
 
     _secao(f"Alertas para a equipe medica ({len(resultado.alertas)})")
     for alerta in resultado.alertas:
-        print(f"  {alerta.resumo()}")
+        entregue = f"  [entregue via {', '.join(alerta.canais_entrega)}]" if alerta.canais_entrega else ""
+        print(f"  {alerta.resumo()}{entregue}")
         print(f"      {alerta.acao_recomendada}")
 
     _secao("Arquivos gerados")
@@ -181,7 +182,10 @@ def demonstrar_paciente(
     print()
 
 
-def demonstrar_tempo_real(paciente_id: str, atraso: float, raiz_amostras: Path | None = None) -> None:
+def demonstrar_tempo_real(
+    paciente_id: str, atraso: float, raiz_amostras: Path | None = None,
+    dir_saida: Path | None = None,
+) -> None:
     """Percorre a serie de sinais vitais como se fosse o monitor do leito."""
     _titulo(f"Monitoramento em tempo real - paciente {paciente_id}")
 
@@ -193,10 +197,12 @@ def demonstrar_tempo_real(paciente_id: str, atraso: float, raiz_amostras: Path |
     df = anomaly_detection.carregar_sinais_vitais(amostras["sinais_vitais"])
     print(
         f"{len(df)} leituras de {df['timestamp'].iloc[0]:%H:%M} a "
-        f"{df['timestamp'].iloc[-1]:%H:%M} (1 por minuto)\n"
+        f"{df['timestamp'].iloc[-1]:%H:%M} (1 por minuto)"
     )
+    canais = canais_padrao(dir_saida)
+    print("canais de entrega: " + "; ".join(descrever_canais(canais)) + "\n")
 
-    motor = MotorDeAlertas()
+    motor = MotorDeAlertas(canais=canais)
     total_alertas = 0
     for instante, achados in anomaly_detection.monitorar_em_tempo_real(df):
         for achado in achados:
@@ -205,14 +211,22 @@ def demonstrar_tempo_real(paciente_id: str, atraso: float, raiz_amostras: Path |
                 # do instante em que a sequencia se mostrou nao confirmada.
                 marca = (achado.instante or instante.isoformat())[11:16]
                 print(f"{marca}  (nota) {achado.descricao[:88]}")
+            elif achado.tipo == "anomalia_multivariada":
+                print(
+                    f"{instante:%H:%M}  (isolation forest) episodio multivariado desde "
+                    f"{achado.evidencias.get('inicio', '')[11:16]}: {achado.descricao[:70]}"
+                )
         alertas = motor.gerar(paciente_id, achados, agora=instante)
         for alerta in alertas:
             total_alertas += 1
-            print(f"{instante:%H:%M}  {alerta.resumo()}")
+            entregue = f" [{', '.join(alerta.canais_entrega)}]" if alerta.canais_entrega else ""
+            print(f"{instante:%H:%M}  {alerta.resumo()}{entregue}")
         if atraso:
             time.sleep(atraso)
 
     print(f"\n{total_alertas} alertas emitidos durante o turno.")
+    if motor.entregas_falhas:
+        print(f"{motor.entregas_falhas} entrega(s) falharam; veja auditoria_monitoramento.jsonl.")
 
 
 def main() -> None:
@@ -289,7 +303,7 @@ def main() -> None:
         os.environ.setdefault("FASE4_LOG_SILENCIOSO", "1")
 
     if args.tempo_real:
-        demonstrar_tempo_real(args.paciente_id, args.atraso, args.raiz_amostras)
+        demonstrar_tempo_real(args.paciente_id, args.atraso, args.raiz_amostras, args.dir_saida)
         return
 
     if args.todos:

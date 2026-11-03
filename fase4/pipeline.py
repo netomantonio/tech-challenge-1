@@ -21,7 +21,7 @@ from pathlib import Path
 import pandas as pd
 
 from fase4 import anomaly_detection, audio_analysis, video_analysis
-from fase4.alertas import Achado, Alerta, MotorDeAlertas, grupo_do_achado
+from fase4.alertas import Achado, Alerta, MotorDeAlertas, canais_padrao, grupo_do_achado
 from fase4.config import DIR_RESULTADOS, LIMIARES_ANOMALIA, LimiaresAnomalia
 from fase4.data.gerar_dados_sinteticos import DIR_AMOSTRAS
 from fase4.logging_utils import registrar_evento
@@ -195,7 +195,11 @@ def processar_paciente(
     fusao = fundir(paciente_id, achados)
     todos = achados + fusao.achados_multimodais
 
-    motor = MotorDeAlertas()
+    # A fila fica na raiz da execucao (uma para todos os pacientes), nao na
+    # pasta do paciente: quem consome a fila e o sistema da equipe, nao o
+    # relatorio individual.
+    canais = canais_padrao(dir_saida or DIR_RESULTADOS) if gravar_relatorios else []
+    motor = MotorDeAlertas(canais=canais)
     alertas = motor.gerar(
         paciente_id, todos, grupos_absorvidos=fusao.grupos_absorvidos
     )
@@ -351,12 +355,12 @@ def relatorio_markdown(resultado: ResultadoPaciente) -> str:
 
     linhas += ["## Alertas gerados para a equipe", ""]
     if resultado.alertas:
-        linhas += ["| Prioridade | Alerta | Destino | Instante |", "| --- | --- | --- | --- |"]
+        linhas += ["| Prioridade | Alerta | Destino | Instante | Entregue via |", "| --- | --- | --- | --- | --- |"]
         for alerta in resultado.alertas:
             instante = alerta.achados[0].get("instante") if alerta.achados else None
             linhas.append(
                 f"| {alerta.prioridade} | {alerta.titulo} | {alerta.destino} | "
-                f"`{instante or '-'}` |"
+                f"`{instante or '-'}` | {', '.join(alerta.canais_entrega) or '-'} |"
             )
     else:
         linhas.append("Nenhum alerta foi emitido: não houve achado de atenção ou crítico.")

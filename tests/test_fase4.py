@@ -516,7 +516,9 @@ class DetectorDeSinaisVitaisTests(AmostrasTemporarias):
     def test_monitoramento_em_tempo_real_devolve_os_mesmos_achados(self) -> None:
         em_tempo_real = [
             achado
-            for _, achados in anomaly_detection.monitorar_em_tempo_real(self.df_piora)
+            for _, achados in anomaly_detection.monitorar_em_tempo_real(
+                self.df_piora, incluir_multivariado=False
+            )
             for achado in achados
         ]
         self.assertEqual(
