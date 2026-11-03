@@ -72,6 +72,29 @@ Os resultados de 1 e 2 estão versionados em `resultados/fase4/fala_real/` e
 o caminho real roda de ponta a ponta, mas não detecta pose: o esqueleto
 desenhado não é uma pessoa.
 
+## Interface web
+
+Tudo acima também pode ser feito pelo navegador, sem build nem dependência
+nova (FastAPI + HTML/JS puro, mesmo padrão da Fase 3):
+
+```powershell
+python -m fase4.web_app            # abre http://127.0.0.1:8020
+```
+
+| Aba | O que faz |
+| --- | --- |
+| **Painel** | escolhe paciente (sintético, enviado ou PhysioNet), provedor, backends, áudio e área crítica; processa; mostra risco, quadros, alertas (com canal de entrega), achados filtráveis, relatórios renderizados, áudio, transcrição com termos destacados e o vídeo anotado (quadros servidos pelo servidor, porque o MP4 do OpenCV é FMP4 e o navegador não o reproduz; com `ffmpeg` no PATH a versão H.264 é gerada sob demanda). Backends reais e whisper rodam em **job** com progresso e log. |
+| **Monitor ao vivo** | a série de sinais vitais avança minuto a minuto por Server-Sent Events; gráfico de 6 canais com bandas normal/crítica, marcadores de achados, linha do Isolation Forest e os alertas surgindo na linha do tempo. |
+| **Equipe** | painel da equipe médica: recebe ao vivo os alertas do Painel, do Monitor e de qualquer processo que aponte `FASE4_WEBHOOK_URL=http://127.0.0.1:8020/api/webhook/alertas` (a própria CLI com `--tempo-real`, por exemplo). |
+| **Dados** | cria pacientes enviados e recebe os arquivos (`consulta.wav`, `fisioterapia.mp4`, `sinais_vitais.csv`…) com validação de conteúdo; desenha a área crítica sobre um quadro do vídeo e envia a ROI ao Painel; baixa e processa um registro do PhysioNet em segundo plano. |
+
+A API está em `fase4/web_app.py` (rotas) e `fase4/web_service.py` (regras);
+a arquitetura e o contrato das respostas estão em
+[docs/arquitetura_fase4_web.md](../docs/arquitetura_fase4_web.md). A
+interface só exibe o que a API devolve: nenhuma regra clínica vive no JS.
+Operações destrutivas (upload, exclusão, webhook) só são aceitas de
+`127.0.0.1`; não há autenticação, então não exponha a porta na rede.
+
 ## Os dois casos
 
 | Paciente | Situação | Modalidades |
@@ -160,15 +183,24 @@ credencial; `auto` nunca o escolhe. Quando a transcrição vem de um
 reconhecedor real (`azure` ou `local`) e há transcrição de referência ao lado
 do WAV, o relatório mostra a taxa de erro de palavras (WER).
 
-Para usar a Azure de verdade:
+Para usar a Azure de verdade, copie `.env.example` para `.env` na raiz do
+projeto (fora do git) e preencha com a chave e a região do recurso de Speech
+e com a chave e o endpoint do recurso de Language:
+
+```ini
+AZURE_SPEECH_KEY=...
+AZURE_SPEECH_REGION=brazilsouth
+AZURE_LANGUAGE_KEY=...
+AZURE_LANGUAGE_ENDPOINT=https://<recurso>.cognitiveservices.azure.com/
+```
+
+`fase4/config.py` lê o `.env` sozinho; variáveis já definidas no ambiente
+(`$env:AZURE_SPEECH_KEY="..."` no PowerShell) têm prioridade. Depois:
 
 ```powershell
-$env:AZURE_SPEECH_KEY="..."
-$env:AZURE_SPEECH_REGION="brazilsouth"
-$env:AZURE_LANGUAGE_KEY="..."
-$env:AZURE_LANGUAGE_ENDPOINT="https://<recurso>.cognitiveservices.azure.com/"
 pip install -r requirements-fase4.txt
-python -m fase4.cli_demo --paciente-id PAC-0006 --provedor-azure azure
+python -m fase4.verificar_azure        # uma chamada mínima em cada serviço
+python -m fase4.cli_demo --paciente-id PAC-0006 --audio consulta_fala.wav --provedor-azure azure
 ```
 
 Sem credencial, `--provedor-azure azure` falha com mensagem explícita, em vez
@@ -277,12 +309,16 @@ relatório e o JSON do alerta registram por onde ele passou
 | `video_analysis.py` | backends de pose/detector, ângulos, regras e relatório |
 | `audio_analysis.py` | atributos acústicos, regras vocais e relatório |
 | `azure_services.py` | Speech to Text e Text Analytics, com substituto offline |
+| `verificar_azure.py` | confere as credenciais com uma chamada mínima em cada serviço |
 | `anomaly_detection.py` | detectores de série, prescrição e movimentação |
 | `multimodal_fusion.py` | quadros clínicos e risco do paciente |
 | `alertas.py` | achados, alertas, prioridade, roteamento, consolidação e canais de entrega |
 | `pipeline.py` | orquestração por paciente e gravação dos relatórios |
 | `cli_demo.py` | demonstração em linha de comando |
 | `receptor_webhook_demo.py` | receptor HTTP local que imprime os alertas recebidos |
+| `web_app.py` / `web_service.py` / `web_jobs.py` | interface web local: API FastAPI, serviços, jobs em segundo plano |
+| `markdown_simples.py` | conversor dos relatórios Markdown para HTML |
+| `web/` | página em HTML/JS/CSS puro (painel, monitor ao vivo, equipe, dados) |
 | `validacao_physionet.py` | detectores de sinais vitais sobre um registro real do PhysioNet |
 | `data/gerar_fala_tts.py` | consulta com fala inteligível pt-BR (TTS do Windows) |
 | `data/baixar_physionet.py` | download e conversão do registro do PhysioNet |
@@ -312,11 +348,12 @@ sintetizada) e `physionet/` (validação em dados reais).
 python -m unittest discover -s tests -p "test_fase4*.py" -v
 ```
 
-São 163 testes em sete arquivos, sem rede, sem chave da Azure e sem os
+São 186 testes em oito arquivos, sem rede, sem chave da Azure e sem os
 pacotes opcionais: `test_fase4` (pipeline e regras), `test_fase4_azure`
 (SDKs Speech e Text Analytics simulados), `test_fase4_backends` (MediaPipe e
 YOLOv8 falsos lendo o vídeo real), `test_fase4_audio_local` (disartria, WER,
 whisper falso, TTS), `test_fase4_tempo_real` (Isolation Forest online, NaN),
-`test_fase4_entrega` (fila e webhook com servidor local) e
-`test_fase4_physionet` (conversão do registro). As amostras são geradas em
-diretório temporário.
+`test_fase4_entrega` (fila e webhook com servidor local),
+`test_fase4_physionet` (conversão do registro) e `test_fase4_web` (API da
+interface: processamento, SSE, jobs, uploads, ROI, webhook). As amostras são
+geradas em diretório temporário.

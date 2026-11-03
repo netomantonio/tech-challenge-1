@@ -136,6 +136,8 @@ fase4/                  # monitoramento multimodal (vídeo + áudio + anomalias)
   alertas.py             # fusão → alertas, prioridade, roteamento e canais de entrega
   validacao_physionet.py # detectores sobre o registro real do MIMIC-III
   receptor_webhook_demo.py # receptor HTTP local dos alertas
+  web_app.py             # interface web local (FastAPI + SSE + jobs)
+  web/                   # painel em HTML/JS puro
   multimodal_fusion.py   # quadros clínicos e risco do paciente
   alertas.py             # achados, alertas, prioridade e roteamento
   pipeline.py            # orquestração por paciente e relatórios
@@ -702,6 +704,7 @@ isolado em `fase4/`, como na Fase 3.
 | Fusão multimodal | `fase4/multimodal_fusion.py` (5 quadros clínicos) |
 | Alertas automáticos para a equipe | `fase4/alertas.py` (prioridade, roteamento, consolidação) |
 | Entrega do alerta | fila `fila_alertas.jsonl` + webhook HTTP (`FASE4_WEBHOOK_URL`), receptor em `fase4/receptor_webhook_demo.py` |
+| Interface web local | `python -m fase4.web_app` — painel, monitor ao vivo (SSE), painel da equipe (webhook), upload de gravações e ROI |
 
 ### Dados
 
@@ -756,6 +759,12 @@ python -m fase4.cli_demo --todos
 python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real
 ```
 
+Interface web (sem build, sem dependência nova; abre em `http://127.0.0.1:8020`):
+
+```powershell
+python -m fase4.web_app
+```
+
 Demonstrações sem credencial Azure (exigem `requirements-fase4.txt`):
 
 ```powershell
@@ -780,7 +789,7 @@ Os resultados ficam em `resultados/fase4/` (incluindo `fala_real/` e
 python -m unittest discover -s tests -v
 ```
 
-São 237 testes no total, sendo 163 da Fase 4. Nenhum depende de rede, de
+São 260 testes no total, sendo 186 da Fase 4. Nenhum depende de rede, de
 chave da Azure ou dos pacotes opcionais.
 
 Detalhes: [relatorio_tecnico_fase4.md](relatorio_tecnico_fase4.md). O roteiro

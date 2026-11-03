@@ -242,11 +242,14 @@ paciente e admitido e o basal dele. E ele tambem roda no modo em tempo real:
 treina nas duas primeiras horas e pontua cada leitura seguinte, confirmando o
 episodio no minuto em que ele completa quinze minutos."
 
-[Terminal]
-python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real --atraso 0.005
+[Navegador: http://127.0.0.1:8020/#/monitor/PAC-0006, velocidade "rapido",
+"Incluir Isolation Forest" marcado, clicar em Iniciar]
+(alternativa em terminal: python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real --atraso 0.005)
 
 "O modo tempo real percorre a serie minuto a minuto, como se as leituras
-estivessem chegando do monitor do leito."
+estivessem chegando do monitor do leito. Na interface, os seis canais
+avancam no grafico com as faixas normal e critica sombreadas, e a linha do
+tempo a direita recebe as notas, os episodios e os alertas conforme surgem."
 
 [Deixar rodar e apontar os momentos conforme aparecem]
 
@@ -365,20 +368,20 @@ o relatorio consolidado lista todos os 47 com instante e evidencia."
 em JSON Lines, que e o contrato mais simples que um sistema hospitalar
 consome, e um webhook HTTP para um painel ou pager. Vamos ver o fluxo final."
 
-[Terminal 2, ja aberto]
-python -m fase4.receptor_webhook_demo --porta 8765
+[Navegador, segunda janela lado a lado: http://127.0.0.1:8020/#/equipe]
+[Na primeira janela, o Monitor ao vivo do PAC-0006 rodando; ou, no terminal:
+$env:FASE4_WEBHOOK_URL = "http://127.0.0.1:8020/api/webhook/alertas"
+python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real --atraso 0.005]
 
-[Terminal 1]
-$env:FASE4_WEBHOOK_URL = "http://127.0.0.1:8765/alertas"
-python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real --atraso 0.005
+[Mostrar as duas janelas: os alertas aparecendo na aba Equipe conforme o
+turno avanca, agrupados por destino, com prioridade, conduta e canal]
 
-[Mostrar os dois terminais lado a lado: os alertas aparecendo no receptor
-conforme o turno avanca, com prioridade, destino e conduta]
-
-"Este receptor faz o papel do painel da equipe. Cada alerta chega com
-prioridade, destino, conduta sugerida e os achados que o sustentam. Se o
-canal falhar, o pipeline nao para: a falha vira um evento na auditoria e a
-fila continua recebendo."
+"Esta aba e o painel da equipe medica: recebe os alertas do proprio painel,
+do monitor ao vivo e de qualquer processo que aponte o webhook para ela -
+inclusive a linha de comando. Cada alerta chega com prioridade, destino,
+conduta sugerida e os achados que o sustentam. Se um canal falhar, o
+pipeline nao para: a falha vira um evento na auditoria e a fila continua
+recebendo."
 
 ===============================================================================
 CENA 8 - TESTES E ENCERRAMENTO (1 min 30 s)
