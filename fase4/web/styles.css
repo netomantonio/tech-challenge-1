@@ -218,6 +218,8 @@ code { font: 11px/1.4 Consolas, "Cascadia Mono", monospace; color: var(--teal-da
 .roi-imagem { display: block; max-width: 100%; border-radius: 5px; border: 1px solid var(--line); }
 .roi-canvas { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
 .roi-saida { font-size: 12px; }
+.roi-saida.alerta-roi { color: var(--coral); background: var(--coral-soft); }
+.janela { color: var(--muted); font-size: 10px; white-space: nowrap; }
 
 @media (max-width: 1100px) {
   .app-shell[data-view="painel"] { grid-template-columns: minmax(260px, 300px) 1fr; }

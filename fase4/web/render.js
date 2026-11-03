@@ -63,6 +63,18 @@ window.F4 = window.F4 || {};
     return texto;
   }
 
+  /* Janela de um achado de video ("10.00-13.97") ou de serie ("inicio"/"fim" ISO). */
+  function fmtJanela(evidencias) {
+    if (!evidencias) return null;
+    const mmss = (s) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toFixed(1).padStart(4, "0")}`;
+    if (typeof evidencias.janela_s === "string" && evidencias.janela_s.includes("-")) {
+      const [a, b] = evidencias.janela_s.split("-").map(Number);
+      if (Number.isFinite(a) && Number.isFinite(b)) return el("small", { class: "janela", text: ` ${mmss(a)}–${mmss(b)}` });
+    }
+    if (evidencias.inicio && evidencias.fim) return el("small", { class: "janela", text: ` ${fmtInstante(evidencias.inicio)}–${fmtInstante(evidencias.fim)}` });
+    return null;
+  }
+
   function fmtHora(iso) {
     if (!iso) return "—";
     const data = new Date(iso);
@@ -202,7 +214,7 @@ window.F4 = window.F4 || {};
       filtrados.forEach((a) => corpo.appendChild(el("tr", { dataset: { severidade: a.severidade } }, [
         el("td", { text: rotulo("modalidade", a.modalidade) }),
         el("td", {}, [chip(rotulo("severidade", a.severidade), `sev-${a.severidade}`)]),
-        el("td", {}, [el("code", { text: fmtInstante(a.instante) })]),
+        el("td", {}, [el("code", { text: fmtInstante(a.instante) }), fmtJanela(a.evidencias)]),
         el("td", { text: a.descricao }),
       ])));
     }

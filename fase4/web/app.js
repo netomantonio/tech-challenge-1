@@ -561,7 +561,13 @@
         rotuloTempo.textContent = `${fmtNum(t, 1)} s · ${d.roiInfo.largura}×${d.roiInfo.altura} px`;
         if (!roiCanvas) {
           limpar(areaCanvas);
-          roiCanvas = new F4.RoiCanvas(areaCanvas, (roi) => { d.roi = roi; saidaRoi.textContent = roi ? roi.join(",") : "arraste sobre o quadro para marcar"; });
+          roiCanvas = new F4.RoiCanvas(areaCanvas, (roi) => {
+            d.roi = roi;
+            if (!roi) { saidaRoi.textContent = "arraste sobre o quadro para marcar"; return; }
+            const fracao = ((roi[2] - roi[0]) * (roi[3] - roi[1])) / (d.roiInfo.largura * d.roiInfo.altura);
+            saidaRoi.textContent = `${roi.join(",")} (${(fracao * 100).toFixed(0)}% do quadro)`;
+            saidaRoi.classList.toggle("alerta-roi", fracao > 0.25);
+          });
           if (d.roi) roiCanvas.definir(d.roi);
         }
         roiCanvas.carregar(`/api/pacientes/${encodeURIComponent(d.roiPaciente)}/quadro.jpg?fonte=original&t=${t.toFixed(2)}`, d.roiInfo.largura, d.roiInfo.altura);
@@ -583,7 +589,7 @@
       } }),
       el("button", { type: "button", class: "secondary-button", text: "Limpar", onclick: () => { d.roi = null; if (roiCanvas) roiCanvas.definir(null); saidaRoi.textContent = "arraste sobre o quadro para marcar"; } }),
     ]));
-    painelRoi.appendChild(el("p", { class: "nota", text: "A ROI substitui a caixa do dreno que o YOLOv8 genérico não reconhece; a mão do paciente passa a ser o keypoint do punho. Dica para a amostra sintética: 250,178,296,220." }));
+    painelRoi.appendChild(el("p", { class: "nota", text: "Marque só a região do dreno: uma ROI grande demais (acima de 25% do quadro) é recusada, porque a mão estaria sempre dentro dela. A ROI substitui a caixa do dreno que o YOLOv8 genérico não reconhece; a mão do paciente passa a ser o keypoint do punho. Dica para a amostra sintética: 250,178,296,220." }));
     if (d.roiPaciente && !comVideo(pacientePorId(d.roiPaciente) || {})) d.roiPaciente = null;
     if (d.roiPaciente) carregarQuadro();
 

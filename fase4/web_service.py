@@ -67,6 +67,8 @@ LIMITES_UPLOAD: dict[str, int] = {
     "json": 20 * 1024 * 1024,
 }
 FOURCC_NAVEGADOR = {"avc1", "h264", "H264", "AVC1", "x264", "X264"}
+# Uma area critica maior que isto nao e um dreno: a mao estaria sempre dentro.
+FRACAO_MAXIMA_AREA_CRITICA = 0.25
 
 
 class PacienteNaoEncontrado(LookupError):
@@ -523,6 +525,12 @@ def validar_area_critica(area: Iterable[float] | None, video: dict[str, Any] | N
         if x2 > video["largura"] or y2 > video["altura"]:
             raise ValueError(
                 f"area critica fora do quadro ({video['largura']}x{video['altura']} px)"
+            )
+        fracao = ((x2 - x1) * (y2 - y1)) / float(video["largura"] * video["altura"])
+        if fracao > FRACAO_MAXIMA_AREA_CRITICA:
+            raise ValueError(
+                f"area critica cobre {fracao:.0%} do quadro; marque apenas a regiao do dreno "
+                f"(ate {FRACAO_MAXIMA_AREA_CRITICA:.0%}), senao a mao esta sempre dentro dela"
             )
     return tuple(valores)
 

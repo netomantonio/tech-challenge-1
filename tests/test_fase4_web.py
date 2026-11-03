@@ -256,6 +256,13 @@ class ProcessamentoTests(BaseWeb):
             json={"provedor_azure": "offline", "area_critica": [0, 0, 9999, 10], "gravar_video_anotado": False},
         )
         self.assertEqual(fora.status_code, 422)
+        # ROI que cobre quase o quadro inteiro: a mao estaria sempre "no dreno".
+        enorme = client.post(
+            "/api/pacientes/PAC-0006/processar",
+            json={"provedor_azure": "offline", "area_critica": [9, 9, 469, 357], "gravar_video_anotado": False},
+        )
+        self.assertEqual(enorme.status_code, 422)
+        self.assertIn("% do quadro", enorme.json()["detail"])
         valida = client.post(
             "/api/pacientes/PAC-0006/processar",
             json={"provedor_azure": "offline", "area_critica": list(gerador.AREA_CRITICA_DRENO), "gravar_video_anotado": False},
