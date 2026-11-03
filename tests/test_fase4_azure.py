@@ -253,3 +253,44 @@ class TextAnalyticsTests(unittest.TestCase):
         with text_analytics_falso(erro_em_sentimento=True):
             with self.assertRaises(ServicoAzureIndisponivelError):
                 analisar_texto("qualquer texto", provedor="azure")
+
+
+class DotenvTests(unittest.TestCase):
+    def test_le_env_sem_sobrescrever_ambiente(self):
+        import os
+        import tempfile
+
+        from fase4.config import carregar_dotenv
+
+        conteudo = "\n".join(
+            [
+                "# comentario",
+                'AZURE_SPEECH_KEY="chave"',
+                "AZURE_SPEECH_REGION=brazilsouth # regiao",
+                "export AZURE_LANGUAGE_KEY='outra'",
+                "AZURE_LANGUAGE_ENDPOINT=https://x.cognitiveservices.azure.com/",
+                "JA_DEFINIDA=do_arquivo",
+                "linha sem igual",
+            ]
+        )
+        with tempfile.TemporaryDirectory() as pasta:
+            caminho = Path(pasta) / ".env"
+            caminho.write_text(conteudo, encoding="utf-8")
+            with patch.dict(os.environ, {"JA_DEFINIDA": "do_ambiente"}, clear=True):
+                carregadas = carregar_dotenv(caminho)
+                self.assertEqual(
+                    carregadas,
+                    {
+                        "AZURE_SPEECH_KEY": "chave",
+                        "AZURE_SPEECH_REGION": "brazilsouth",
+                        "AZURE_LANGUAGE_KEY": "outra",
+                        "AZURE_LANGUAGE_ENDPOINT": "https://x.cognitiveservices.azure.com/",
+                    },
+                )
+                self.assertEqual(os.environ["JA_DEFINIDA"], "do_ambiente")
+                self.assertEqual(os.environ["AZURE_SPEECH_REGION"], "brazilsouth")
+
+    def test_arquivo_ausente_nao_falha(self):
+        from fase4.config import carregar_dotenv
+
+        self.assertEqual(carregar_dotenv(Path("nao/existe/.env")), {})
