@@ -10,12 +10,15 @@ alertas automáticos para a equipe médica.
 
 Mantivemos o módulo isolado em `fase4/`, como fizemos com a Fase 3, para não
 alterar o funcionamento das fases anteriores. As 74 verificações automatizadas
-que já existiam continuam passando, e acrescentamos 84 testes específicos
+que já existiam continuam passando, e acrescentamos 163 testes específicos
 desta fase.
 
-Todos os dados são sintéticos e gerados pelo próprio repositório. Nenhum
-resultado foi validado para uso assistencial: qualquer conduta exige avaliação
-do profissional responsável.
+Os dados principais são sintéticos e gerados pelo próprio repositório. Duas
+execuções complementares usam dados que não geramos: um registro real de
+monitor de leito do PhysioNet (§5.10) e uma consulta com fala inteligível
+sintetizada pela voz do sistema operacional, transcrita por um reconhecedor
+real (§5.11). Nenhum resultado foi validado para uso assistencial: qualquer
+conduta exige avaliação do profissional responsável.
 
 ## 2. Dados
 
@@ -146,7 +149,33 @@ Pose: ele entrega a mesma saída que a análise consome (keypoints 2D do corpo,
 com confiança por ponto) e instala por `pip`, enquanto o OpenPose exige
 compilar Caffe com CUDA — inviável de reproduzir nas máquinas da equipe e no
 CI. O mapeamento dos 33 pontos do MediaPipe para as 13 articulações que usamos
-está em `_INDICES_MEDIAPIPE`.
+está em `_INDICES_MEDIAPIPE`. O backend aceita as duas APIs do MediaPipe: a
+legada (`mp.solutions.pose`, até a série 0.10) e a Tasks (`PoseLandmarker`,
+0.10.30+ e 1.x), porque a versão fixada originalmente (0.10.21) não existe
+para o Python 3.13 usado pela equipe; o modelo `pose_landmarker_lite.task` é
+baixado uma vez.
+
+O YOLOv8 genérico (classes COCO) não conhece `dreno`, `mao_paciente` nem
+`profissional`, e sem isso as regras de evento nunca disparariam em vídeo
+real. Três adaptações resolvem isso sem treinar um detector:
+
+- a área crítica pode ser informada manualmente (`--area-critica x1,y1,x2,y2`,
+  em pixels), pelo fisioterapeuta que conhece a posição do dreno naquela
+  sessão; o relatório registra a origem (`anotada`, `manual` ou `nenhuma`);
+- quando o detector não fornece a caixa da mão, a mão do paciente passa a ser
+  o keypoint do punho do estimador de pose, com um raio de 11 px (metade da
+  caixa de mão das amostras); um teste verifica que, com a ROI manual e os
+  punhos anotados, o achado de invasão reproduz o da caixa anotada;
+- com o detector genérico, "profissional presente" passa a ser "duas ou mais
+  pessoas em cena".
+
+Os dois backends reais foram exercitados em testes com módulos `mediapipe` e
+`ultralytics` falsos — que leem o `fisioterapia.mp4` sintético de verdade com
+o OpenCV e devolvem landmarks e caixas controlados — e numa execução real
+sobre o mesmo vídeo (MediaPipe 1.2, Ultralytics 8.4). A execução real roda de
+ponta a ponta e registra zero quadros com pose: o esqueleto desenhado não é
+uma pessoa, e isso é o resultado esperado. A validação com uma pessoa
+filmada continua pendente (§8).
 
 Sobre os keypoints calculamos três ângulos:
 
@@ -193,20 +222,48 @@ A camada de linguagem usa os serviços gerenciados pedidos no enunciado:
 | Serviço | Uso | Substituto offline |
 | --- | --- | --- |
 | Azure Speech to Text | reconhecimento contínuo do WAV, com segmentos e confiança por trecho | transcrição de referência gravada com o áudio sintético |
-| Azure Text Analytics | sentimento e frases-chave | sentimento por léxico com massa neutra fixa |
+| Azure Text Analytics | sentimento, frases-chave e entidades clínicas (Text Analytics for health, com NER genérico de reserva) | sentimento por léxico com massa neutra fixa |
 
-Nos dois provedores, quem decide alerta de conteúdo é o léxico clínico de
+Em todos os provedores, quem decide alerta de conteúdo é o léxico clínico de
 `fase4/data/termos_criticos_audio.json`, com oito categorias e peso por
 categoria. As frases-chave da Azure dizem o que é saliente no texto, não o que
 é clinicamente crítico — essa é uma decisão institucional, não estatística.
+Com a Azure, porém, a identificação dos termos passa a ser feita também pelo
+serviço, como pede o enunciado: cada entidade clínica reconhecida é cruzada
+com o léxico (a que casa herda categoria e peso) e um sintoma ou diagnóstico
+fora do léxico, com confiança ≥ 0,8, entra como termo informativo — a Azure
+identificou, o hospital ainda não decidiu a prioridade. Textos longos são
+divididos em documentos de até 5.000 caracteres em fim de frase e enviados
+em lotes de 10, porque o serviço limita 5.120 caracteres por documento e uma
+consulta de 20 minutos transcrita passa disso com folga; o sentimento final é
+a média dos scores ponderada pelo tamanho de cada documento.
 
-As três regras vocais:
+Há um terceiro provedor só para a transcrição, `local`, que roda o
+faster-whisper (modelo `small`, CPU, int8) na própria máquina. Ele existe
+para demonstrar reconhecimento de fala real sem credencial da Azure e precisa
+ser pedido explicitamente: `auto` continua escolhendo entre `azure` e
+`offline`. Quando a transcrição vem de um reconhecedor real e há transcrição
+de referência ao lado do WAV, o relatório calcula a taxa de erro de palavras
+(WER), normalizando acentos, caixa e pontuação.
+
+As quatro regras vocais:
 
 | Regra | Critério |
 | --- | --- |
 | Fala entrecortada | proporção de pausa ≥ 0,42 **e** frase média ≤ 1,6 s |
 | Fadiga vocal | queda de energia ≥ 30% **ou** taxa de fala ≤ 2,2 sílabas/s |
 | Instabilidade vocal | variação relativa da F0 entre quadros ≥ 0,0025 |
+| Padrão disartrico | taxa de fala ≤ 2,2 sílabas/s **e** (F0 instável **ou** desvio-padrão da F0 ≤ 8 Hz) |
+
+O enunciado cita disartria entre os sintomas relacionados à fala. A regra
+usa os marcadores acústicos clássicos descritos na literatura (Darley,
+Aronson e Brown): fala lenta, controle fonatório alterado e voz monótona
+(*monopitch*). Ela é um indicador de triagem, não distingue o tipo de
+disartria e não substitui avaliação fonoaudiológica; a descrição da
+instabilidade vocal também passou a nomear a articulação imprecisa como
+indicador de disartria. O limiar de monotonia (8 Hz) foi calibrado nas
+amostras sintéticas — 2,8 Hz na voz estável contra 15,9 Hz na voz com piora
+— e precisaria ser recalibrado em fala natural, cuja variação de F0 é maior.
 
 O último limiar merece uma ressalva. Nossa medida é a variação relativa da F0
 entre quadros consecutivos de 10 ms, não o jitter período a período que
@@ -238,11 +295,25 @@ quatro detectores complementares, cada um cobrindo o ponto cego dos outros.
 
 Três decisões de projeto nesta parte:
 
-**Os três primeiros detectores são incrementais.** Recebem uma amostra por vez
-e decidem com o que já passou. Isso permitiu usar o mesmo código no
-processamento em lote (`avaliar_serie`) e no monitoramento em tempo real
-(`monitorar_em_tempo_real`), sem duplicar regras — e um teste verifica que os
-dois caminhos produzem exatamente os mesmos achados.
+**Todos os detectores são incrementais.** Os três por canal recebem uma
+amostra por vez e decidem com o que já passou. Isso permitiu usar o mesmo
+código no processamento em lote (`avaliar_serie`) e no monitoramento em tempo
+real (`monitorar_em_tempo_real`), sem duplicar regras — e um teste verifica
+que os dois caminhos produzem exatamente os mesmos achados. O Isolation Forest
+tem uma versão online (`DetectorMultivariadoOnline`) que acumula as duas
+primeiras horas, ajusta o modelo uma única vez e pontua cada leitura seguinte;
+o episódio é reconstruído com a mesma regra do lote (união de pontos anômalos
+separados por até 5 minutos) e o achado sai no minuto em que o episódio
+completa 15 minutos — o preço de não olhar o futuro. Um teste confirma que o
+episódio do `PAC-0006` é o mesmo nos dois modos (mesmo início, mesmo corte,
+mesmos canais alterados).
+
+**Leitura faltante não é leitura.** Canal ausente no arquivo é simplesmente
+ignorado, e uma leitura `NaN` (buraco de sensor) não entra em nenhuma regra:
+ela não é normal nem anormal. Sem isso, um único `NaN` nas duas primeiras
+horas silenciava para sempre a regra de tendência daquele canal (a mediana do
+basal virava `NaN`) e derrubava o Isolation Forest. A correção veio da
+validação em dados reais (§5.10), onde buracos são a regra, não a exceção.
 
 **Todos exigem leituras consecutivas e têm histerese.** A confirmação em 3
 leituras seguidas é o que separa deterioração de artefato de sensor. A
@@ -327,7 +398,7 @@ Para reduzir avisos repetidos sobre o mesmo paciente, usamos três mecanismos:
 | Absorção | quando a fusão identifica um quadro, as famílias que o sustentam não geram alerta próprio — quem avisa é o alerta do quadro, mais informativo e de prioridade maior |
 | Supressão temporal | o mesmo grupo não é reenviado dentro de 15 minutos |
 
-Com os três, os 46 achados do `PAC-0006` produzem 6 alertas. Duas garantias
+Com os três, os 47 achados do `PAC-0006` produzem 6 alertas. Duas garantias
 acompanham a absorção: o alerta do quadro nunca é menos grave que o pior
 achado que ele absorveu, e ele é roteado para as equipes de todas as
 modalidades envolvidas — foi a soma delas que levantou o quadro, e cada uma
@@ -348,6 +419,21 @@ prescrição:
 
 Achados informativos entram no relatório mas nunca geram notificação.
 
+**Entrega.** O alerta não termina no terminal. O motor recebe uma lista de
+canais (`CanalEntrega`) e, ao final de cada ciclo, entrega cada alerta a cada
+canal: uma fila *append-only* em JSON Lines (`fila_alertas.jsonl` na pasta da
+execução, sempre) e um webhook HTTP (`POST` do alerta em JSON para
+`FASE4_WEBHOOK_URL`, quando definida). A fila é o contrato mais simples que um
+sistema hospitalar consegue consumir; o webhook é o caminho para um painel,
+um pager ou um canal de mensagens. Falha de canal vira evento
+`entrega_falhou` na auditoria e nunca interrompe o monitoramento; o alerta
+registra por onde passou (`canais_entrega`), e isso aparece no relatório.
+`fase4/receptor_webhook_demo.py` sobe um receptor local que imprime os
+alertas recebidos, para a demonstração do fluxo final. Um teste levanta esse
+receptor numa porta livre e verifica que os três alertas de um ciclo chegam
+por POST; outro aponta o webhook para uma porta fechada e verifica que o
+pipeline segue, com as falhas contadas e a fila intacta.
+
 ## 5. Resultados
 
 ### 5.1 Consolidado
@@ -355,16 +441,16 @@ Achados informativos entram no relatório mas nunca geram notificação.
 | Métrica | `PAC-0006` (deterioração) | `PAC-0002` (controle) |
 | --- | ---: | ---: |
 | Modalidades processadas | 5 | 4 |
-| Achados das modalidades | 41 | 5 |
+| Achados das modalidades | 42 | 5 |
 | — críticos | 12 | 0 |
-| — de atenção | 19 | 0 |
+| — de atenção | 20 | 0 |
 | — informativos | 10 | 5 |
 | Quadros multimodais | 5 | 0 |
-| Achados totais | 46 | 5 |
+| Achados totais | 47 | 5 |
 | Alertas emitidos | **6** | **0** |
 | Risco calculado | **100,0 (alto)** | **6,5 (baixo)** |
 
-Os 41 achados das modalidades vêm de vídeo (9), áudio (9), sinais vitais (18),
+Os 42 achados das modalidades vêm de vídeo (9), áudio (10), sinais vitais (18),
 prescrições (3) e movimentação (2); os 5 quadros multimodais são produzidos
 pela fusão a partir deles.
 
@@ -449,6 +535,7 @@ passou de 97,2°, também não.
 | 00:11,44 | atenção | queixa de dor: "dor aumentou" |
 | 00:16,05 | atenção | fadiga vocal (queda de energia 0,42; taxa de fala 1,31 sílabas/s) |
 | — | atenção | instabilidade vocal (variação da F0 0,0038) |
+| — | atenção | padrão disartrico (taxa de fala reduzida, F0 instável) |
 
 A comparação entre os dois pacientes mostra que os atributos acústicos
 separam bem os casos:
@@ -462,8 +549,10 @@ separam bem os casos:
 | Variação da F0 | 0,0038 | 0,0006 |
 | F0 média | 173,4 Hz | 201,9 Hz |
 
-Nenhuma das três regras vocais disparou no `PAC-0002`, e nenhum termo crítico
-foi encontrado na transcrição dele.
+Nenhuma das quatro regras vocais disparou no `PAC-0002`, e nenhum termo
+crítico foi encontrado na transcrição dele. A voz estável tem desvio de F0 de
+2,8 Hz — abaixo do limiar de monotonia — mas a taxa de fala normal impede o
+padrão disartrico, que exige as duas coisas.
 
 ### 5.6 Anomalias detectadas nas prescrições e na movimentação
 
@@ -509,21 +598,29 @@ considerar suporte de oxigênio.
 | laranja | paciente executou o exercício sem profissional em cena por 4,0 s | reabilitação |
 
 Cinco dos seis alertas são quadros multimodais; o sexto é o único achado de
-vídeo que nenhum quadro explicava. Dos 46 achados, 36 eram notificáveis (os 10
+vídeo que nenhum quadro explicava. Dos 47 achados, 37 eram notificáveis (os 10
 informativos nunca geram alerta) e resultaram em 6 notificações — uma redução
-de 83% em relação aos achados notificáveis.
+de 84% em relação aos achados notificáveis.
 
 Nenhuma informação se perdeu no caminho: cada alerta carrega os achados que o
-sustentam, e o relatório consolidado lista todos os 46 com instante e
-evidência.
+sustentam, e o relatório consolidado lista todos os 47 com instante e
+evidência. Os seis alertas foram entregues na fila
+`resultados/fase4/fila_alertas.jsonl` (seis linhas, uma por alerta), e cada
+um registra `canais_entrega = ["fila_jsonl"]`.
 
 ### 5.9 Integração com a Azure
 
 A integração com Azure Speech to Text e Azure Text Analytics está
 implementada em `fase4/azure_services.py`. Os provedores usam as estruturas
 `ResultadoTranscricao` e `ResultadoAnaliseTexto`. Os testes executam o modo
-offline e simulam as respostas do SDK Speech, incluindo falhas. Isso não
-comprova a execução dos serviços em nuvem.
+offline e simulam as respostas dos dois SDKs: no Speech, sucesso,
+cancelamento, ausência de fala e tempo limite; no Text Analytics, a divisão
+de um texto de 61 mil caracteres em 13 documentos e 2 lotes, a média
+ponderada do sentimento, a herança de categoria e peso por uma entidade que
+casa com o léxico, o sintoma fora do léxico que vira termo informativo, a
+queda para o NER genérico quando o recurso de saúde não existe e a falha
+explícita quando um documento retorna erro. Isso não comprova a execução dos
+serviços em nuvem.
 
 Os resultados numéricos deste relatório foram produzidos com o provedor
 `offline`, sem credenciais Azure disponíveis nesta execução. O relatório
@@ -543,6 +640,86 @@ credencial, o pipeline falha com mensagem explícita — preferimos isso a cair
 silenciosamente para o modo local, porque uma execução que diz ter usado a
 Azure precisa ter usado a Azure.
 
+### 5.10 Validação dos detectores em dados reais (PhysioNet)
+
+O enunciado sugere o PhysioNet. Baixamos um registro numérico de acesso
+aberto do **MIMIC-III Waveform Database Matched Subset** (v1.0, licença
+ODbL, DOI 10.13026/c2294b): `p04/p044083/p044083-2112-05-04-19-50n`, 45,8 h
+de monitor de leito a 1 Hz com frequência cardíaca, pressão arterial
+invasiva, SpO2 e frequência respiratória. `fase4/data/baixar_physionet.py`
+reamostra para mediana por minuto, arrasta buracos de até 5 minutos,
+descarta minutos sem leitura completa e grava no esquema de
+`sinais_vitais.csv`, com `fonte.json` registrando procedência, mapeamento de
+sinais e preenchimentos. Não há temperatura nos numéricos do MIMIC; a coluna
+fica ausente e os detectores seguem com cinco canais.
+
+Das primeiras 12 horas (721 minutos), 679 foram exportados e 42 descartados
+por falta de leitura. `fase4/validacao_physionet.py` aplicou os mesmos
+detectores, com os mesmos limiares calibrados nas amostras sintéticas:
+
+| Métrica | Valor |
+| --- | ---: |
+| Minutos analisados | 679 (11,3 h) |
+| Achados | 48 |
+| — informativos (leituras isoladas não confirmadas) | 23 |
+| — de atenção (tendência e mudança abrupta) | 15 |
+| — críticos (limite clínico e multivariado) | 10 |
+| Achados notificáveis por hora | 2,2 |
+| Episódios do Isolation Forest em lote | 4 |
+| Episódios do Isolation Forest em tempo real | 4 |
+| Alertas após consolidação | 4 |
+
+O registro é de um paciente de UTI com pressão arterial caindo de 136 mmHg
+(mediana do basal) para 108 mmHg e saturação chegando a 71%, e os detectores
+reagiram a isso: tendências de queda de pressão sistólica e diastólica,
+limites críticos de pressão diastólica, saturação e frequência respiratória,
+e quatro episódios multivariados concentrados na madrugada — idênticos no
+lote e no modo online. Também apareceu o que esperávamos de dados reais: 23
+leituras isoladas não confirmadas em 11 horas, tratadas como artefato e
+nunca como alerta, e 42 minutos descartados por buraco de sensor, que foi o
+que motivou as guardas contra `NaN` (§4.3).
+
+O que isso valida e o que não valida precisa ficar claro. Não há rótulo de
+desfecho no registro, então não medimos sensibilidade nem especificidade.
+Medimos que os detectores rodam em dados reais sem erro, que a taxa de
+alertas após consolidação (4 em 11 horas) é compatível com um painel de
+plantão, e que o detector online reproduz o lote. O relatório completo está
+em `resultados/fase4/physionet/p044083-2112-05-04-19-50n/relatorio_physionet.md`.
+
+### 5.11 Fala real com transcrição local
+
+O `consulta.wav` sintético não tem palavras. Para exercitar a camada de
+linguagem em fala real, `fase4/data/gerar_fala_tts.py` lê a transcrição de
+referência de cada paciente com a voz pt-BR do Windows (Microsoft Maria),
+preserva as pausas da referência e grava `consulta_fala.wav` (24,9 s para o
+`PAC-0006`, 14,3 s para o `PAC-0002`). O pipeline foi executado com
+`--audio consulta_fala.wav --provedor-azure local` e os resultados estão em
+`resultados/fase4/fala_real/`:
+
+| | `PAC-0006` | `PAC-0002` |
+| --- | ---: | ---: |
+| Confiança média da transcrição | 0,90 | 0,77 |
+| Taxa de erro de palavras (WER) | **0,0%** | 11,4% |
+| Termos críticos encontrados | sem ar, aperto no peito, febre, muito cansada, não aguento, dor aumentou | nenhum |
+| Sentimento (léxico) | negativo | positivo |
+
+A transcrição real do `PAC-0006` reproduziu palavra a palavra a referência e
+o léxico encontrou todos os seis termos críticos, com instante por segmento;
+no `PAC-0002`, os erros do reconhecedor não criaram nenhum falso termo
+crítico. É o comportamento que a Azure deve ter quando for executada com a
+mesma gravação.
+
+Dois resultados secundários são informativos. Primeiro, as regras acústicas
+calibradas no sinal sintético não se aplicam à voz do TTS: a variação da F0
+medida fica em 0,022 nas duas gravações (contra o corte de 0,0025) e a
+instabilidade vocal dispara para os dois pacientes, enquanto a fadiga vocal e
+o padrão disartrico não disparam para nenhum. A voz sintetizada é articulada
+e estável por construção, e o nosso *jitter* não é o da acústica clínica
+(§4.2): o resultado confirma a limitação já declarada, não a contradiz.
+Segundo, a fala entrecortada disparou no `PAC-0006` porque as pausas da
+referência foram preservadas — a regra responde ao padrão temporal da fala,
+e não à voz.
+
 ## 6. Monitoramento em tempo real
 
 O modo `--tempo-real` percorre a série minuto a minuto, como se as leituras
@@ -557,30 +734,42 @@ dependem de ver a série inteira: a cada minuto o detector decide com o que já
 passou. Um teste automatizado compara a saída do modo incremental com a do
 processamento em lote e exige que os achados sejam idênticos, na mesma ordem.
 
-O Isolation Forest fica fora desse laço por depender de um modelo treinado; na
-prática, ele seria reavaliado em janelas periódicas, e não a cada leitura.
+O Isolation Forest entra nesse laço pelo `DetectorMultivariadoOnline`
+(§4.3): treina nas duas primeiras horas e pontua cada leitura seguinte, e o
+episódio é confirmado no minuto em que completa 15 minutos.
 
 Os *achados* são os mesmos nos dois modos, mas os *alertas* não: no modo em
-tempo real a execução emite 4 alertas em vez dos 6 do lote. A diferença é
+tempo real a execução emite 5 alertas em vez dos 6 do lote. A diferença é
 esperada e vem da supressão temporal. Das seis tendências detectadas, três são
 agrupadas porque caem na janela de 15 minutos de uma anterior (a alta de
 temperatura das 17:01 dentro da janela aberta às 16:51, a queda de saturação
 das 17:20 dentro da aberta às 17:07, e a queda de pressão diastólica das 17:44
 dentro da aberta às 17:43); o mesmo vale para o limite crítico de frequência
 respiratória das 18:17, suprimido pelo de temperatura das 18:03. É o
-comportamento desejado: a equipe de plantão recebe quatro avisos ao longo de
+comportamento desejado: a equipe de plantão recebe cinco avisos ao longo de
 duas horas, e não um por minuto. No modo em lote, em que o turno inteiro é
 avaliado de uma vez, a consolidação por família dá o mesmo efeito.
 
-A saída do turno completo do `PAC-0006`:
+A saída do turno completo do `PAC-0006`, com cada alerta entregue na fila:
 
 ```text
 10:30  (nota) Leitura isolada de frequencia cardiaca fora do padrao recente (185)
-16:51  [LARANJA] Tendencia de alta sustentada de frequencia cardiaca: 93.5 contra 82.7
-17:07  [LARANJA] Tendencia de alta sustentada de frequencia respiratoria: 19.2 contra 16.2
-17:43  [LARANJA] Tendencia de queda sustentada de pressao sistolica: 112.8 contra 125.1
-18:03  [VERMELHO] Temperatura acima do limite critico: 38.08 C (limite 38)
+16:23  (isolation forest) episodio multivariado desde 16:09
+16:23  [VERMELHO] Combinacao anomala de sinais vitais (frequencia cardiaca, temperatura, frequencia respiratoria) [fila_jsonl]
+16:51  [LARANJA] Tendencia de alta sustentada de frequencia cardiaca: 93.5 contra 82.7 [fila_jsonl]
+17:07  [LARANJA] Tendencia de alta sustentada de frequencia respiratoria: 19.2 contra 16.2 [fila_jsonl]
+17:43  [LARANJA] Tendencia de queda sustentada de pressao sistolica: 112.8 contra 125.1 [fila_jsonl]
+18:03  [VERMELHO] Temperatura acima do limite critico: 38.08 C (limite 38) [fila_jsonl]
 ```
+
+O primeiro alerta do turno passa a ser o do Isolation Forest online, às
+16:23 — 14 minutos depois do início do episódio (16:09), 28 minutos antes da
+primeira tendência confirmada e **1 h 40 min** antes do primeiro limite
+clínico. No lote, o mesmo episódio aparecia com o instante do pior score
+(17:08), que é quando ele fica mais evidente, não quando começa; o modo online
+revela que a combinação anômala já era detectável às 16:09, nove minutos
+depois da piora injetada. É o resultado mais relevante desta fase para o
+objetivo de "detecção em tempo real para monitoramento preventivo".
 
 ## 7. Testes
 
@@ -588,10 +777,12 @@ A saída do turno completo do `PAC-0006`:
 python -m unittest discover -s tests -v
 ```
 
-São 158 testes no total: os 74 das fases anteriores, que continuam passando, e
-84 desta fase. Nenhum depende de rede ou de chave da Azure: o pipeline usa
-o modo offline e os testes do SDK usam respostas simuladas. As amostras são
-geradas em diretório temporário.
+São 237 testes no total: os 74 das fases anteriores, que continuam passando, e
+163 desta fase, em sete arquivos. Nenhum depende de rede, de chave da Azure
+nem dos pacotes opcionais: o pipeline usa o modo offline, os SDKs da Azure, o
+MediaPipe, o YOLOv8 e o faster-whisper são substituídos por módulos falsos
+injetados em `sys.modules`, e o webhook é testado contra um servidor HTTP
+local. As amostras são geradas em diretório temporário.
 
 Os testes da Fase 4 cobrem, entre outros:
 
@@ -600,33 +791,44 @@ Os testes da Fase 4 cobrem, entre outros:
 | Geração de amostras | reprodutibilidade por `seed`, estrutura das séries, modalidade ausente |
 | Ângulos articulares | casos de referência conhecidos (0°, 45°, 90°, 140°), braço cruzando o corpo |
 | Filtro de ruído de pose | pico isolado não vira desvio; keypoint de baixa confiança é ignorado |
-| Atributos acústicos | voz cansada contra voz estável em cada atributo |
-| Serviços Azure | contrato dos dois provedores, falha explícita sem credencial, busca sem acento |
+| Backends reais de vídeo | MediaPipe (API legada e Tasks) e YOLOv8 falsos lendo o vídeo real; ROI manual reproduz a invasão anotada; "duas pessoas em cena"; sessão completa com os dois backends |
+| Atributos acústicos | voz cansada contra voz estável em cada atributo; padrão disartrico dispara só com fala lenta |
+| WER e transcrição local | distância de edição por palavra; whisper falso com confiança por `avg_logprob`; `auto` nunca escolhe `local` |
+| Serviços Azure | Speech: sucesso, cancelamento, sem fala, tempo limite; Text Analytics: chunking, lotes de 10, sentimento ponderado, entidades, NER de reserva, erro por documento |
 | Máquina de estados das regras | confirmação, não repetição, artefato, histerese |
-| Detectores de série | controle sem alerta, artefato não confirmado, tendência antes do limite, equivalência lote/tempo real |
+| Detectores de série | controle sem alerta, artefato não confirmado, tendência antes do limite, equivalência lote/tempo real, Isolation Forest online igual ao lote, canal ausente e `NaN` |
 | Prescrições | as três regras, e os casos em que não devem disparar |
 | Fusão | exigência de duas modalidades, severidade nunca rebaixada, absorção de famílias, risco limitado a 100 |
-| Alertas | consolidação, absorção, prioridade, supressão temporal, roteamento multimodal |
-| Pipeline | caso completo, controle sem alerta, modalidade ausente, redução de notificações |
+| Alertas e entrega | consolidação, absorção, prioridade, supressão temporal, roteamento multimodal; fila com uma linha por alerta; webhook recebido por servidor local; falha de canal não derruba o motor |
+| PhysioNet | reamostragem e renomeação, fallback para pressão não invasiva, buracos longos descartados, valores impossíveis, runner sobre CSV sintético, round-trip WFDB |
+| Pipeline | caso completo, controle sem alerta, modalidade ausente, redução de notificações, fila gravada na raiz da execução |
 
 ## 8. Limitações
 
 São limitações do trabalho, não detalhes a ajustar:
 
-1. **Os dados são sintéticos.** Os limiares foram calibrados contra amostras
-   que nós mesmos geramos. Eles não têm validade clínica e serviriam apenas de
-   ponto de partida num estudo com dados reais.
+1. **Os dados principais são sintéticos.** Os limiares foram calibrados
+   contra amostras que nós mesmos geramos. Eles não têm validade clínica e
+   serviriam apenas de ponto de partida num estudo com dados reais. A
+   validação no registro do PhysioNet (§5.10) mostra comportamento e taxa de
+   alertas em dados reais, mas sem rótulo de desfecho não mede acurácia.
 2. **O vídeo não é uma gravação de pessoa.** É um esqueleto articulado
    desenhado programaticamente. Os keypoints vêm de anotação, não de inferência
-   sobre pixels. O backend MediaPipe está implementado para vídeo real, mas não
-   foi exercitado com um, porque não temos vídeo clínico autorizado.
-3. **O áudio não é fala humana.** É um sinal vozeado sintetizado com F0,
-   jitter, taxa silábica e ruído respiratório controlados. Ele valida que o
-   extrator de atributos reage ao que deveria; não substitui validação com voz
-   de pacientes.
+   sobre pixels. Os backends MediaPipe e YOLOv8 rodam de ponta a ponta sobre
+   esse vídeo (e são testados com módulos falsos), mas não foram exercitados
+   com uma pessoa filmada, porque não temos vídeo clínico autorizado. A área
+   crítica em vídeo real depende de ROI informada manualmente.
+3. **O áudio principal não é fala humana.** É um sinal vozeado sintetizado
+   com F0, jitter, taxa silábica e ruído respiratório controlados. A fala
+   gerada por TTS (§5.11) é inteligível e foi transcrita por um reconhecedor
+   real, mas é uma voz sintética estável: valida a camada de linguagem, não
+   as regras acústicas de fadiga e disartria, cujos limiares não se transferem
+   para voz natural sem recalibração.
 4. **A Azure não foi executada de fato.** A integração está implementada e
-   testada quanto ao contrato, mas os números deste relatório vieram do
-   provedor offline.
+   testada quanto ao contrato (incluindo entidades clínicas e divisão em
+   documentos), mas os números deste relatório vieram dos provedores
+   `offline` e `local`. O `consulta_fala.wav` deixa a execução com a Azure
+   pronta para quando houver credencial.
 5. **A fusão é baseada em regras.** Sem dados rotulados de desfecho não há
    como treinar nem avaliar uma fusão supervisionada. As cinco regras cobrem
    os quadros que os dados sintéticos contêm, e não um conjunto exaustivo de
@@ -640,30 +842,39 @@ São limitações do trabalho, não detalhes a ajustar:
 
 ## 9. Conclusão
 
-O protótipo implementa os módulos de vídeo, áudio, detecção de anomalias e
-fusão multimodal. A execução validada neste relatório usa dados sintéticos,
-poses anotadas e transcrições de referência. As integrações Azure e os modelos
-de percepção ainda precisam ser executados com gravações autorizadas para
-completar a demonstração exigida no enunciado.
+O protótipo implementa os módulos de vídeo, áudio, detecção de anomalias,
+fusão multimodal e entrega de alertas. A execução principal deste relatório
+usa dados sintéticos, poses anotadas e transcrições de referência; as
+execuções complementares usam um registro real de monitor de leito do
+PhysioNet e uma consulta com fala inteligível transcrita por reconhecedor
+real. As integrações com a Azure e os modelos de percepção em pessoa filmada
+ainda precisam ser executados com gravações autorizadas para completar a
+demonstração exigida no enunciado.
 
-Os alertas são gerados no terminal e em arquivos, sem envio a uma equipe real.
-O modo incremental reproduz uma série gravada; não está conectado a um monitor
-hospitalar. Também está pendente a gravação e publicação do vídeo de até
-15 minutos no YouTube ou Vimeo.
+Os alertas são entregues numa fila JSON Lines e, quando configurado, por
+webhook HTTP a um receptor; não há integração com um sistema hospitalar real.
+O modo incremental reproduz uma série gravada; não está conectado a um
+monitor. Também está pendente a gravação e publicação do vídeo de até 15
+minutos no YouTube ou Vimeo.
 
 O YOLOv8 padrão reconhece classes genéricas e não identifica drenos nem
-distingue paciente e profissional. Os testes dessas regras usam anotações.
-O áudio sintético não contém fala inteligível: seu texto de referência serve
-ao teste offline, não à validação de reconhecimento de voz.
+distingue paciente e profissional; em vídeo real a área crítica vem de ROI
+manual e a mão do keypoint do punho. O áudio sintético principal não contém
+fala inteligível; a fala por TTS cobre a camada de linguagem.
 
-Dois resultados nos parecem os mais relevantes. O primeiro é a antecipação:
-combinando detecção de tendência e análise multivariada, a deterioração foi
-sinalizada 1 h 12 min antes de qualquer limiar fixo ser cruzado, que é
-exatamente o tipo de margem que importa num monitoramento preventivo. O
-segundo é a redução de ruído: a fusão multimodal transformou 36 achados
-notificáveis em 6 alertas contextualizados e roteados, sem descartar informação —
-sem isso, o sistema teria o defeito que mais inviabiliza painéis clínicos na
-prática, que é alertar tanto que ninguém olha.
+Três resultados nos parecem os mais relevantes. O primeiro é a antecipação:
+no modo em tempo real, o Isolation Forest online sinaliza a combinação
+anômala às 16:23, 1 h 40 min antes de qualquer limiar fixo ser cruzado, e a
+detecção por tendência confirma às 16:51 — exatamente o tipo de margem que
+importa num monitoramento preventivo. O segundo é a redução de ruído: a
+fusão multimodal transformou 37 achados notificáveis em 6 alertas
+contextualizados, roteados e entregues, sem descartar informação — sem isso,
+o sistema teria o defeito que mais inviabiliza painéis clínicos na prática,
+que é alertar tanto que ninguém olha. O terceiro é que os detectores se
+comportaram em dados reais como se comportaram nos sintéticos: 11 horas de
+um paciente de UTI do MIMIC-III produziram 4 alertas consolidados, quatro
+episódios multivariados idênticos em lote e online, e nenhum erro diante dos
+buracos de sensor que dados reais sempre têm.
 
 ---
 

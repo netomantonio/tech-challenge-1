@@ -178,7 +178,35 @@ AZURE_LANGUAGE_ENDPOINT definidas e os SDKs de requirements-fase4.txt
 instalados, o provedor auto passa a usar a nuvem sem nenhuma outra mudanca. E
 se alguem pedir --provedor-azure azure sem credencial, o pipeline falha com
 mensagem explicita: uma execucao que diz ter usado a Azure precisa ter usado a
-Azure."
+Azure.
+
+Na Azure, a identificacao de termos criticos tambem passa pelo servico: as
+entidades clinicas do Text Analytics for health sao cruzadas com o lexico, e
+textos longos sao divididos em documentos de ate cinco mil caracteres, o
+limite do servico."
+
+[Tocar fase4/data/amostras/PAC-0006/consulta_fala.wav por uns 6 segundos]
+
+"Para mostrar a camada de linguagem em fala de verdade, geramos a mesma
+consulta com a voz em portugues do Windows a partir da transcricao de
+referencia, e transcrevemos com um reconhecedor local, o faster-whisper, que
+e o terceiro provedor, pedido explicitamente."
+
+[Terminal]
+python -m fase4.cli_demo --paciente-id PAC-0006 --audio consulta_fala.wav --provedor-azure local --dir-saida resultados/fase4/fala_real
+
+[Mostrar a secao "Analise de audio": transcricao, WER e termos criticos]
+
+"A transcricao reproduziu a referencia com zero por cento de erro de
+palavras, e o lexico encontrou os seis termos criticos na fala reconhecida:
+sem ar, aperto no peito, febre, muito cansada, nao aguento, dor aumentou. No
+PAC-0002 a transcricao teve onze por cento de erro e nenhum falso termo
+critico. E esse o comportamento que a Azure deve ter com a mesma gravacao.
+
+Repare que as regras acusticas de fadiga nao disparam na voz sintetizada, e
+a instabilidade vocal dispara nas duas: a voz do TTS e estavel por
+construcao e o nosso jitter nao e o da acustica clinica. Esta e uma
+limitacao declarada no relatorio, e o resultado a confirma."
 
 ===============================================================================
 CENA 5 - DETECCAO DE ANOMALIAS (3 min)
@@ -210,7 +238,9 @@ detector de emitir um achado por minuto durante as tres horas de piora.
 Terceira: o Isolation Forest e treinado so no basal, nao na serie inteira.
 Treinar com a serie completa usaria informacao do futuro para decidir o
 presente e inflaria o resultado. No monitoramento real, o que existe quando o
-paciente e admitido e o basal dele."
+paciente e admitido e o basal dele. E ele tambem roda no modo em tempo real:
+treina nas duas primeiras horas e pontua cada leitura seguinte, confirmando o
+episodio no minuto em que ele completa quinze minutos."
 
 [Terminal]
 python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real --atraso 0.005
@@ -226,15 +256,34 @@ dizendo que a leitura nao se repetiu e foi tratada como artefato de sensor. Esse
 pico foi colocado na serie de proposito, e tem um teste automatizado que
 verifica exatamente isso.
 
-A piora comeca as 16h. Primeiro alerta: 16h51, tendencia de alta da frequencia
-cardiaca. 17h08, o Isolation Forest confirma a combinacao anomala de frequencia
-cardiaca, temperatura e frequencia respiratoria. Depois vem saturacao, pressao
-sistolica e diastolica.
+A piora comeca as 16h. Primeiro alerta: 16h23, o Isolation Forest online
+confirma um episodio de combinacao anomala de frequencia cardiaca,
+temperatura e frequencia respiratoria que comecou as 16h09 - nove minutos
+depois da piora injetada. 16h51, tendencia de alta da frequencia cardiaca.
+Depois vem frequencia respiratoria, pressao sistolica e o restante. Cada
+alerta sai com a marca do canal por onde foi entregue: a fila de alertas.
 
 O primeiro limite clinico so e cruzado as 18h03, quando a temperatura passa de
-38 graus. Ou seja: a deteccao por tendencia antecipou em uma hora e doze
-minutos o momento em que um monitor com limiar fixo - que e o mais comum - teria
-disparado. Essa e a margem que importa num monitoramento preventivo."
+38 graus. Ou seja: a analise multivariada antecipou em uma hora e quarenta
+minutos, e a tendencia em uma hora e doze, o momento em que um monitor com
+limiar fixo - que e o mais comum - teria disparado. Essa e a margem que
+importa num monitoramento preventivo."
+
+[Abrir resultados/fase4/physionet/p044083-2112-05-04-19-50n/relatorio_physionet.md]
+
+"O enunciado sugere o PhysioNet, e nos usamos. Este e um registro real de
+monitor de leito do MIMIC-III, de acesso aberto, com frequencia cardiaca,
+pressao arterial invasiva, saturacao e frequencia respiratoria a cada
+segundo. Convertemos para uma leitura por minuto, no mesmo formato das
+amostras, e rodamos os mesmos detectores com os mesmos limiares.
+
+Em onze horas de um paciente de UTI: 48 achados, dos quais 23 sao leituras
+isoladas nao confirmadas - artefato de sensor, que em dados reais e a regra -
+e 25 notificaveis, que viraram 4 alertas depois da consolidacao. Quatro
+episodios multivariados, identicos no lote e no modo online. E nenhum erro
+com os 42 minutos de buraco de sensor que o registro tem. Nao ha rotulo de
+desfecho, entao isso nao mede acuracia: mede que os detectores se comportam
+em dados reais como se comportaram nos sinteticos."
 
 [Tela: a parte de prescricoes do anomaly_detection.py]
 
@@ -297,7 +346,7 @@ uma parte da conduta."
 
 [Terminal, secao "Alertas para a equipe medica"]
 
-"Com os tres mecanismos, os 36 achados notificaveis produzem 6 alertas. Cinco
+"Com os tres mecanismos, os 37 achados notificaveis produzem 6 alertas. Cinco
 sao quadros multimodais; o sexto e o unico achado de video que nenhum quadro
 explicava.
 
@@ -307,10 +356,29 @@ prescricao. O alerta de prescricao chega na farmacia clinica e no medico
 prescritor; o de execucao do exercicio, na equipe de reabilitacao.
 
 Nenhuma informacao se perdeu: cada alerta carrega os achados que o sustentam, e
-o relatorio consolidado lista todos os 46 com instante e evidencia."
+o relatorio consolidado lista todos os 47 com instante e evidencia."
 
 [Abrir resultados/fase4/PAC-0006/relatorio_monitoramento.md e rolar]
 [Abrir resultados/fase4/PAC-0006/alertas.json]
+
+"E o alerta nao termina no terminal. Cada um e entregue por canais: uma fila
+em JSON Lines, que e o contrato mais simples que um sistema hospitalar
+consome, e um webhook HTTP para um painel ou pager. Vamos ver o fluxo final."
+
+[Terminal 2, ja aberto]
+python -m fase4.receptor_webhook_demo --porta 8765
+
+[Terminal 1]
+$env:FASE4_WEBHOOK_URL = "http://127.0.0.1:8765/alertas"
+python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real --atraso 0.005
+
+[Mostrar os dois terminais lado a lado: os alertas aparecendo no receptor
+conforme o turno avanca, com prioridade, destino e conduta]
+
+"Este receptor faz o papel do painel da equipe. Cada alerta chega com
+prioridade, destino, conduta sugerida e os achados que o sustentam. Se o
+canal falhar, o pipeline nao para: a falha vira um evento na auditoria e a
+fila continua recebendo."
 
 ===============================================================================
 CENA 8 - TESTES E ENCERRAMENTO (1 min 30 s)
@@ -336,22 +404,26 @@ python -m fase4.cli_demo --todos
 
 "Fechando com os dois resultados que nos parecem mais relevantes.
 
-Primeiro, a antecipacao: combinando deteccao de tendencia e analise
-multivariada, a deterioracao foi sinalizada uma hora e doze minutos antes de
-qualquer limiar fixo ser cruzado.
+Primeiro, a antecipacao: a analise multivariada em tempo real sinalizou a
+deterioracao uma hora e quarenta minutos antes de qualquer limiar fixo ser
+cruzado, e a deteccao por tendencia confirmou uma hora e doze minutos antes.
 
-Segundo, a reducao de ruido: a fusao multimodal transformou 36 achados
-notificaveis em 6 alertas contextualizados e roteados, sem descartar
-informacao.
+Segundo, a reducao de ruido: a fusao multimodal transformou 37 achados
+notificaveis em 6 alertas contextualizados, roteados e entregues, sem
+descartar informacao.
 
-E as limitacoes, que estao no relatorio tecnico e vale dizer aqui. Os dados sao
-sinteticos, e os limiares foram calibrados contra amostras que nos mesmos
-geramos: eles nao tem validade clinica. O video nao e gravacao de pessoa e o
-audio nao e fala humana. A integracao com a Azure esta implementada e testada
-quanto ao contrato, mas os numeros deste video vieram do provedor offline. E
-com dois pacientes e possivel dizer que o sistema detectou tudo o que foi
-injetado em um e nao alertou o outro, mas nao e possivel estimar sensibilidade
-e especificidade.
+Terceiro, dados reais: em onze horas de um paciente de UTI do MIMIC-III os
+mesmos detectores deram 4 alertas e nenhum erro.
+
+E as limitacoes, que estao no relatorio tecnico e vale dizer aqui. Os dados
+principais sao sinteticos, e os limiares foram calibrados contra amostras que
+nos mesmos geramos: eles nao tem validade clinica. O video nao e gravacao de
+pessoa - os backends reais rodam, mas nao foram validados com pessoa filmada.
+A fala e sintetizada: valida a transcricao e os termos criticos, nao as
+regras acusticas. A integracao com a Azure esta implementada e testada quanto
+ao contrato, mas os numeros deste video vieram dos provedores offline e local.
+E no registro real nao ha rotulo de desfecho, entao nao e possivel estimar
+sensibilidade e especificidade.
 
 Obrigado."
 
@@ -362,11 +434,15 @@ CHECKLIST DE GRAVACAO
 [ ] Terminal com fonte grande (14 pt ou mais) e tema de alto contraste
 [ ] Amostras geradas antes de comecar
 [ ] resultados/fase4 limpo no inicio
-[ ] Audio do sistema habilitado para tocar o consulta.wav
+[ ] Audio do sistema habilitado para tocar o consulta.wav e o consulta_fala.wav
+[ ] consulta_fala.wav gerado (python -m fase4.data.gerar_fala_tts) e
+    resultados/fase4/fala_real/ atualizado com --provedor-azure local
+[ ] Registro do PhysioNet baixado e validado (baixar_physionet + validacao_physionet)
 [ ] Mostrar o status "provedor offline" sem esconder
 [ ] Cena 3: mostrar o video original e o anotado
 [ ] Cena 5: usar --atraso 0.005 para o tempo real caber na cena
-[ ] Cena 8: deixar a suite de testes terminar em tela (OK, 158 testes)
+[ ] Cena 7: receptor_webhook_demo aberto num segundo terminal antes de rodar
+[ ] Cena 8: deixar a suite de testes terminar em tela (OK, 237 testes)
 [ ] Duracao total abaixo de 15 minutos
 [ ] Upload no YouTube ou Vimeo como publico ou nao listado
 [ ] Link do video adicionado ao README.md
@@ -375,14 +451,21 @@ ETAPA PENDENTE - DEMONSTRACAO REAL DA AZURE
 -------------------------------------------------------------------------------
 O modo offline nao comprova o requisito de nuvem. Antes de concluir o video:
 1. Definir as quatro variaveis Azure no ambiente, sem mostra-las na gravacao.
-2. Colocar uma consulta autorizada, com fala inteligivel em WAV PCM mono de
-   16 bits, em dados/PAC-REAL/consulta.wav. O WAV sintetico nao contem palavras.
-3. Colocar o video autorizado em dados/PAC-REAL/fisioterapia.mp4.
+2. Usar o consulta_fala.wav ja gerado (fala inteligivel em pt-BR, WAV PCM mono
+   de 16 bits) ou uma consulta autorizada em dados/PAC-REAL/consulta.wav.
+   Para o primeiro caso:
+   python -m fase4.cli_demo --paciente-id PAC-0006 --audio consulta_fala.wav --provedor-azure azure --dir-saida resultados/fase4/azure_real
+   Esperado: WER proximo de zero e os mesmos seis termos criticos do provedor
+   local, agora com sentimento, frases-chave e entidades clinicas da Azure.
+3. Colocar o video autorizado em dados/PAC-REAL/fisioterapia.mp4 e informar a
+   regiao do dreno com --area-critica x1,y1,x2,y2 (pixels).
 4. Executar:
-   python -m fase4.cli_demo --paciente-id PAC-REAL --raiz-amostras dados --dir-saida resultados/fase4_real --provedor-azure azure --backend-pose mediapipe --backend-detector yolov8
-5. Mostrar transcricao, sentimento, frases-chave e provedores azure no
-   relatorio. Mostrar os desvios posturais realmente detectados.
-6. Explicar que o YOLO padrao nao reconhece drenos nem papeis profissionais;
-   essas regras foram testadas nas anotacoes sinteticas.
+   python -m fase4.cli_demo --paciente-id PAC-REAL --raiz-amostras dados --dir-saida resultados/fase4_real --provedor-azure azure --backend-pose mediapipe --backend-detector yolov8 --area-critica X1,Y1,X2,Y2
+5. Mostrar transcricao, sentimento, frases-chave, entidades e provedores azure
+   no relatorio. Mostrar os desvios posturais realmente detectados e o
+   relatorio de video com "pose detectada em N quadros".
+6. Explicar que o YOLO padrao nao reconhece drenos nem papeis profissionais:
+   a area critica veio da ROI manual, a mao do keypoint do punho e o
+   profissional de "duas pessoas em cena".
 7. Manter o video final em ate 15 minutos e publicar no YouTube ou Vimeo.
    A publicacao ainda nao foi realizada.

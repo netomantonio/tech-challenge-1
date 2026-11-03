@@ -46,7 +46,8 @@ Frases-chave: desde, cansada, levanto, cama, fico, manha, senti, aperto
 
 - **atencao** (`00:00.60`) Fala entrecortada com frases curtas e pausas longas, compativel com esforco respiratorio (confiança 0.74)
 - **atencao** (`00:16.05`) Sinais vocais de cansaco: queda de energia ao longo da consulta e taxa de fala reduzida (confiança 0.95)
-- **atencao** Frequencia fundamental instavel, compativel com voz tremula ou articulacao prejudicada (confiança 0.63)
+- **atencao** Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria) (confiança 0.63)
+- **atencao** Padrao acustico compativel com disartria: taxa de fala reduzida, F0 instavel (confiança 0.65)
 - **critico** (`00:03.37`) Queixa de categoria 'respiratorio' relatada pelo paciente: sem ar (confiança 0.90)
 - **critico** (`00:05.75`) Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito (confiança 0.90)
 - **critico** (`00:08.65`) Queixa de categoria 'infeccao' relatada pelo paciente: febre (confiança 0.80)

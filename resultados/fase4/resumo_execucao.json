@@ -1,5 +1,5 @@
 {
-  "executado_em": "2026-10-01T16:00:47.879147+00:00",
+  "executado_em": "2026-11-03T00:09:48.467036+00:00",
   "servicos_azure": {
     "PAC-0006": {
       "speech_to_text": "offline",
@@ -12,6 +12,7 @@
   },
   "backend_pose": "anotado",
   "backend_detector": "anotado",
+  "arquivo_audio": "consulta.wav",
   "pacientes": [
     {
       "paciente_id": "PAC-0006",
@@ -31,14 +32,14 @@
       "modalidades_ausentes": [],
       "achados_por_modalidade": {
         "video": 9,
-        "audio": 9,
+        "audio": 10,
         "sinais_vitais": 18,
         "prescricao": 3,
         "movimentacao": 2
       },
       "achados_por_severidade": {
         "informativo": 10,
-        "atencao": 19,
+        "atencao": 20,
         "critico": 12
       },
       "sindromes": [

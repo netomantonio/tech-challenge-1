@@ -10,7 +10,8 @@ video,invasao_area_critica,critico,0.95,00:13.20,Mao do paciente dentro da area 
 video,profissional_ausente,atencao,0.75,00:10.00,Paciente executou o exercicio sem profissional em cena por 4.0 s
 audio,fala_entrecortada,atencao,0.743,00:00.60,"Fala entrecortada com frases curtas e pausas longas, compativel com esforco respiratorio"
 audio,fadiga_vocal,atencao,0.95,00:16.05,Sinais vocais de cansaco: queda de energia ao longo da consulta e taxa de fala reduzida
-audio,instabilidade_vocal,atencao,0.629,,"Frequencia fundamental instavel, compativel com voz tremula ou articulacao prejudicada"
+audio,instabilidade_vocal,atencao,0.629,,"Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria)"
+audio,padrao_disartrico,atencao,0.65,,"Padrao acustico compativel com disartria: taxa de fala reduzida, F0 instavel"
 audio,termo_critico_respiratorio,critico,0.9,00:03.37,Queixa de categoria 'respiratorio' relatada pelo paciente: sem ar
 audio,termo_critico_dor_toracica,critico,0.9,00:05.75,Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito
 audio,termo_critico_infeccao,critico,0.8,00:08.65,Queixa de categoria 'infeccao' relatada pelo paciente: febre

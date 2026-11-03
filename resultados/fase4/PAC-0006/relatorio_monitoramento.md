@@ -1,6 +1,6 @@
 # Relatório de monitoramento multimodal - PAC-0006
 
-Gerado em 2026-10-01 16:00 UTC
+Gerado em 2026-11-03 00:09 UTC
 
 **Risco calculado:** 100.0/100 (nível **alto**)
 
@@ -11,7 +11,7 @@ Modalidades ausentes: nenhuma
 
 | Modalidade | Achados |
 | --- | ---: |
-| audio | 9 |
+| audio | 10 |
 | movimentacao | 2 |
 | prescricao | 3 |
 | sinais_vitais | 18 |
@@ -20,7 +20,7 @@ Modalidades ausentes: nenhuma
 | Severidade | Achados |
 | --- | ---: |
 | informativo | 10 |
-| atencao | 19 |
+| atencao | 20 |
 | critico | 12 |
 
 ## Quadros identificados pela fusão
@@ -33,7 +33,7 @@ Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventil
 
 - Severidade: **critico**
 - Modalidades envolvidas: audio, sinais_vitais
-- Famílias que sustentam (16 achados): `tendencia_sinais_vitais` (6), `queixas_criticas` (5), `alteracoes_vocais` (3), `limite_critico_sinais_vitais` (2)
+- Famílias que sustentam (17 achados): `tendencia_sinais_vitais` (6), `queixas_criticas` (5), `alteracoes_vocais` (4), `limite_critico_sinais_vitais` (2)
 - Conduta sugerida: Avaliar o paciente presencialmente, repetir oximetria e considerar suporte de oxigenio conforme protocolo
 
 ### suspeita infeccao
@@ -60,7 +60,7 @@ Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na
 
 - Severidade: **critico**
 - Modalidades envolvidas: video, audio
-- Famílias que sustentam (16 achados): `execucao_exercicio` (7), `queixas_criticas` (5), `alteracoes_vocais` (3), `invasao_area_critica` (1)
+- Famílias que sustentam (17 achados): `execucao_exercicio` (7), `queixas_criticas` (5), `alteracoes_vocais` (4), `invasao_area_critica` (1)
 - Conduta sugerida: Rever o plano de reabilitacao com o fisioterapeuta antes da proxima sessao e reavaliar a liberacao de amplitude
 
 ### risco de imobilidade
@@ -74,14 +74,14 @@ Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitac
 
 ## Alertas gerados para a equipe
 
-| Prioridade | Alerta | Destino | Instante |
-| --- | --- | --- | --- |
-| vermelho | Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao | Medico de plantao e enfermagem do leito; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T16:51:00` |
-| vermelho | Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor | Medico de plantao e enfermagem do leito; Farmacia clinica e medico prescritor; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T14:05:00` |
-| vermelho | Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela | Medico de plantao e enfermagem do leito; Equipe de reabilitacao e cirurgia responsavel; Medico assistente da consulta | `00:13.20` |
-| vermelho | Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica | Medico de plantao e enfermagem do leito; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T16:51:00` |
-| vermelho | Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitacao noturna | Medico de plantao e enfermagem do leito; Equipe de plantao do leito; Equipe de enfermagem do leito | `2025-06-10T02:00:00` |
-| laranja | Paciente executou o exercicio sem profissional em cena por 4.0 s | Equipe de reabilitacao e cirurgia responsavel | `00:10.00` |
+| Prioridade | Alerta | Destino | Instante | Entregue via |
+| --- | --- | --- | --- | --- |
+| vermelho | Queixa respiratoria na consulta junto com piora objetiva de oxigenacao ou ventilacao | Medico de plantao e enfermagem do leito; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T16:51:00` | fila_jsonl |
+| vermelho | Alteracao inesperada de prescricao em paciente que ja apresenta piora clinica ou queixa de dor | Medico de plantao e enfermagem do leito; Farmacia clinica e medico prescritor; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T14:05:00` | fila_jsonl |
+| vermelho | Execucao do exercicio fora do protocolo em paciente que relata dor ou cansaco na mesma janela | Medico de plantao e enfermagem do leito; Equipe de reabilitacao e cirurgia responsavel; Medico assistente da consulta | `00:13.20` | fila_jsonl |
+| vermelho | Relato de febre ou alteracao da ferida junto com febre medida e repercussao hemodinamica | Medico de plantao e enfermagem do leito; Medico assistente da consulta; Equipe de plantao do leito | `2025-06-10T16:51:00` | fila_jsonl |
+| vermelho | Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitacao noturna | Medico de plantao e enfermagem do leito; Equipe de plantao do leito; Equipe de enfermagem do leito | `2025-06-10T02:00:00` | fila_jsonl |
+| laranja | Paciente executou o exercicio sem profissional em cena por 4.0 s | Equipe de reabilitacao e cirurgia responsavel | `00:10.00` | fila_jsonl |
 
 ## Todos os achados
 
@@ -98,7 +98,8 @@ Imobilidade prolongada no leito em paciente com piora de sinais vitais ou agitac
 | video | atencao | `00:10.00` | Paciente executou o exercicio sem profissional em cena por 4.0 s |
 | audio | atencao | `00:00.60` | Fala entrecortada com frases curtas e pausas longas, compativel com esforco respiratorio |
 | audio | atencao | `00:16.05` | Sinais vocais de cansaco: queda de energia ao longo da consulta e taxa de fala reduzida |
-| audio | atencao | `-` | Frequencia fundamental instavel, compativel com voz tremula ou articulacao prejudicada |
+| audio | atencao | `-` | Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria) |
+| audio | atencao | `-` | Padrao acustico compativel com disartria: taxa de fala reduzida, F0 instavel |
 | audio | critico | `00:03.37` | Queixa de categoria 'respiratorio' relatada pelo paciente: sem ar |
 | audio | critico | `00:05.75` | Queixa de categoria 'dor_toracica' relatada pelo paciente: aperto no peito |
 | audio | critico | `00:08.65` | Queixa de categoria 'infeccao' relatada pelo paciente: febre |

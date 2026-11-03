@@ -349,7 +349,13 @@ def detectar_objetos_yolov8(
             "(pip install -r requirements-fase4.txt)"
         ) from erro
 
-    rede = YOLO(modelo)
+    # Pesos baixados pelo Ultralytics ficam em fase4/data/modelos/ (fora do
+    # git), nao no diretorio de trabalho.
+    caminho_modelo = Path(modelo)
+    if not caminho_modelo.exists() and caminho_modelo.parent == Path("."):
+        DIR_MODELOS.mkdir(parents=True, exist_ok=True)
+        caminho_modelo = DIR_MODELOS / caminho_modelo.name
+    rede = YOLO(str(caminho_modelo))
     criticas = set(classes_criticas)
     quadros: list[QuadroObjetos] = []
     fps = _fps_do_video(caminho_video)

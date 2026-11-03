@@ -1,9 +1,10 @@
 # Relatório de análise de vídeo - PAC-0006
 
 Arquivo: `fisioterapia.mp4`  
-Duração: 20.0 s (600 quadros a 30 fps)  
+Duração: 20.0 s (600 quadros a 30 fps; pose detectada em 600)  
 Estimador de pose: `anotado`  
-Detector de objetos: `anotado`
+Detector de objetos: `anotado`  
+Área crítica: `anotada`; mão do paciente por `caixa_detector`
 
 ## Amplitudes observadas
 
@@ -25,7 +26,7 @@ Detector de objetos: `anotado`
 | `00:11.77` | atencao | Assimetria entre os ombros na mesma repeticao (49.2 graus) | medida=assimetria_ombros; limite_graus=20.0; valor_maximo_graus=49.2; janela_s=10.53-12.83; quadros=70 |
 | `00:13.37` | atencao | Assimetria entre os ombros na mesma repeticao (25.9 graus) | medida=assimetria_ombros; limite_graus=20.0; valor_maximo_graus=25.9; janela_s=13.27-13.40; quadros=5 |
 | `00:14.90` | atencao | Assimetria entre os ombros na mesma repeticao (40.1 graus) | medida=assimetria_ombros; limite_graus=20.0; valor_maximo_graus=40.1; janela_s=14.23-16.03; quadros=55 |
-| `00:13.20` | critico | Mao do paciente dentro da area critica do dreno durante a sessao | sobreposicao_maxima=1.0; duracao_s=0.93; janela_s=13.07-13.97 |
-| `00:10.00` | atencao | Paciente executou o exercicio sem profissional em cena por 4.0 s | duracao_s=4.0; limite_s=2.0; janela_s=10.00-13.97 |
+| `00:13.20` | critico | Mao do paciente dentro da area critica do dreno durante a sessao | sobreposicao_maxima=1.0; duracao_s=0.93; janela_s=13.07-13.97; origem_mao=caixa_detector |
+| `00:10.00` | atencao | Paciente executou o exercicio sem profissional em cena por 4.0 s | duracao_s=4.0; limite_s=2.0; janela_s=10.00-13.97; criterio=sem objeto 'profissional' |
 
 > Relatório gerado automaticamente a partir de vídeo sintético. Não substitui a avaliação do fisioterapeuta responsável.
