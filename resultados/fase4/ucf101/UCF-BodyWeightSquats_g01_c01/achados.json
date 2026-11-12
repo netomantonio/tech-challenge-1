@@ -1,0 +1,15 @@
+[
+  {
+    "modalidade": "video",
+    "tipo": "acompanhamento_nao_confirmado",
+    "descricao": "Uma pessoa detectada; acompanhamento profissional nao confirmado",
+    "severidade": "informativo",
+    "score": 0.0,
+    "instante": "00:00.00",
+    "evidencias": {
+      "duracao_s": 10.68,
+      "pessoas_detectadas": 1,
+      "criterio": "contagem de pessoas sem identificacao de papeis"
+    }
+  }
+]

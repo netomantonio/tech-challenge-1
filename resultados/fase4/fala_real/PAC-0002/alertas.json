@@ -1,0 +1,31 @@
+[
+  {
+    "alerta_id": "ALERTA-PAC-0002-001",
+    "paciente_id": "PAC-0002",
+    "prioridade": "laranja",
+    "titulo": "Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria)",
+    "mensagem": "Paciente PAC-0002: Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria). Modalidade: audio. Confianca: 0.90. Evidencias: jitter_f0=0.0216, f0_media_hz=184.2, f0_desvio_hz=20.5.",
+    "destino": "Medico assistente da consulta",
+    "acao_recomendada": "Reavaliar queixa respiratoria e nivel de fadiga do paciente na propria consulta e registrar no prontuario.",
+    "modalidades": [
+      "audio"
+    ],
+    "score": 0.9,
+    "criado_em": "2026-11-02T23:58:28.220361+00:00",
+    "achados": [
+      {
+        "modalidade": "audio",
+        "tipo": "instabilidade_vocal",
+        "descricao": "Frequencia fundamental instavel, compativel com voz tremula ou articulacao imprecisa (indicador acustico de disartria)",
+        "severidade": "atencao",
+        "score": 0.9,
+        "instante": null,
+        "evidencias": {
+          "jitter_f0": 0.0216,
+          "f0_media_hz": 184.2,
+          "f0_desvio_hz": 20.5
+        }
+      }
+    ]
+  }
+]

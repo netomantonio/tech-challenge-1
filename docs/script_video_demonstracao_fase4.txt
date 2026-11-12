@@ -1,0 +1,127 @@
+ROTEIRO DE DEMONSTRAÇÃO — TECH CHALLENGE FASE 4
+Duração planejada: 13 minutos, com margem até o limite de 15 minutos.
+
+PREPARAÇÃO
+
+Gerar as amostras sintéticas e preparar o recorte UCF101:
+  python -m fase4.data.gerar_dados_sinteticos
+  python -m fase4.data.baixar_ucf101
+  python -m fase4.validacao_ucf101
+  python -m fase4.web_app
+
+Os modelos e os vídeos devem estar baixados antes da gravação. Abrir o
+painel e a aba Equipe em janelas lado a lado. Para a cena Azure, usar
+consulta_fala.wav e conferir as credenciais sem exibi-las. A execução
+corrigida já comprovou os dois serviços: WER de 0% no PAC-0006 e 5,7%
+no PAC-0002. As evidências estão em resultados/fase4/azure_real/.
+
+CENA 1 — PROBLEMA E ESCOPO (1 minuto)
+
+“Desenvolvemos um protótipo para reunir sinais de risco que aparecem em
+modalidades diferentes. Ele recebe vídeo, áudio, sinais vitais, prescrições
+e movimentação, combina os achados e encaminha alertas à equipe.
+
+Os cenários principais são sintéticos, para que possamos repetir os testes.
+Também utilizamos um registro do PhysioNet e três vídeos do UCF101.
+Esses experimentos têm objetivos distintos e serão apresentados separadamente.”
+
+CENA 2 — CASO SINTÉTICO E ANÁLISE DE VÍDEO (2 minutos)
+
+Selecionar PAC-0006, pose anotada e detector anotado. Processar e abrir
+o relatório de vídeo. Mostrar o intervalo de 10 a 14 segundos.
+
+“Nesse caso, as posições do corpo e os papéis das pessoas vêm das anotações.
+Identificamos desvios de postura, amplitude excessiva e quatro segundos sem
+o profissional. O alerta refere-se a esse intervalo, não à sessão inteira.
+O exemplo permite verificar as regras porque conhecemos os eventos inseridos.”
+
+Selecionar UCF-JumpingJack_g01_c01 e depois UCF-Lunges_g01_c01.
+Mostrar MediaPipe e YOLOv8 selecionados e o relatório de cada clipe.
+
+“O UCF101 contém ações humanas filmadas em ambientes comuns. Escolhemos
+polichinelo, agachamento e avanço para testar a percepção visual.
+No agachamento e no polichinelo houve pose em todos os quadros; no avanço,
+em 202 de 262, ou 77,1%. Isso mede cobertura, não precisão clínica.
+
+Não aplicamos os limites de pós-operatório aos exercícios esportivos.
+O detector conta pessoas, mas não identifica profissão. Sem detecção,
+o sistema informa que não foi possível avaliar; uma pessoa sozinha não
+comprova ausência de um profissional. Medidas ausentes não viram zero.”
+
+CENA 3 — ÁUDIO E AZURE (2 minutos e 30 segundos)
+
+Voltar ao PAC-0006. Selecionar consulta_fala.wav e provedor azure;
+manter pose e objetos anotados para este vídeo sintético. Processar.
+Mostrar transcrição, sentimento, entidades e provedores efetivos.
+
+“A análise acústica extrai pausas, energia, velocidade da fala e variação
+da frequência fundamental. A Azure transcreve a consulta e analisa o texto.
+Na execução corrigida do PAC-0006, a taxa de erro de palavras foi de 0%.
+O valor desta execução aparece no relatório.
+
+O léxico define quais expressões exigem atenção. Corrigimos um problema
+identificado na inspeção: a entidade ‘dor’ não pode criar a expressão
+‘dor insuportável’. O termo precisa estar presente na transcrição.
+
+A voz deste exemplo foi sintetizada por TTS. Ela permite testar transcrição
+e linguagem. As regras clínicas de alteração vocal ficam desativadas para
+TTS; as medidas acústicas continuam disponíveis apenas como descrição.”
+
+Se a Azure estiver indisponível, não apresentar offline/local como nuvem.
+Reagendar essa cena ou mostrar o registro anterior com a data e a limitação.
+
+CENA 4 — ANOMALIAS E MONITOR INCREMENTAL (2 minutos e 30 segundos)
+
+Abrir Monitor ao vivo, PAC-0006, com Isolation Forest habilitado.
+
+“Comparamos cada leitura com a referência do paciente, observamos tendências
+e aplicamos limites. O Isolation Forest acrescenta a análise multivariada.
+Uma leitura isolada de 185 bpm não vira alerta crítico sem confirmação.
+O objetivo é reconhecer mudanças persistentes e reduzir ruído.
+
+O monitor reproduz o CSV em sequência. Os detectores utilizam o passado
+disponível em cada instante; não estamos conectados a um equipamento de leito.”
+
+Mostrar o relatório PhysioNet: 48 achados, 25 notificáveis e quatro alertas
+consolidados no registro examinado. Explicar que não há rótulo de desfecho
+para calcular sensibilidade e especificidade. Mostrar também os exemplos
+de salto de dose, suspensão precoce, duplicidade e imobilidade.
+
+CENA 5 — FUSÃO E CHEGADA À EQUIPE (2 minutos)
+
+Mostrar os quadros multimodais e a aba Equipe recebendo os alertas.
+
+“A fusão exige evidências de pelo menos duas modalidades. Uma queixa
+respiratória, por exemplo, pode ser relacionada à piora dos sinais vitais.
+O alerta reúne as evidências, indica a equipe responsável e sugere uma
+ação para avaliação. Consolidação e supressão temporal reduzem repetições.
+
+O painel representa o destino demonstrativo. Há fila JSONL e webhook para
+integração, mas não implantamos essa conexão em um sistema hospitalar.”
+
+CENA 6 — VERIFICAÇÕES, LIMITES E ENCERRAMENTO (3 minutos)
+
+Mostrar os comandos e o resumo da execução:
+  python -m unittest discover -s tests -p "test_fase4*.py" -v
+  node tests/test_fase4_web_ui.mjs
+
+“A suíte inclui 200 testes Python da fase 4. As verificações da interface
+cobrem a troca entre UCF101 e casos sintéticos e preservam os quatro
+provedores de áudio. Respostas de SDKs são simuladas nos testes unitários;
+os resultados dos vídeos reais estão registrados separadamente.
+
+As principais limitações são a quantidade de casos, os ângulos em duas
+dimensões e a ausência de validação assistencial. O UCF101 demonstra a
+execução dos modelos em pessoas filmadas, não a detecção de erro clínico.
+Como continuação, propomos avaliar sessões de fisioterapia com anotação
+de especialistas e recalibrar os critérios acústicos em voz natural.”
+
+CHECKLIST FINAL
+
+[ ] Demonstrar áudio, vídeo, anomalias, serviços Azure e chegada do alerta.
+[ ] Mostrar somente resultados da configuração identificada na tela.
+[ ] Não exibir credenciais nem dados pessoais.
+[ ] Conferir os termos críticos da nova execução Azure.
+[ ] Conferir os avisos de detecção insuficiente e os valores não avaliados.
+[ ] Manter duração total de até 15 minutos.
+[ ] Publicar no YouTube ou Vimeo e adicionar o link ao README.

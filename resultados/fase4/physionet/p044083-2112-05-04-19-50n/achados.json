@@ -1,0 +1,680 @@
+[
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "limite_critico_saturacao_oxigenio",
+    "descricao": "Saturacao oxigenio abaixo do limite critico: 71 % (limite 90)",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "2112-05-04T20:05:00",
+    "evidencias": {
+      "valor": 71.0,
+      "limite": 90.0,
+      "faixa_normal": "94-100 %"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (9); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.236,
+    "instante": "2112-05-04T21:59:00",
+    "evidencias": {
+      "valor": 9.0,
+      "mediana_janela": 16.0,
+      "z_robusto": -4.72,
+      "instante": "2112-05-04T21:59:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_sistolica",
+    "descricao": "Leitura isolada de pressao sistolica fora do padrao recente (88.5); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.3655,
+    "instante": "2112-05-04T23:06:00",
+    "evidencias": {
+      "valor": 88.5,
+      "mediana_janela": 121.0,
+      "z_robusto": -7.31,
+      "instante": "2112-05-04T23:06:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (22); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-04T23:09:00",
+    "evidencias": {
+      "valor": 22.0,
+      "mediana_janela": 16.0,
+      "z_robusto": 4.05,
+      "instante": "2112-05-04T23:09:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_abrupto_pressao_sistolica",
+    "descricao": "Mudanca abrupta de pressao sistolica confirmada em 3 leituras seguidas (139)",
+    "severidade": "atencao",
+    "score": 0.701175,
+    "instante": "2112-05-04T23:11:00",
+    "evidencias": {
+      "valor": 139.0,
+      "mediana_janela": 121.0,
+      "z_robusto": 4.05,
+      "janela_minutos": 60
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_queda_pressao_diastolica",
+    "descricao": "Tendencia de queda sustentada de pressao diastolica: 53.0 contra 65.0 do basal",
+    "severidade": "atencao",
+    "score": 0.7166666666666667,
+    "instante": "2112-05-04T23:59:00",
+    "evidencias": {
+      "mediana_recente": 53.0,
+      "mediana_basal": 65.0,
+      "deslocamento": -12.0,
+      "tolerancia": 12.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "limite_critico_pressao_diastolica",
+    "descricao": "Pressao diastolica abaixo do limite critico: 49 mmHg (limite 50)",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "2112-05-05T00:22:00",
+    "evidencias": {
+      "valor": 49.0,
+      "limite": 50.0,
+      "faixa_normal": "60-90 mmHg"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_queda_pressao_sistolica",
+    "descricao": "Tendencia de queda sustentada de pressao sistolica: 113.0 contra 137.0 do basal",
+    "severidade": "atencao",
+    "score": 0.7166666666666667,
+    "instante": "2112-05-05T00:26:00",
+    "evidencias": {
+      "mediana_recente": 113.0,
+      "mediana_basal": 137.0,
+      "deslocamento": -24.0,
+      "tolerancia": 24.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_sistolica",
+    "descricao": "Leitura isolada de pressao sistolica fora do padrao recente (103); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-05T00:28:00",
+    "evidencias": {
+      "valor": 103.0,
+      "mediana_janela": 115.0,
+      "z_robusto": -4.05,
+      "instante": "2112-05-05T00:28:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_cardiaca",
+    "descricao": "Leitura isolada de frequencia cardiaca fora do padrao recente (92); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.236,
+    "instante": "2112-05-05T00:39:00",
+    "evidencias": {
+      "valor": 92.0,
+      "mediana_janela": 88.5,
+      "z_robusto": 4.72,
+      "instante": "2112-05-05T00:39:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_saturacao_oxigenio",
+    "descricao": "Leitura isolada de saturacao oxigenio fora do padrao recente (97.5); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-05T00:44:00",
+    "evidencias": {
+      "valor": 97.5,
+      "mediana_janela": 99.0,
+      "z_robusto": -4.05,
+      "instante": "2112-05-05T00:44:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (10); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-05T00:55:00",
+    "evidencias": {
+      "valor": 10.0,
+      "mediana_janela": 16.0,
+      "z_robusto": -4.05,
+      "instante": "2112-05-05T00:55:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_abrupto_frequencia_respiratoria",
+    "descricao": "Mudanca abrupta de frequencia respiratoria confirmada em 3 leituras seguidas (24)",
+    "severidade": "atencao",
+    "score": 0.7349,
+    "instante": "2112-05-05T01:04:00",
+    "evidencias": {
+      "valor": 24.0,
+      "mediana_janela": 16.0,
+      "z_robusto": 5.4,
+      "janela_minutos": 60
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_diastolica",
+    "descricao": "Leitura isolada de pressao diastolica fora do padrao recente (65); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.236,
+    "instante": "2112-05-05T01:37:00",
+    "evidencias": {
+      "valor": 65.0,
+      "mediana_janela": 51.0,
+      "z_robusto": 4.72,
+      "instante": "2112-05-05T01:37:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_cardiaca",
+    "descricao": "Leitura isolada de frequencia cardiaca fora do padrao recente (82); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.4385,
+    "instante": "2112-05-05T01:44:00",
+    "evidencias": {
+      "valor": 82.0,
+      "mediana_janela": 88.5,
+      "z_robusto": -8.77,
+      "instante": "2112-05-05T01:44:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (5); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-05T02:04:00",
+    "evidencias": {
+      "valor": 5.0,
+      "mediana_janela": 17.0,
+      "z_robusto": -4.05,
+      "instante": "2112-05-05T02:04:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_cardiaca",
+    "descricao": "Leitura isolada de frequencia cardiaca fora do padrao recente (82); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-05T02:07:00",
+    "evidencias": {
+      "valor": 82.0,
+      "mediana_janela": 88.0,
+      "z_robusto": -4.05,
+      "instante": "2112-05-05T02:07:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_abrupto_frequencia_cardiaca",
+    "descricao": "Mudanca abrupta de frequencia cardiaca confirmada em 3 leituras seguidas (81)",
+    "severidade": "atencao",
+    "score": 0.7180375,
+    "instante": "2112-05-05T02:12:00",
+    "evidencias": {
+      "valor": 81.0,
+      "mediana_janela": 88.0,
+      "z_robusto": -4.72,
+      "janela_minutos": 60
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_queda_frequencia_respiratoria",
+    "descricao": "Tendencia de queda sustentada de frequencia respiratoria: 12.0 contra 16.0 do basal",
+    "severidade": "atencao",
+    "score": 0.7722222222222223,
+    "instante": "2112-05-05T02:22:00",
+    "evidencias": {
+      "mediana_recente": 12.0,
+      "mediana_basal": 16.0,
+      "deslocamento": -4.0,
+      "tolerancia": 3.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_diastolica",
+    "descricao": "Leitura isolada de pressao diastolica fora do padrao recente (56); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-05T02:44:00",
+    "evidencias": {
+      "valor": 56.0,
+      "mediana_janela": 50.0,
+      "z_robusto": 4.05,
+      "instante": "2112-05-05T02:44:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "limite_critico_frequencia_respiratoria",
+    "descricao": "Frequencia respiratoria acima do limite critico: 29 irpm (limite 24)",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "2112-05-05T02:53:00",
+    "evidencias": {
+      "valor": 29.0,
+      "limite": 24.0,
+      "faixa_normal": "12-20 irpm"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_sistolica",
+    "descricao": "Leitura isolada de pressao sistolica fora do padrao recente (92); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.27,
+    "instante": "2112-05-05T03:19:00",
+    "evidencias": {
+      "valor": 92.0,
+      "mediana_janela": 100.0,
+      "z_robusto": -5.4,
+      "instante": "2112-05-05T03:19:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_saturacao_oxigenio",
+    "descricao": "Leitura isolada de saturacao oxigenio fora do padrao recente (98); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.236,
+    "instante": "2112-05-05T03:40:00",
+    "evidencias": {
+      "valor": 98.0,
+      "mediana_janela": 99.75,
+      "z_robusto": -4.72,
+      "instante": "2112-05-05T03:40:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_diastolica",
+    "descricao": "Leitura isolada de pressao diastolica fora do padrao recente (55); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-05T04:24:00",
+    "evidencias": {
+      "valor": 55.0,
+      "mediana_janela": 49.0,
+      "z_robusto": 4.05,
+      "instante": "2112-05-05T04:24:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (32); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.236,
+    "instante": "2112-05-05T04:25:00",
+    "evidencias": {
+      "valor": 32.0,
+      "mediana_janela": 18.0,
+      "z_robusto": 4.72,
+      "instante": "2112-05-05T04:25:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (30.5); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.211,
+    "instante": "2112-05-05T04:27:00",
+    "evidencias": {
+      "valor": 30.5,
+      "mediana_janela": 18.0,
+      "z_robusto": 4.22,
+      "instante": "2112-05-05T04:27:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_pressao_diastolica",
+    "descricao": "Leitura isolada de pressao diastolica fora do padrao recente (53); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.236,
+    "instante": "2112-05-05T04:34:00",
+    "evidencias": {
+      "valor": 53.0,
+      "mediana_janela": 49.5,
+      "z_robusto": 4.72,
+      "instante": "2112-05-05T04:34:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_alta_frequencia_respiratoria",
+    "descricao": "Tendencia de alta sustentada de frequencia respiratoria: 19.0 contra 16.0 do basal",
+    "severidade": "atencao",
+    "score": 0.7166666666666667,
+    "instante": "2112-05-05T04:35:00",
+    "evidencias": {
+      "mediana_recente": 19.0,
+      "mediana_basal": 16.0,
+      "deslocamento": 3.0,
+      "tolerancia": 3.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_abrupto_pressao_diastolica",
+    "descricao": "Mudanca abrupta de pressao diastolica confirmada em 3 leituras seguidas (57)",
+    "severidade": "atencao",
+    "score": 0.7180375,
+    "instante": "2112-05-05T04:40:00",
+    "evidencias": {
+      "valor": 57.0,
+      "mediana_janela": 50.0,
+      "z_robusto": 4.72,
+      "janela_minutos": 60
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_cardiaca",
+    "descricao": "Leitura isolada de frequencia cardiaca fora do padrao recente (90); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.236,
+    "instante": "2112-05-05T04:49:00",
+    "evidencias": {
+      "valor": 90.0,
+      "mediana_janela": 83.0,
+      "z_robusto": 4.72,
+      "instante": "2112-05-05T04:49:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "limite_critico_pressao_diastolica",
+    "descricao": "Pressao diastolica abaixo do limite critico: 49 mmHg (limite 50)",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "2112-05-05T04:56:00",
+    "evidencias": {
+      "valor": 49.0,
+      "limite": 50.0,
+      "faixa_normal": "60-90 mmHg"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_queda_saturacao_oxigenio",
+    "descricao": "Tendencia de queda sustentada de saturacao oxigenio: 98.0 contra 100.0 do basal",
+    "severidade": "atencao",
+    "score": 0.7166666666666667,
+    "instante": "2112-05-05T05:11:00",
+    "evidencias": {
+      "mediana_recente": 98.0,
+      "mediana_basal": 100.0,
+      "deslocamento": -2.0,
+      "tolerancia": 2.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "limite_critico_pressao_sistolica",
+    "descricao": "Pressao sistolica abaixo do limite critico: 87 mmHg (limite 90)",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "2112-05-05T05:26:00",
+    "evidencias": {
+      "valor": 87.0,
+      "limite": 90.0,
+      "faixa_normal": "100-140 mmHg"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (23); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.27,
+    "instante": "2112-05-05T05:34:00",
+    "evidencias": {
+      "valor": 23.0,
+      "mediana_janela": 15.0,
+      "z_robusto": 5.4,
+      "instante": "2112-05-05T05:34:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (21); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-05T05:39:00",
+    "evidencias": {
+      "valor": 21.0,
+      "mediana_janela": 15.0,
+      "z_robusto": 4.05,
+      "instante": "2112-05-05T05:39:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_respiratoria",
+    "descricao": "Leitura isolada de frequencia respiratoria fora do padrao recente (21); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.20249999999999999,
+    "instante": "2112-05-05T05:42:00",
+    "evidencias": {
+      "valor": 21.0,
+      "mediana_janela": 15.0,
+      "z_robusto": 4.05,
+      "instante": "2112-05-05T05:42:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_queda_frequencia_cardiaca",
+    "descricao": "Tendencia de queda sustentada de frequencia cardiaca: 81.0 contra 91.0 do basal",
+    "severidade": "atencao",
+    "score": 0.7166666666666667,
+    "instante": "2112-05-05T05:52:00",
+    "evidencias": {
+      "mediana_recente": 81.0,
+      "mediana_basal": 91.0,
+      "deslocamento": -10.0,
+      "tolerancia": 10.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_abrupto_pressao_diastolica",
+    "descricao": "Mudanca abrupta de pressao diastolica confirmada em 3 leituras seguidas (50)",
+    "severidade": "atencao",
+    "score": 0.95,
+    "instante": "2112-05-05T06:35:00",
+    "evidencias": {
+      "valor": 50.0,
+      "mediana_janela": 44.0,
+      "z_robusto": 16.19,
+      "janela_minutos": 60
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_abrupto_pressao_sistolica",
+    "descricao": "Mudanca abrupta de pressao sistolica confirmada em 3 leituras seguidas (101)",
+    "severidade": "atencao",
+    "score": 0.8023499999999999,
+    "instante": "2112-05-05T06:38:00",
+    "evidencias": {
+      "valor": 101.0,
+      "mediana_janela": 89.0,
+      "z_robusto": 8.09,
+      "janela_minutos": 60
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_pontual_nao_confirmado_frequencia_cardiaca",
+    "descricao": "Leitura isolada de frequencia cardiaca fora do padrao recente (89); nao se repetiu nas leituras seguintes e foi tratada como artefato de sensor",
+    "severidade": "informativo",
+    "score": 0.236,
+    "instante": "2112-05-05T06:59:00",
+    "evidencias": {
+      "valor": 89.0,
+      "mediana_janela": 82.0,
+      "z_robusto": 4.72,
+      "instante": "2112-05-05T06:59:00"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "desvio_abrupto_frequencia_respiratoria",
+    "descricao": "Mudanca abrupta de frequencia respiratoria confirmada em 3 leituras seguidas (30)",
+    "severidade": "atencao",
+    "score": 0.8360749999999999,
+    "instante": "2112-05-05T07:05:00",
+    "evidencias": {
+      "valor": 30.0,
+      "mediana_janela": 16.0,
+      "z_robusto": 9.44,
+      "janela_minutos": 60
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "limite_critico_frequencia_respiratoria",
+    "descricao": "Frequencia respiratoria acima do limite critico: 30 irpm (limite 24)",
+    "severidade": "critico",
+    "score": 0.9,
+    "instante": "2112-05-05T07:05:00",
+    "evidencias": {
+      "valor": 30.0,
+      "limite": 24.0,
+      "faixa_normal": "12-20 irpm"
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_alta_frequencia_respiratoria",
+    "descricao": "Tendencia de alta sustentada de frequencia respiratoria: 20.0 contra 16.0 do basal",
+    "severidade": "atencao",
+    "score": 0.7722222222222223,
+    "instante": "2112-05-05T07:22:00",
+    "evidencias": {
+      "mediana_recente": 20.0,
+      "mediana_basal": 16.0,
+      "deslocamento": 4.0,
+      "tolerancia": 3.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "tendencia_queda_saturacao_oxigenio",
+    "descricao": "Tendencia de queda sustentada de saturacao oxigenio: 98.0 contra 100.0 do basal",
+    "severidade": "atencao",
+    "score": 0.7166666666666667,
+    "instante": "2112-05-05T07:50:00",
+    "evidencias": {
+      "mediana_recente": 98.0,
+      "mediana_basal": 100.0,
+      "deslocamento": -2.0,
+      "tolerancia": 2.0,
+      "minutos_comparados": 30
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "anomalia_multivariada",
+    "descricao": "Combinacao anomala de sinais vitais em relacao ao basal do paciente (frequencia_cardiaca, frequencia_respiratoria, pressao_sistolica)",
+    "severidade": "critico",
+    "score": 0.85,
+    "instante": "2112-05-05T02:40:00",
+    "evidencias": {
+      "inicio": "2112-05-05T02:04:00",
+      "fim": "2112-05-05T02:41:00",
+      "minutos": 33,
+      "score_minimo": -0.0785,
+      "corte_basal": -0.0309
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "anomalia_multivariada",
+    "descricao": "Combinacao anomala de sinais vitais em relacao ao basal do paciente (frequencia_cardiaca, pressao_sistolica, pressao_diastolica)",
+    "severidade": "critico",
+    "score": 0.85,
+    "instante": "2112-05-05T03:43:00",
+    "evidencias": {
+      "inicio": "2112-05-05T02:48:00",
+      "fim": "2112-05-05T04:08:00",
+      "minutos": 76,
+      "score_minimo": -0.0894,
+      "corte_basal": -0.0309
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "anomalia_multivariada",
+    "descricao": "Combinacao anomala de sinais vitais em relacao ao basal do paciente (frequencia_cardiaca, pressao_sistolica, pressao_diastolica)",
+    "severidade": "critico",
+    "score": 0.85,
+    "instante": "2112-05-05T05:39:00",
+    "evidencias": {
+      "inicio": "2112-05-05T04:52:00",
+      "fim": "2112-05-05T06:50:00",
+      "minutos": 119,
+      "score_minimo": -0.0894,
+      "corte_basal": -0.0309
+    }
+  },
+  {
+    "modalidade": "sinais_vitais",
+    "tipo": "anomalia_multivariada",
+    "descricao": "Combinacao anomala de sinais vitais em relacao ao basal do paciente (frequencia_respiratoria, frequencia_cardiaca, pressao_sistolica)",
+    "severidade": "critico",
+    "score": 0.85,
+    "instante": "2112-05-05T07:24:00",
+    "evidencias": {
+      "inicio": "2112-05-05T07:24:00",
+      "fim": "2112-05-05T07:50:00",
+      "minutos": 27,
+      "score_minimo": -0.0367,
+      "corte_basal": -0.0309
+    }
+  }
+]

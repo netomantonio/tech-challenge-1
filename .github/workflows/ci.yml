@@ -71,6 +71,10 @@ jobs:
       - name: Executar testes automatizados
         run: npm test
 
+      - name: Verificar opcoes da interface da Fase 4
+        working-directory: .
+        run: node tests/test_fase4_web_ui.mjs
+
       - name: Validar build de produção
         env:
           VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA

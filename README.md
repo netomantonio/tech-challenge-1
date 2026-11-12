@@ -3,8 +3,10 @@
 ## FIAP Pós Tech - AI for Devs
 
 Este repositório reúne o projeto original de diagnóstico de câncer de mama
-desenvolvido na Fase 1 e sua continuação na Fase 2, voltada à otimização de
-hiperparâmetros, escalabilidade e interpretação de resultados com LLM.
+desenvolvido na Fase 1 e suas continuações: a Fase 2, voltada à otimização de
+hiperparâmetros, escalabilidade e interpretação de resultados com LLM; a Fase 3,
+com o assistente médico virtual; e a Fase 4, com o monitoramento multimodal de
+pacientes.
 
 O projeto usa o **Wisconsin Breast Cancer Diagnostic Dataset** para classificar
 tumores como:
@@ -106,6 +108,7 @@ docs/
   cloudflare-deploy.md  # infraestrutura de nuvem e procedimentos de deploy
   frontend.md           # documentação do frontend
   script_video_demonstracao_fase3.txt
+  script_video_demonstracao_fase4.txt
 fase3/                  # assistente medico virtual (fine-tuning + LangChain + LangGraph)
   data/                  # protocolos, prontuarios sinteticos e amostra MedQuAD/PubMedQA
   finetuning/            # pipeline de fine-tuning LoRA/PEFT
@@ -123,6 +126,22 @@ fase3/                  # assistente medico virtual (fine-tuning + LangChain + L
   cli_demo.py
   web_app.py              # API e interface web local da Fase 3
   web/                    # interface clínica e operações do modelo
+fase4/                  # monitoramento multimodal (vídeo + áudio + anomalias)
+  data/                  # gerador de amostras, léxico, TTS pt-BR e download do PhysioNet
+  config.py              # caminhos, variáveis de ambiente e limiares
+  video_analysis.py      # pose, detecção de objetos, ângulos, ROI manual e regras
+  audio_analysis.py      # atributos acústicos, regras vocais (inclui disartria) e WER
+  azure_services.py      # Speech to Text e Text Analytics (+ offline e whisper local)
+  anomaly_detection.py   # séries vitais (lote e online), prescrições e movimentação
+  alertas.py             # fusão → alertas, prioridade, roteamento e canais de entrega
+  validacao_physionet.py # detectores sobre o registro real do MIMIC-III
+  receptor_webhook_demo.py # receptor HTTP local dos alertas
+  web_app.py             # interface web local (FastAPI + SSE + jobs)
+  web/                   # painel em HTML/JS puro
+  multimodal_fusion.py   # quadros clínicos e risco do paciente
+  alertas.py             # achados, alertas, prioridade e roteamento
+  pipeline.py            # orquestração por paciente e relatórios
+  cli_demo.py            # demonstração em linha de comando
 frontend/               # aplicação React (Cloudflare Pages)
   functions/[[path]].ts # Pages Function: proxy via Service Binding
   public/               # _headers (CSP) e _routes.json
@@ -150,6 +169,12 @@ resultados/fase3/
   avaliacao_assistente.csv
   avaliacao_assistente.json
   resumo_avaliacao_assistente.json
+resultados/fase4/
+  resumo_execucao.json
+  PAC-0006/              # relatórios, achados e alertas do caso com deterioração
+  PAC-0002/              # relatórios do caso estável (controle)
+  fala_real/             # fala pt-BR sintetizada transcrita pelo whisper local
+  physionet/             # validação dos detectores no registro real do MIMIC-III
 scripts/
   export_serving_model.py # exporta o manifesto JSON servido na borda
 src/
@@ -165,14 +190,17 @@ src/
 tests/
   test_fase2.py
   test_fase3.py
+  test_fase4*.py          # 7 arquivos: pipeline, Azure, backends, áudio local, tempo real, entrega, PhysioNet
   test_cloudflare.py      # equivalência do manifesto e validação do Turnstile
 Dockerfile
 requirements.txt
 requirements-fase3.txt
+requirements-fase4.txt
 relatorio_tecnico_01_cancer_mama.md
 relatorio_tecnico_01_cancer_mama.pdf
 relatorio_tecnico_fase2.md
 relatorio_tecnico_fase3.md
+relatorio_tecnico_fase4.md
 ```
 
 ### Experimentos Genéticos
@@ -645,6 +673,143 @@ Detalhes: [relatorio_tecnico_fase3.md](relatorio_tecnico_fase3.md),
 `fase3/relatorio_aderencia_final.md`. O roteiro do vídeo está em
 `docs/script_video_demonstracao_fase3.txt`. A gravação e a publicação do
 vídeo ainda serão realizadas pela equipe antes da entrega final.
+
+## Fase 4 - Monitoramento Multimodal de Pacientes
+
+Na Fase 4, o hospital passa a monitorar os pacientes continuamente a partir de
+dados multimodais. O pipeline analisa vídeo de sessões de fisioterapia, áudio
+de consultas médicas e séries temporais de sinais vitais, prescrições e
+movimentação no leito; funde os achados das três modalidades em quadros
+clínicos; e emite alertas automáticos para a equipe. Mantivemos o módulo
+isolado em `fase4/`, como na Fase 3.
+
+### Cobertura técnica
+
+| Requisito | Implementação |
+| --- | --- |
+| Processamento de vídeo clínico | `fase4/video_analysis.py` |
+| Análise postural (OpenPose → MediaPipe Pose) | `--backend-pose mediapipe` |
+| Detecção de objetos e áreas críticas (YOLOv8) | `--backend-detector yolov8` |
+| Relatórios automáticos da sessão | `relatorio_video.md` e `fisioterapia_anotado.mp4` |
+| Área crítica em vídeo real (YOLOv8 genérico) | `--area-critica x1,y1,x2,y2` + mão pelo keypoint do punho |
+| Alterações vocais (cansaço, esforço respiratório, disartria) | `fase4/audio_analysis.py` (4 regras acústicas) |
+| Azure Speech to Text | `fase4/azure_services.py` |
+| Azure Text Analytics (sentimento, entidades clínicas e termos críticos) | `fase4/azure_services.py` + léxico institucional |
+| Transcrição em fala real sem credencial (demonstração) | `--provedor-azure local` (faster-whisper) + `fase4/data/gerar_fala_tts.py` |
+| Anomalias em séries de sinais vitais | `fase4/anomaly_detection.py` (4 detectores) |
+| Anomalias na evolução de prescrições | 3 regras em `fase4/anomaly_detection.py` |
+| Padrões de movimentação na internação | 2 regras em `fase4/anomaly_detection.py` |
+| Detecção em tempo real | `--tempo-real` (regras por canal e Isolation Forest incrementais) |
+| Validação em dados reais (PhysioNet / MIMIC-III) | `fase4/data/baixar_physionet.py` + `fase4/validacao_physionet.py` |
+| Fusão multimodal | `fase4/multimodal_fusion.py` (5 quadros clínicos) |
+| Alertas automáticos para a equipe | `fase4/alertas.py` (prioridade, roteamento, consolidação) |
+| Entrega do alerta | fila `fila_alertas.jsonl` + webhook HTTP (`FASE4_WEBHOOK_URL`), receptor em `fase4/receptor_webhook_demo.py` |
+| Interface web local | `python -m fase4.web_app` — painel, monitor ao vivo (SSE), painel da equipe (webhook), upload de gravações e ROI |
+
+### Dados
+
+Os dados principais são sintéticos e gerados pelo repositório para repetir os
+mesmos cenários de teste. As avaliações complementares incluem: um registro real de monitor de leito do PhysioNet (MIMIC-III
+Waveform Matched Subset, acesso aberto) e uma consulta com fala inteligível
+em pt-BR sintetizada pela voz do Windows e transcrita por um reconhecedor
+local e pelos serviços Azure. Na validação Azure de 3 de novembro de 2026,
+obtivemos WER de 0% no PAC-0006 e 5,7% no PAC-0002, com seis e zero
+alertas, respectivamente. A voz TTS não é usada para inferir alterações vocais clínicas. Acrescentamos um
+recorte de três vídeos reais do UCF101, com avaliação exploratória e origem
+registrada. A publicação do vídeo de demonstração permanece pendente. Instruções
+em `fase4/README.md`.
+
+| Paciente | Situação | Modalidades |
+| --- | --- | --- |
+| `PAC-0006` | Pós-operatório de mastectomia com deterioração no turno | vídeo, áudio, sinais vitais, prescrições, movimentação |
+| `PAC-0002` | Caso estável (controle de especificidade) | áudio, sinais vitais, prescrições, movimentação |
+
+### Resultado final
+
+| Métrica | `PAC-0006` | `PAC-0002` |
+| --- | ---: | ---: |
+| Achados detectados | **47** | **5** (todos informativos) |
+| Quadros multimodais | **5** | **0** |
+| Alertas emitidos | **6** | **0** |
+| Risco calculado | **100,0 (alto)** | **6,5 (baixo)** |
+
+Três resultados sustentam a solução:
+
+- **Antecipação.** A piora foi injetada às 16:00. No modo em tempo real, o
+  Isolation Forest online sinalizou a combinação anômala às 16:23 e a
+  detecção por tendência confirmou às 16:51, enquanto o primeiro limite
+  clínico só foi cruzado às 18:03 — uma antecipação de **1 h 40 min** sobre a
+  abordagem por limiar fixo usada em monitores de leito.
+- **Redução de ruído.** A fusão multimodal transformou 37 achados notificáveis
+  em 6 alertas contextualizados, com indicação da equipe responsável e
+  entrega na fila de alertas.
+- **Comportamento em dados reais.** Em 11 h de um paciente de UTI do
+  MIMIC-III (PhysioNet), os mesmos detectores produziram 4 alertas
+  consolidados e 4 episódios multivariados idênticos em lote e em tempo real,
+  sem erro diante dos buracos de sensor.
+
+Um pico isolado de 185 bpm foi plantado na série de propósito: ele cruza o
+limite crítico, mas a regra de confirmação em três leituras consecutivas o
+registra como provável artefato de sensor, sem gerar alerta.
+
+### Execução
+
+```powershell
+python -m fase4.data.gerar_dados_sinteticos
+python -m fase4.cli_demo --paciente-id PAC-0006
+python -m fase4.cli_demo --todos
+python -m fase4.cli_demo --paciente-id PAC-0006 --tempo-real
+```
+
+Interface web (sem build, sem dependência nova; abre em `http://127.0.0.1:8020`):
+
+```powershell
+python -m fase4.web_app
+```
+
+Demonstrações sem credencial Azure (exigem `requirements-fase4.txt`):
+
+```powershell
+python -m fase4.data.gerar_fala_tts                                   # fala pt-BR a partir da transcricao
+python -m fase4.cli_demo --paciente-id PAC-0006 --audio consulta_fala.wav --provedor-azure local --dir-saida resultados/fase4/fala_real
+python -m fase4.data.baixar_physionet && python -m fase4.validacao_physionet   # registro real do MIMIC-III
+python -m fase4.receptor_webhook_demo                                 # receptor do webhook de alertas
+```
+
+O pipeline roda apenas com as dependências de `requirements.txt`. Para usar os
+serviços e modelos reais (Azure Speech to Text, Azure Text Analytics, MediaPipe
+Pose e YOLOv8), instale `requirements-fase4.txt` e defina as variáveis
+`AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`, `AZURE_LANGUAGE_KEY` e
+`AZURE_LANGUAGE_ENDPOINT`. Sem credencial, os serviços da Azure usam um
+substituto local determinístico e o relatório registra qual provedor foi
+usado em cada execução.
+
+Os resultados ficam em `resultados/fase4/` (incluindo `fala_real/`,
+`physionet/` e `ucf101/`). O guia completo está em [fase4/README.md](fase4/README.md).
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+São 274 testes no total, sendo 200 da Fase 4. Nenhum depende de rede, de
+chave da Azure ou dos pacotes opcionais.
+
+Detalhes: [relatorio_tecnico_fase4.md](relatorio_tecnico_fase4.md). O roteiro
+do vídeo está em `docs/script_video_demonstracao_fase4.txt`. A gravação e a
+publicação do vídeo ainda serão realizadas pela equipe antes da entrega final.
+
+### Vídeos reais UCF101
+
+```powershell
+python -m fase4.data.baixar_ucf101
+python -m fase4.validacao_ucf101
+```
+
+Os clipes ficam disponíveis no frontend no grupo UCF101. MediaPipe e YOLOv8
+extraem medidas em pessoas filmadas; como a base não é clínica, os limites
+de pós-operatório não são aplicados. As opções anotadas e os provedores de
+áudio permanecem disponíveis. Procedência, resultados e limites do estudo
+estão em `relatorio_tecnico_fase4.md`, seção 5.12.
 
 ## Autores
 
