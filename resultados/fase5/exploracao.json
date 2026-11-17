@@ -1,0 +1,188 @@
+{
+  "fonte": "sklearn.datasets.load_breast_cancer (UCI Breast Cancer Wisconsin Diagnostic)",
+  "exploracao_completa": "notebooks/01_cancer_mama.ipynb (Fase 1)",
+  "resumo": {
+    "amostras": 569,
+    "variaveis": 30,
+    "ausentes": 0,
+    "linhas_duplicadas": 0,
+    "classes": {
+      "maligno_0": 212,
+      "benigno_1": 357
+    },
+    "proporcao_maligno": 0.3726
+  },
+  "maiores_escalas": [
+    {
+      "variavel": "worst area",
+      "min": 185.2,
+      "max": 4254.0,
+      "assimetria": 1.8544679916096247
+    },
+    {
+      "variavel": "mean area",
+      "min": 143.5,
+      "max": 2501.0,
+      "assimetria": 1.6413905092044117
+    },
+    {
+      "variavel": "area error",
+      "min": 6.802,
+      "max": 542.2,
+      "assimetria": 5.432815862951914
+    }
+  ],
+  "menores_escalas": [
+    {
+      "variavel": "concave points error",
+      "min": 0.0,
+      "max": 0.05279,
+      "assimetria": 1.4408668862917002
+    },
+    {
+      "variavel": "smoothness error",
+      "min": 0.001713,
+      "max": 0.03113,
+      "assimetria": 2.308344221045982
+    },
+    {
+      "variavel": "fractal dimension error",
+      "min": 0.0008948,
+      "max": 0.02984,
+      "assimetria": 3.9136166546752604
+    }
+  ],
+  "separacao_classes_top10": [
+    {
+      "variavel": "worst concave points",
+      "d_cohen": 2.693
+    },
+    {
+      "variavel": "worst perimeter",
+      "d_cohen": 2.598
+    },
+    {
+      "variavel": "mean concave points",
+      "d_cohen": 2.545
+    },
+    {
+      "variavel": "worst radius",
+      "d_cohen": 2.544
+    },
+    {
+      "variavel": "mean perimeter",
+      "d_cohen": 2.29
+    },
+    {
+      "variavel": "worst area",
+      "d_cohen": 2.23
+    },
+    {
+      "variavel": "mean radius",
+      "d_cohen": 2.205
+    },
+    {
+      "variavel": "mean area",
+      "d_cohen": 2.076
+    },
+    {
+      "variavel": "mean concavity",
+      "d_cohen": 2.003
+    },
+    {
+      "variavel": "worst concavity",
+      "d_cohen": 1.812
+    }
+  ],
+  "pares_correlacao_acima_0_9": 21,
+  "pares_mais_correlacionados": [
+    {
+      "a": "mean radius",
+      "b": "mean perimeter",
+      "r": 0.998
+    },
+    {
+      "a": "worst radius",
+      "b": "worst perimeter",
+      "r": 0.994
+    },
+    {
+      "a": "mean radius",
+      "b": "mean area",
+      "r": 0.987
+    },
+    {
+      "a": "mean perimeter",
+      "b": "mean area",
+      "r": 0.987
+    },
+    {
+      "a": "worst radius",
+      "b": "worst area",
+      "r": 0.984
+    },
+    {
+      "a": "worst perimeter",
+      "b": "worst area",
+      "r": 0.978
+    },
+    {
+      "a": "radius error",
+      "b": "perimeter error",
+      "r": 0.973
+    },
+    {
+      "a": "mean radius",
+      "b": "worst radius",
+      "r": 0.97
+    }
+  ],
+  "outliers_iqr": {
+    "linhas_com_algum_outlier": 171,
+    "proporcao_maligno_nessas_linhas": 0.6667,
+    "por_variavel_top5": [
+      {
+        "variavel": "area error",
+        "quantidade": 65
+      },
+      {
+        "variavel": "radius error",
+        "quantidade": 38
+      },
+      {
+        "variavel": "perimeter error",
+        "quantidade": 38
+      },
+      {
+        "variavel": "worst area",
+        "quantidade": 35
+      },
+      {
+        "variavel": "smoothness error",
+        "quantidade": 30
+      }
+    ]
+  },
+  "preparo_testado_cv_treino": [
+    {
+      "variante": "sem padronizacao",
+      "recall_maligno_cv": 0.9059,
+      "desvio": 0.022
+    },
+    {
+      "variante": "StandardScaler (usada no modelo)",
+      "recall_maligno_cv": 0.9647,
+      "desvio": 0.0288
+    },
+    {
+      "variante": "log1p + StandardScaler",
+      "recall_maligno_cv": 0.9706,
+      "desvio": 0.0
+    },
+    {
+      "variante": "StandardScaler sem correlacionadas (|r|>0,95, restam 24)",
+      "recall_maligno_cv": 0.9529,
+      "desvio": 0.0513
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "saude-deteccao-precoce",
+    "contexto": "saude",
+    "titulo": "Detecção precoce do câncer de mama — INCA",
+    "url": "https://www.gov.br/inca/pt-br/assuntos/gestor-e-profissional-de-saude/controle-do-cancer-de-mama/acoes/deteccao-precoce",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "rastreamento mamografia rotina idade exame preventivo detecção precoce periodicidade",
+    "texto": "Síntese didática: a detecção precoce do câncer de mama tem duas estratégias. O diagnóstico precoce é voltado a pessoas com sinais ou sintomas iniciais da doença. O rastreamento é a aplicação de exame em população sem sinais ou sintomas, para identificar alterações sugestivas de câncer. Segundo a página do INCA, desde setembro de 2025 a mamografia de rotina é recomendada para mulheres de 50 a 74 anos, uma vez a cada dois anos. Alterações sugestivas precisam de investigação por profissionais; uma classificação computacional não confirma nem exclui câncer."
+  },
+  {
+    "id": "saude-sinais-alerta",
+    "contexto": "saude",
+    "titulo": "Câncer de mama: sinais, sintomas e fatores de risco — Ministério da Saúde",
+    "url": "https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/c/cancer-de-mama",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "sintoma sinal nodulo caroco mamilo secrecao pele casca laranja axila inguas fator risco historia familiar idade obesidade urgente encaminhamento",
+    "texto": "Síntese didática: o Ministério da Saúde lista como sinais de referência urgente o nódulo mamário endurecido e fixo ou que vem aumentando de tamanho, mudança no formato do mamilo e retração da pele da mama, aumento progressivo da mama com aspecto de casca de laranja, descarga papilar sanguinolenta unilateral, lesão eczematosa da pele que não responde a tratamento tópico e linfadenopatia axilar. A idade é o principal fator de risco; vida reprodutiva, alta densidade mamária, obesidade e história familiar também influenciam. Esses sinais orientam o encaminhamento, não o diagnóstico."
+  },
+  {
+    "id": "saude-diagnostico-biopsia",
+    "contexto": "saude",
+    "titulo": "Câncer de mama: diagnóstico — Ministério da Saúde",
+    "url": "https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/c/cancer-de-mama",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "diagnostico confirmar biopsia exame fisico laudo resultado maligno benigno proximo passo investigacao",
+    "texto": "Síntese didática: a investigação de um caso suspeito começa pela avaliação clínica, com exame físico detalhado das mamas e das regiões axilares, cervicais e supraclaviculares. A biópsia é indicada quando há achados anormais no exame físico, na mamografia ou em outros exames complementares. A confirmação do câncer depende do laudo anatomopatológico emitido por profissional habilitado. A estimativa do modelo desta aplicação pode apoiar a priorização da revisão, mas não substitui essas etapas."
+  },
+  {
+    "id": "saude-dados-citologia",
+    "contexto": "saude",
+    "titulo": "Breast Cancer Wisconsin (Diagnostic) — UCI Machine Learning Repository",
+    "url": "https://archive.ics.uci.edu/dataset/17/breast+cancer+wisconsin+diagnostic",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "medidas variaveis modelo citologia puncao paaf nucleo celula radius texture perimeter area smoothness concavity worst mean significado explicar resultado",
+    "texto": "Síntese didática: as 30 medidas usadas pelo modelo vêm de imagens digitalizadas de punção aspirativa por agulha fina (PAAF) de uma massa mamária e descrevem os núcleos celulares. São dez características: raio, textura (desvio padrão dos tons de cinza), perímetro, área, suavidade (variação local do raio), compacidade, concavidade, pontos côncavos, simetria e dimensão fractal. Para cada uma há a média (mean), o erro padrão (error) e o pior valor (worst, média dos três maiores). São medidas de exame citológico, não sintomas relatados pela paciente."
+  },
+  {
+    "id": "saude-prazos-sus",
+    "contexto": "saude",
+    "titulo": "Lei 12.732/2012 (com redação da Lei 13.896/2019) — prazos no SUS para câncer",
+    "url": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2012/lei/l12732.htm",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "prazo dias espera tratamento exames sus direito demora 30 60 suspeita",
+    "texto": "Síntese didática: a Lei 12.732/2012 garante ao paciente com neoplasia maligna o direito de iniciar o primeiro tratamento no SUS em até 60 dias contados do diagnóstico em laudo patológico. Pela redação incluída pela Lei 13.896/2019, quando a principal hipótese diagnóstica for neoplasia maligna, os exames necessários à elucidação devem ser realizados em até 30 dias, mediante solicitação fundamentada do médico responsável."
+  },
+  {
+    "id": "seguranca-maria-da-penha",
+    "contexto": "seguranca",
+    "titulo": "Lei 11.340/2006 (Lei Maria da Penha)",
+    "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "violencia domestica companheiro marido namorado ex agressao bater empurrar xingar humilhar controlar dinheiro ameaca medo ciume casa familia",
+    "texto": "Síntese didática: a Lei Maria da Penha define violência doméstica e familiar contra a mulher como qualquer ação ou omissão baseada no gênero que cause morte, lesão, sofrimento físico, sexual ou psicológico e dano moral ou patrimonial. A lei descreve formas de violência física, psicológica, sexual, patrimonial, moral e vicária. A assistência à mulher em situação de violência doméstica é prestada em caráter prioritário no SUS e no Sistema Único de Segurança Pública. Identificar uma dessas formas em um relato exige escuta qualificada e avaliação do profissional."
+  },
+  {
+    "id": "seguranca-medidas-protetivas",
+    "contexto": "seguranca",
+    "titulo": "Lei 11.340/2006 — medidas protetivas de urgência",
+    "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "medida protetiva afastamento proibicao aproximacao juiz justica pedido proteger ameaca perseguicao",
+    "texto": "Síntese didática: as medidas protetivas de urgência previstas na Lei Maria da Penha podem ser concedidas pelo juiz, a requerimento do Ministério Público ou a pedido da ofendida. Cabe à mulher, com apoio da rede de atendimento, decidir sobre o pedido. Esta aplicação não solicita, recomenda de forma automática nem decide medidas protetivas; o profissional pode informar sobre esse direito e encaminhar conforme o protocolo da instituição."
+  },
+  {
+    "id": "seguranca-avaliacao-risco",
+    "contexto": "seguranca",
+    "titulo": "Lei 14.149/2021 — Formulário Nacional de Avaliação de Risco",
+    "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14149.htm",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "risco avaliacao perigo grave formulario escala ameaca morte arma feminicidio reincidencia",
+    "texto": "Síntese didática: a Lei 14.149/2021 institui o Formulário Nacional de Avaliação de Risco, aplicado à mulher vítima de violência doméstica e familiar para identificar fatores de risco e orientar ações de prevenção. A aplicação é feita preferencialmente pela Polícia Civil no registro da ocorrência, podendo também ser usada pelo Ministério Público, pelo Poder Judiciário e por outras entidades que atuem na área. A Guardiã AI não aplica esse formulário nem calcula escore de risco de violência."
+  },
+  {
+    "id": "seguranca-notificacao",
+    "contexto": "seguranca",
+    "titulo": "Lei 10.778/2003 (com redação da Lei 13.931/2019) — notificação compulsória",
+    "url": "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.778.htm",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "notificar notificacao obrigatoria comunicar policia servico saude registro dever profissional",
+    "texto": "Síntese didática: a Lei 10.778/2003 torna objeto de notificação compulsória os casos com indícios ou confirmação de violência contra a mulher atendida em serviços de saúde públicos e privados. Pela redação da Lei 13.931/2019, esses casos devem ser comunicados à autoridade policial em até 24 horas, para as providências cabíveis e para fins estatísticos. A notificação é responsabilidade do serviço e do profissional, segundo o fluxo institucional; a aplicação não envia comunicações."
+  },
+  {
+    "id": "seguranca-ligue180",
+    "contexto": "seguranca",
+    "titulo": "Ligue 180 — Central de Atendimento à Mulher",
+    "url": "https://www.gov.br/mulheres/pt-br/ligue180",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "telefone ligar denuncia denunciar ajuda orientacao central atendimento emergencia 180 190 whatsapp onde procurar",
+    "texto": "Síntese didática: o Ligue 180 é um serviço gratuito de utilidade pública que funciona 24 horas, todos os dias. Oferece orientação sobre leis, direitos das mulheres e serviços da rede de atendimento, informa a localização de serviços especializados e registra e encaminha denúncias aos órgãos competentes. Além do telefone 180, a página oficial informa atendimento por WhatsApp e e-mail. Em emergência, o canal indicado é a Polícia Militar, pelo 190."
+  },
+  {
+    "id": "seguranca-acolhimento",
+    "contexto": "seguranca",
+    "titulo": "Serviço de Acolhimento para Mulheres em Situação de Violência — MDS",
+    "url": "https://www.gov.br/mds/pt-br/acoes-e-programas/SUAS/unidades-de-atendimento/servico-de-acolhimento-para-mulheres-em-situacao-de-violencia",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "abrigo casa acolhimento sair de casa filhos dependentes protecao rede assistencia social cras creas lugar seguro",
+    "texto": "Síntese didática: o serviço de acolhimento busca proteção física e emocional da mulher e de seus dependentes, articulando a rede de assistência social e o Sistema de Justiça. A equipe deve considerar a autonomia da mulher e o apoio da rede de serviços. Esta aplicação não determina medidas de proteção automaticamente."
+  },
+  {
+    "id": "seguranca-privacidade",
+    "contexto": "seguranca",
+    "titulo": "Lei 14.847/2024 — atendimento privativo no SUS",
+    "url": "https://legislacao.presidencia.gov.br/atos/?ano=2024&ato=88coXQq1ENZpWT4fd&numero=14847&tipo=LEI",
+    "consultado_em": "2026-11-11",
+    "palavras_chave": "privacidade sigilo sala reservada sozinha conversar vergonha acompanhante escuta individual",
+    "texto": "Síntese didática: a lei trata do atendimento de mulheres vítimas de violência em ambiente privativo e individualizado nos serviços do SUS. Privacidade e acolhimento devem ser considerados pelo profissional responsável, conforme protocolos da instituição."
+  }
+]

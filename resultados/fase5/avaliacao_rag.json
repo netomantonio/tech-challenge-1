@@ -1,0 +1,69 @@
+{
+  "perguntas_no_escopo": 21,
+  "perguntas_fora_escopo": 5,
+  "documentos_na_base": 12,
+  "padrao": "stopwords + palavras-chave + prefixo 6",
+  "resultados": [
+    {
+      "configuracao": "v1 (palavras, sem stopwords)",
+      "acerto_top3": 0.7619047619047619,
+      "mrr": 0.634920634920635,
+      "precisao_media": 0.2698412698412698,
+      "abstencao_fora_escopo": 0.0,
+      "documentos_por_pergunta": 3.0,
+      "falhas": [
+        "Qual o próximo passo para confirmar o diagnóstico?",
+        "Tenho medo do meu companheiro, ele me ameaça",
+        "Para qual número ela pode ligar para pedir ajuda?",
+        "Ela não tem para onde ir com os filhos se sair de casa",
+        "Ela quer conversar sozinha, sem o acompanhante na sala"
+      ]
+    },
+    {
+      "configuracao": "stopwords",
+      "acerto_top3": 0.6666666666666666,
+      "mrr": 0.6428571428571429,
+      "precisao_media": 0.39682539682539675,
+      "abstencao_fora_escopo": 0.8,
+      "documentos_por_pergunta": 1.5714285714285714,
+      "falhas": [
+        "Tenho medo do meu companheiro, ele me ameaça",
+        "Meu marido controla meu dinheiro e me humilha",
+        "Ele me empurrou e bateu em mim ontem",
+        "Como ela pode pedir medida protetiva contra o ex?",
+        "Para qual número ela pode ligar para pedir ajuda?",
+        "Ela quer conversar sozinha, sem o acompanhante na sala",
+        "Prefere ser atendida em sala reservada por vergonha"
+      ]
+    },
+    {
+      "configuracao": "stopwords + palavras-chave",
+      "acerto_top3": 0.9523809523809523,
+      "mrr": 0.9523809523809523,
+      "precisao_media": 0.7619047619047619,
+      "abstencao_fora_escopo": 0.8,
+      "documentos_por_pergunta": 1.4285714285714286,
+      "falhas": [
+        "Ele me empurrou e bateu em mim ontem"
+      ]
+    },
+    {
+      "configuracao": "stopwords + palavras-chave + prefixo 5",
+      "acerto_top3": 1.0,
+      "mrr": 0.9761904761904762,
+      "precisao_media": 0.8174603174603173,
+      "abstencao_fora_escopo": 0.6,
+      "documentos_por_pergunta": 1.5238095238095237,
+      "falhas": []
+    },
+    {
+      "configuracao": "stopwords + palavras-chave + prefixo 6",
+      "acerto_top3": 1.0,
+      "mrr": 1.0,
+      "precisao_media": 0.8333333333333334,
+      "abstencao_fora_escopo": 0.6,
+      "documentos_por_pergunta": 1.4285714285714286,
+      "falhas": []
+    }
+  ]
+}

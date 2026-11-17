@@ -1,0 +1,57 @@
+GUARDIÃ AI — ROTEIRO FASE 5 (cerca de 13 minutos, limite 15)
+
+Antes de gravar: .env com FASE5_LLM_BACKEND=groq e chave válida; rodar
+python -m fase5.train e python -m fase5.app; abrir http://127.0.0.1:8050.
+Não mostrar o .env na tela.
+
+00:00–01:00 Apresentação
+Equipe e problema: apoio à análise inicial no atendimento de mulheres em
+investigação de câncer de mama, com espaço para relato de segurança. Deixar claro
+desde o início: o sistema apoia o profissional, não diagnostica nem decide.
+
+01:00–03:00 Dados e preparo
+Mostrar figuras de resultados/fase5/figuras (distribuição e correlação).
+Explicar: medidas de PAAF (exame, não sintoma), escalas diferentes -> padronização,
+raio/perímetro/área quase iguais, outliers mantidos porque são majoritariamente
+malignos. Mostrar a tabela de preparo testado por CV (exploracao.json).
+
+03:00–04:30 Modelos e métricas
+Regressão logística x Random Forest, escolha por recall maligno em CV no treino.
+Mostrar a tabela do README: 1 FN contra 3. Explicar o custo do falso negativo e
+do falso positivo e por que accuracy sozinha não basta.
+
+04:30–05:30 Arquitetura e base de conhecimento
+Desenho do fluxo LangGraph (modelo -> recuperação -> explicação -> auditoria) e
+knowledge.json: 12 sínteses com ID, URL e data. São resumos, não protocolos completos.
+
+05:30–08:30 Jornada principal na interface
+Caso "limítrofe com relato de segurança". Ler o relato sintético e clicar Analisar.
+Mostrar: estimativa (46,6%, não calibrada), contribuições em p.p. com valor e
+mediana, explicação da LLM com citações clicáveis, fontes com trecho e link
+oficial e a marcação "citada na explicação". Comentar que a resposta traz também
+orientações gerais que não estão nas fontes: por isso a revisão humana.
+Clicar "Concordo" e mostrar o registro.
+
+08:30–09:30 Erro do modelo
+Caso "falso negativo no teste": maligno no dataset, estimado como benigno (9%).
+Discutir o impacto do erro e por que a estimativa não exclui câncer.
+Observar que "medidas" recuperou também o documento de medidas protetivas:
+limite da busca lexical.
+
+09:30–10:30 Limites e abstenção
+Trocar a pergunta para algo fora da base (ex.: dose de insulina) e mostrar
+"nenhum documento relevante" e a LLM reconhecendo a falta de informação.
+Mostrar rejeição de medidas inválidas (apagar uma medida e analisar).
+
+10:30–11:30 Auditoria e avaliação
+Abrir auditoria.jsonl: ID, hashes, fontes citadas, decisão do profissional; sem
+relato. Mostrar avaliacao_rag.json (v1 x atual) e comparacao_llm.json (por que
+gpt-oss-20b e os três problemas encontrados).
+
+11:30–12:30 Testes e Docker
+Rodar os testes (9 passando). Mostrar Dockerfile e o smoke dentro do container.
+
+12:30–13:30 Relatório e próximos passos
+Relatório PDF. Próximos passos: busca semântica, avaliação de fidelidade da
+geração, validação com profissionais, autenticação.
+Publicar o vídeo e preencher o link e os integrantes no fase5/README.md.

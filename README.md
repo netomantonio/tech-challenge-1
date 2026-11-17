@@ -2,6 +2,17 @@
 
 ## FIAP Pós Tech - AI for Devs
 
+## Fase 5 - Guardiã AI
+
+Continuação em saúde e segurança da mulher: exploração e preparo dos dados, dois
+modelos comparados para medidas citológicas de câncer de mama, explicabilidade,
+consulta a 12 fontes públicas por RAG (com indicação da fonte citada) e explicação
+via LLM em fluxo LangGraph, com interface web, auditoria e registro da decisão do
+profissional. Consulte [execução, arquitetura, resultados e limites](fase5/README.md).
+Início: `python -m fase5.train` e `python -m fase5.app` (interface em
+http://127.0.0.1:8050, API em `/docs`). O modo padrão é demonstrativo sem LLM;
+a configuração Groq está documentada. Integrantes e link do vídeo: ver `fase5/README.md`.
+
 Este repositório reúne o projeto original de diagnóstico de câncer de mama
 desenvolvido na Fase 1 e suas continuações: a Fase 2, voltada à otimização de
 hiperparâmetros, escalabilidade e interpretação de resultados com LLM; a Fase 3,

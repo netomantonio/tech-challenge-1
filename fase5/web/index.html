@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guardiã AI</title>
+  <link rel="stylesheet" href="/static/styles.css?v=2">
+</head>
+<body>
+<header class="topo">
+  <div>
+    <h1>Guardiã AI</h1>
+    <p class="sub">Apoio à análise inicial do atendimento — saúde e segurança da mulher</p>
+  </div>
+  <span id="backend" class="selo">carregando…</span>
+</header>
+
+<p class="aviso" role="note">
+  <strong>Sistema de apoio ao profissional.</strong> Não faz diagnóstico, não prescreve e não decide
+  medidas de proteção. A decisão final é sempre da pessoa responsável pelo atendimento.
+  Use apenas dados públicos ou sintéticos, sem nomes ou documentos.
+</p>
+
+<main class="grade">
+  <form id="form" class="painel" autocomplete="off">
+    <h2>1. Dados do atendimento</h2>
+    <label for="exemplo">Caso de exemplo (conjunto de teste público)</label>
+    <select id="exemplo"></select>
+    <p id="exemplo-info" class="nota"></p>
+
+    <label for="pergunta">Pergunta do profissional</label>
+    <input id="pergunta" maxlength="1000" required minlength="3">
+
+    <label for="relato">Relato (opcional, sintético)</label>
+    <textarea id="relato" rows="5" maxlength="6000"
+              placeholder="Não informe nomes, endereços ou documentos."></textarea>
+    <p class="nota">O relato não entra no classificador: serve para consultar orientações na base de conhecimento.</p>
+
+    <details>
+      <summary>Medidas citológicas (30) — PAAF, dataset Wisconsin</summary>
+      <p class="nota">Medidas de exame, não sintomas. O modelo exige as 30.</p>
+      <div id="medidas" class="medidas"></div>
+    </details>
+
+    <button id="analisar" type="submit">Analisar</button>
+    <p id="erro" class="erro" role="alert" hidden></p>
+  </form>
+
+  <section id="resultado" class="painel" aria-live="polite">
+    <h2>2. Análise de apoio</h2>
+    <p id="vazio" class="nota">Escolha um caso e clique em Analisar. O fluxo executa: modelo → consulta à base →
+      explicação pela LLM → registro de auditoria.</p>
+    <div id="saida" hidden>
+      <div class="cartao">
+        <h3>Estimativa do modelo</h3>
+        <p id="classe" class="classe"></p>
+        <div class="barra" aria-hidden="true"><span id="barra-prob"></span></div>
+        <p id="prob" class="nota"></p>
+      </div>
+
+      <div class="cartao">
+        <h3>O que mais influenciou esta estimativa</h3>
+        <p class="nota">Variação da probabilidade de maligno, em pontos percentuais (p.p.), ao trocar cada medida
+          pela mediana do treino. Valores positivos puxaram para maligno. Não é relação causal.</p>
+        <ul id="contribuicoes" class="contrib"></ul>
+      </div>
+
+      <div class="cartao">
+        <h3>Explicação <span id="provedor" class="selo pequeno"></span></h3>
+        <div id="explicacao" class="explicacao"></div>
+        <p id="cit-invalidas" class="erro" hidden></p>
+      </div>
+
+      <div class="cartao">
+        <h3>Fontes consultadas (RAG)</h3>
+        <p id="fontes-vazio" class="nota" hidden>Nenhum documento da base foi relevante para a pergunta.
+          A resposta deve reconhecer que a informação é insuficiente.</p>
+        <ol id="fontes" class="fontes"></ol>
+      </div>
+
+      <div class="cartao revisao">
+        <h3>3. Decisão do profissional</h3>
+        <p class="nota">Registre se concorda com a análise. A decisão fica na auditoria junto com o ID da análise.</p>
+        <div class="botoes">
+          <button type="button" data-decisao="concordo">Concordo</button>
+          <button type="button" data-decisao="discordo">Discordo</button>
+          <button type="button" data-decisao="inconclusivo">Inconclusivo</button>
+        </div>
+        <p id="revisao-status" class="nota"></p>
+        <p class="nota mono" id="auditoria"></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">
+  Protótipo acadêmico — Tech Challenge Fase 5 · <a href="/docs">API (/docs)</a>
+</footer>
+<script src="/static/app.js?v=2"></script>
+</body>
+</html>

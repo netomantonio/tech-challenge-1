@@ -181,3 +181,17 @@ secrets.json
 *.tmp
 *.bak
 /.venv-fase3/
+
+# Artefatos reproduzíveis e auditoria local da Guardiã AI.
+!resultados/fase5/
+resultados/fase5/*
+!resultados/fase5/metricas.json
+!resultados/fase5/exemplos.json
+!resultados/fase5/validacao_docker.json
+!resultados/fase5/validacao_llm.json
+!resultados/fase5/exploracao.json
+!resultados/fase5/avaliacao_rag.json
+!resultados/fase5/comparacao_llm.json
+!resultados/fase5/figuras/
+resultados/fase5/modelo.joblib
+resultados/fase5/auditoria.jsonl

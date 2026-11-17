@@ -1,0 +1,86 @@
+{
+  "dataset": "sklearn Wisconsin Diagnostic Breast Cancer",
+  "samples": 569,
+  "train": 455,
+  "test": 114,
+  "features": 30,
+  "missing": 0,
+  "classes_0_maligno_1_benigno": [
+    212,
+    357
+  ],
+  "selection": "Maior recall maligno CV no treino; desempate por F1 CV. Teste não seleciona modelo.",
+  "selected": "regressao_logistica",
+  "models": {
+    "regressao_logistica": {
+      "cv_recall_maligno": 0.9647058823529411,
+      "cv_f1_maligno": 0.9703076003026379,
+      "accuracy": 0.9824561403508771,
+      "precision_maligno": 0.9761904761904762,
+      "recall_maligno": 0.9761904761904762,
+      "f1_maligno": 0.9761904761904762,
+      "matriz_confusao_ordem_0_1": [
+        [
+          41,
+          1
+        ],
+        [
+          1,
+          71
+        ]
+      ],
+      "falsos_negativos_malignos": 1
+    },
+    "random_forest": {
+      "cv_recall_maligno": 0.9529411764705881,
+      "cv_f1_maligno": 0.9503440275925674,
+      "accuracy": 0.956140350877193,
+      "precision_maligno": 0.9512195121951219,
+      "recall_maligno": 0.9285714285714286,
+      "f1_maligno": 0.9397590361445783,
+      "matriz_confusao_ordem_0_1": [
+        [
+          39,
+          3
+        ],
+        [
+          2,
+          70
+        ]
+      ],
+      "falsos_negativos_malignos": 3
+    }
+  },
+  "importance_global_recall_drop": {
+    "mean radius": 0.0047619047619047675,
+    "mean texture": 0.0,
+    "mean perimeter": 0.0023809523809523838,
+    "mean area": 0.0023809523809523838,
+    "mean smoothness": 0.0,
+    "mean compactness": 0.0023809523809523838,
+    "mean concavity": 0.0,
+    "mean concave points": 0.0,
+    "mean symmetry": 0.0,
+    "mean fractal dimension": 0.0,
+    "radius error": -0.0023809523809523838,
+    "texture error": 0.0071428571428571504,
+    "perimeter error": 0.0,
+    "area error": 0.0,
+    "smoothness error": 0.0,
+    "compactness error": 0.0071428571428571504,
+    "concavity error": 0.0,
+    "concave points error": 0.0,
+    "symmetry error": 0.0047619047619047675,
+    "fractal dimension error": 0.0,
+    "worst radius": 0.009523809523809535,
+    "worst texture": 0.02857142857142857,
+    "worst perimeter": 0.009523809523809535,
+    "worst area": 0.009523809523809535,
+    "worst smoothness": 0.030952380952380953,
+    "worst compactness": 0.0,
+    "worst concavity": 0.009523809523809535,
+    "worst concave points": 0.011904761904761918,
+    "worst symmetry": 0.016666666666666684,
+    "worst fractal dimension": 0.0
+  }
+}

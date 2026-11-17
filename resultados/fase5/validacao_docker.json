@@ -1,0 +1,11 @@
+{
+  "data_local": "2026-11-11",
+  "imagem": "guardia-fase5",
+  "comando": "docker run --rm guardia-fase5 python -m fase5.smoke",
+  "exit_code": 0,
+  "get_interface": 200,
+  "get_health": 200,
+  "post_analisar": 200,
+  "auditoria": true,
+  "modo": "demo-sem-llm"
+}
