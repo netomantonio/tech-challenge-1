@@ -190,7 +190,7 @@ src/
 tests/
   test_fase2.py
   test_fase3.py
-  test_fase4*.py          # 7 arquivos: pipeline, Azure, backends, áudio local, tempo real, entrega, PhysioNet
+  test_fase4*.py          # 10 arquivos Python: regras, serviços, backends, dados, regressões e interface
   test_cloudflare.py      # equivalência do manifesto e validação do Turnstile
 Dockerfile
 requirements.txt
@@ -676,12 +676,19 @@ vídeo ainda serão realizadas pela equipe antes da entrega final.
 
 ## Fase 4 - Monitoramento Multimodal de Pacientes
 
-Na Fase 4, o hospital passa a monitorar os pacientes continuamente a partir de
-dados multimodais. O pipeline analisa vídeo de sessões de fisioterapia, áudio
+Na Fase 4, implementamos um protótipo de monitoramento multimodal de pacientes.
+O pipeline analisa vídeo de sessões de fisioterapia, áudio
 de consultas médicas e séries temporais de sinais vitais, prescrições e
 movimentação no leito; funde os achados das três modalidades em quadros
 clínicos; e emite alertas automáticos para a equipe. Mantivemos o módulo
 isolado em `fase4/`, como na Fase 3.
+
+O monitor reproduz sinais vitais gravados de forma incremental. Áudio, vídeo,
+prescrições, movimentação e fusão são processados em lote; não há aquisição
+contínua de equipamentos hospitalares. Os clipes UCF101 demonstram os modelos
+em pessoas filmadas, sem validar falhas clínicas. A fala sintetizada permite
+avaliar transcrição e linguagem, mas não comprova detecção clínica de fadiga
+ou disartria em voz natural.
 
 ### Cobertura técnica
 
@@ -695,7 +702,7 @@ isolado em `fase4/`, como na Fase 3.
 | Alterações vocais (cansaço, esforço respiratório, disartria) | `fase4/audio_analysis.py` (4 regras acústicas) |
 | Azure Speech to Text | `fase4/azure_services.py` |
 | Azure Text Analytics (sentimento, entidades clínicas e termos críticos) | `fase4/azure_services.py` + léxico institucional |
-| Transcrição em fala real sem credencial (demonstração) | `--provedor-azure local` (faster-whisper) + `fase4/data/gerar_fala_tts.py` |
+| Transcrição de fala sintetizada inteligível sem credencial (demonstração) | `--provedor-azure local` (faster-whisper) + `fase4/data/gerar_fala_tts.py` |
 | Anomalias em séries de sinais vitais | `fase4/anomaly_detection.py` (4 detectores) |
 | Anomalias na evolução de prescrições | 3 regras em `fase4/anomaly_detection.py` |
 | Padrões de movimentação na internação | 2 regras em `fase4/anomaly_detection.py` |
@@ -724,7 +731,14 @@ em `fase4/README.md`.
 | `PAC-0006` | Pós-operatório de mastectomia com deterioração no turno | vídeo, áudio, sinais vitais, prescrições, movimentação |
 | `PAC-0002` | Caso estável (controle de especificidade) | áudio, sinais vitais, prescrições, movimentação |
 
-### Resultado final
+### Resultados do experimento de referência (anotado/offline)
+
+A tabela abaixo corresponde a `resultados/fase4/resumo_execucao.json`, com
+vídeo anotado e áudio sintético `consulta.wav` no modo offline. Não representa
+a execução Azure com `consulta_fala.wav`, cujas evidências estão em
+`resultados/fase4/azure_real/`. Nessa execução Azure, também foram gerados
+seis alertas no PAC-0006 e nenhum no PAC-0002, mas os achados e o risco do
+controle diferem: o risco é 8,8, em vez de 6,5.
 
 | Métrica | `PAC-0006` | `PAC-0002` |
 | --- | ---: | ---: |

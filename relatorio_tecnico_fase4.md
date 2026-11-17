@@ -251,7 +251,7 @@ a média dos scores ponderada pelo tamanho de cada documento.
 
 Há um terceiro provedor só para a transcrição, `local`, que roda o
 faster-whisper (modelo `small`, CPU, int8) na própria máquina. Ele existe
-para demonstrar reconhecimento de fala real sem credencial da Azure e precisa
+para demonstrar reconhecimento de fala inteligível sem credencial da Azure e precisa
 ser pedido explicitamente: `auto` continua escolhendo entre `azure` e
 `offline`. Quando a transcrição vem de um reconhecedor real e há transcrição
 de referência ao lado do WAV, o relatório calcula a taxa de erro de palavras
@@ -700,15 +700,15 @@ alertas após consolidação (4 em 11 horas) é compatível com um painel de
 plantão, e que o detector online reproduz o lote. O relatório completo está
 em `resultados/fase4/physionet/p044083-2112-05-04-19-50n/relatorio_physionet.md`.
 
-### 5.11 Fala real com transcrição local
+### 5.11 Fala sintetizada inteligível com transcrição local (experimento histórico)
 
 O `consulta.wav` sintético não tem palavras. Para exercitar a camada de
-linguagem em fala real, `fase4/data/gerar_fala_tts.py` lê a transcrição de
+linguagem com fala sintetizada inteligível, `fase4/data/gerar_fala_tts.py` lê a transcrição de
 referência de cada paciente com a voz pt-BR do Windows (Microsoft Maria),
 preserva as pausas da referência e grava `consulta_fala.wav` (24,9 s para o
 `PAC-0006`, 14,3 s para o `PAC-0002`). O pipeline foi executado com
 `--audio consulta_fala.wav --provedor-azure local` e os resultados estão em
-`resultados/fase4/fala_real/`:
+`resultados/fase4/fala_real/` (nome histórico da pasta, não indicação de voz natural):
 
 | | `PAC-0006` | `PAC-0002` |
 | --- | ---: | ---: |
@@ -717,22 +717,27 @@ preserva as pausas da referência e grava `consulta_fala.wav` (24,9 s para o
 | Termos críticos encontrados | sem ar, aperto no peito, febre, muito cansada, não aguento, dor aumentou | nenhum |
 | Sentimento (léxico) | negativo | positivo |
 
-A transcrição real do `PAC-0006` reproduziu palavra a palavra a referência e
+A transcrição pelo reconhecedor local do `PAC-0006` reproduziu palavra a palavra a referência e
 o léxico encontrou todos os seis termos críticos, com instante por segmento;
 no `PAC-0002`, os erros do reconhecedor não criaram nenhum falso termo
-crítico. É o comportamento que a Azure deve ter quando for executada com a
-mesma gravação.
+crítico. Esse resultado pertence ao provedor local; a execução efetiva do
+Azure, com resultados próprios, está documentada na seção 5.9.
 
-Dois resultados secundários são informativos. Primeiro, as regras acústicas
-calibradas no sinal sintético não se aplicam à voz do TTS: a variação da F0
-medida fica em 0,022 nas duas gravações (contra o corte de 0,0025) e a
-instabilidade vocal dispara para os dois pacientes, enquanto a fadiga vocal e
-o padrão disartrico não disparam para nenhum. A voz sintetizada é articulada
-e estável por construção, e o nosso *jitter* não é o da acústica clínica
-(§4.2): o resultado confirma a limitação já declarada, não a contradiz.
-Segundo, a fala entrecortada disparou no `PAC-0006` porque as pausas da
-referência foram preservadas — a regra responde ao padrão temporal da fala,
-e não à voz.
+Os relatórios preservados nessa pasta foram gerados antes da salvaguarda
+atual para TTS e não representam o comportamento vigente das regras vocais.
+Naquela execução, a variação da F0 ficou em aproximadamente 0,022 nas duas
+gravações e gerou instabilidade vocal em ambos os casos; a fala entrecortada
+também disparou no `PAC-0006`. Esses disparos expuseram a inadequação de
+interpretar a voz sintetizada como evidência clínica e motivaram a correção.
+
+No código atual, `audio_analysis.analisar_consulta` verifica a origem
+declarada no arquivo de referência: quando ela começa com `tts_`, preserva
+as medidas acústicas como descrição do sinal, mas não aplica as regras de
+alterações vocais. A transcrição e a análise textual continuam ativas. O
+teste `test_tts_preserva_conteudo_sem_avaliar_voz` verifica essa proteção.
+A restrição depende dos metadados, não de detecção automática de TTS.
+As saídas Azure atuais estão em `resultados/fase4/azure_real/`; nem esse
+experimento histórico nem o atual validam fadiga ou disartria em voz natural.
 
 ### 5.12 Avaliação em vídeos reais — UCF101
 
@@ -837,7 +842,7 @@ python -m unittest discover -s tests -v
 ```
 
 São 274 testes no total: os 74 das fases anteriores, que continuam passando, e
-200 desta fase, em onze arquivos. Nenhum depende de rede, de chave da Azure
+200 desta fase, em dez arquivos Python. Nenhum depende de serviços externos, de chave da Azure
 nem dos pacotes opcionais: o pipeline usa o modo offline, os SDKs da Azure, o
 MediaPipe, o YOLOv8 e o faster-whisper são substituídos por módulos falsos
 injetados em `sys.modules`, e o webhook é testado contra um servidor HTTP
@@ -845,11 +850,17 @@ local. As amostras são geradas em diretório temporário.
 
 Os testes da Fase 4 cobrem, entre outros:
 
-Na execução desta revisão, 273 testes passaram e um foi ignorado porque o
+Na revisão registrada em 3 de novembro de 2026, 273 testes passaram e um foi ignorado porque o
 pacote opcional `wfdb` não estava instalado. O teste de interface em
 `tests/test_fase4_web_ui.mjs` também passou, verificando as opções dos
 seletores e os valores enviados à API. As execuções reais do UCF101 são
-registradas separadamente dos testes com modelos simulados.
+registradas separadamente dos testes com modelos simulados. O arquivo
+JavaScript é separado e não integra a contagem dos 200 testes Python.
+
+Na conferência de 16 de novembro de 2026, executamos novamente os dez
+arquivos Python da Fase 4: 199 testes passaram e um foi ignorado pela
+ausência de `wfdb`. Essa conferência não repetiu os testes das fases
+anteriores nem o teste JavaScript e não fez novas chamadas aos serviços Azure.
 
 | Grupo | Verificações |
 | --- | --- |

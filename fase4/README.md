@@ -185,7 +185,7 @@ entidade que casa herda a categoria e o peso) e sintomas fora do léxico com
 confiança alta entram como termos informativos. Textos longos são divididos
 em documentos de até 5.000 caracteres, o limite do serviço.
 
-O provedor `local` existe para demonstrar Speech to Text em fala real sem
+O provedor `local` existe para demonstrar reconhecimento de fala inteligível sem
 credencial; `auto` nunca o escolhe. Quando a transcrição vem de um
 reconhecedor real (`azure` ou `local`) e há transcrição de referência ao lado
 do WAV, o relatório mostra a taxa de erro de palavras (WER).
@@ -239,9 +239,12 @@ Uma sessão deve enquadrar apenas o paciente para evitar troca de pessoa.
 Os alertas são apresentados no terminal e nos relatórios; não há envio a um
 sistema hospitalar externo.
 
-A entrega ainda exige executar os serviços Azure com áudio inteligível,
-validar a análise com vídeo autorizado e gravar/publicar a demonstração de
-até 15 minutos no YouTube ou Vimeo. O modo offline não substitui essas etapas.
+Os serviços Azure já foram executados com os áudios inteligíveis sintetizados
+dos dois pacientes; as evidências estão em `resultados/fase4/azure_real/`.
+Ainda faltam uma avaliação com vídeo clínico autorizado e fala natural com
+alterações vocais anotadas para fortalecer as evidências clínicas. O vídeo
+demonstrativo está em gravação e aguarda conclusão e publicação no YouTube
+ou Vimeo, com até 15 minutos. O modo offline não substitui a integração Azure.
 
 ### Anomalias (`anomaly_detection.py`)
 
@@ -296,8 +299,10 @@ Três mecanismos evitam fadiga de alarme:
   sustentam não geram alerta próprio;
 - **supressão temporal**: o mesmo grupo não é reenviado dentro de 15 minutos.
 
-No `PAC-0006` isso leva 37 achados notificáveis a 6 alertas, cada um roteado
-para as equipes das modalidades envolvidas.
+No experimento de referência com dados sintéticos e provedores anotado/offline,
+o `PAC-0006` passa de 37 achados notificáveis a 6 alertas, cada um roteado
+para as equipes das modalidades envolvidas. Essa contagem não deve ser
+confundida com a execução Azure, que utiliza outro arquivo de áudio.
 
 Cada alerta é entregue por canais (`CanalEntrega`): a fila
 `fila_alertas.jsonl` na pasta da execução (sempre) e um webhook HTTP quando
@@ -355,7 +360,7 @@ sintetizada) e `physionet/` (validação em dados reais).
 python -m unittest discover -s tests -p "test_fase4*.py" -v
 ```
 
-São 200 testes em onze arquivos, sem rede, sem chave da Azure e sem os
+São 200 testes Python em dez arquivos, sem acesso a serviços externos, sem chave da Azure e sem os
 pacotes opcionais: `test_fase4` (pipeline e regras), `test_fase4_azure`
 (SDKs Speech e Text Analytics simulados), `test_fase4_backends` (MediaPipe e
 YOLOv8 falsos lendo o vídeo real), `test_fase4_audio_local` (disartria, WER,
@@ -363,7 +368,10 @@ whisper falso, TTS), `test_fase4_tempo_real` (Isolation Forest online, NaN),
 `test_fase4_entrega` (fila e webhook com servidor local),
 `test_fase4_physionet` (conversão do registro) e `test_fase4_web` (API da
 interface: processamento, SSE, jobs, uploads, ROI, webhook). As amostras são
-geradas em diretório temporário.
+geradas em diretório temporário. Os arquivos `test_fase4_ucf101.py` e
+`test_fase4_regressao_queixas.py` completam a suíte Python. O teste JavaScript
+da interface está em um arquivo separado e deve ser executado com
+`node tests/test_fase4_web_ui.mjs`; ele não faz parte dos 200 testes Python.
 
 ### Avaliação em vídeos reais — UCF101
 
@@ -421,9 +429,14 @@ nuvem. As saídas corrigidas estão em `resultados/fase4/azure_real/`.
 
 O relatório original está em `resultados/fase4/azure_registro/`, identificado
 como histórico. Os relatórios principais e os resultados do front foram
-regenerados pela API com Azure e vídeo anotado. Nesta revisão, a suíte completa teve 273 aprovações e um
+regenerados pela API com Azure e vídeo anotado. Na revisão de 3 de novembro de 2026, a suíte completa teve 273 aprovações e um
 teste ignorado pela ausência de `wfdb`; o teste dos seletores do frontend
 também passou (`node tests/test_fase4_web_ui.mjs`).
+
+Na conferência de 16 de novembro de 2026, a suíte Python da Fase 4 foi
+executada novamente: 199 testes aprovados e um ignorado por ausência de
+`wfdb`, totalizando 200 testes em dez arquivos. As fases anteriores e o
+teste JavaScript não foram executados novamente nessa conferência.
 ### Validação de queixas e áudios de demonstração
 
 Na integração com o Azure Language, verificamos a presença textual dos termos,
