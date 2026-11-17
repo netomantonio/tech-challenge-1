@@ -2,11 +2,15 @@
 
 ## 1. Escopo
 
-Nesta fase, implementamos o monitoramento contínuo de pacientes a partir de
-dados multimodais. O sistema analisa vídeo de sessões de fisioterapia, áudio
+Nesta fase, implementamos um protótipo de monitoramento multimodal de pacientes.
+O sistema analisa vídeo de sessões de fisioterapia, áudio
 de consultas médicas e séries temporais de sinais vitais, prescrições e
 movimentação no leito; combina os achados das três modalidades; e emite
 alertas automáticos para a equipe médica.
+
+O monitor de sinais vitais reproduz leituras gravadas de forma incremental.
+Áudio, vídeo, prescrições, movimentação e fusão multimodal são processados em
+lote. A demonstração não realiza aquisição contínua de equipamentos hospitalares.
 
 Mantivemos o módulo isolado em `fase4/`, como fizemos com a Fase 3, para não
 alterar o funcionamento das fases anteriores. As 74 verificações automatizadas
@@ -17,8 +21,11 @@ Os dados principais são sintéticos e gerados pelo próprio repositório. As
 execuções complementares incluem vídeos UCF101, um registro real de
 monitor de leito do PhysioNet (§5.10) e uma consulta com fala inteligível
 sintetizada pela voz do sistema operacional, transcrita por um reconhecedor
-real (§5.11). Nenhum resultado foi validado para uso assistencial: qualquer
-conduta exige avaliação do profissional responsável.
+real (§5.11). Os clipes UCF101 demonstram a execução dos modelos em pessoas
+filmadas, mas não validam a detecção de falhas clínicas. A fala sintetizada
+permite avaliar transcrição e linguagem, mas não comprova detecção clínica
+de fadiga ou disartria em voz natural. Nenhum resultado foi validado para uso
+assistencial: qualquer conduta exige avaliação do profissional responsável.
 
 ## 2. Dados
 
@@ -894,12 +901,19 @@ PhysioNet, fala transcrita por serviços locais e Azure e três vídeos UCF101.
 A revisão dos resultados levou a duas mudanças: exigir suporte textual
 para os termos críticos e separar falta de detecção de ausência de
 acompanhamento. Essas decisões tornam a interpretação mais fiel ao que os
-dados permitem observar. Permanecem como etapas de entrega a consolidação no repositório remoto
-e a gravação/publicação do vídeo de até 15 minutos. Para demonstrar os
-requisitos clínicos com evidências mais fortes, faltam uma sessão clínica
+dados permitem observar. O código e os principais artefatos da Fase 4 já estão
+publicados na branch `main` do repositório remoto. O vídeo demonstrativo de até
+15 minutos está em gravação; sua conclusão e publicação no YouTube ou Vimeo
+permanecem pendentes. Para demonstrar os requisitos clínicos com evidências
+mais fortes, faltam uma sessão clínica
 filmada e uma avaliação vocal com fala natural e referências anotadas.
-Os clipes UCF101 não substituem essa avaliação, e a reprodução incremental
-de sinais gravados não equivale à integração com um monitor hospitalar. A avaliação clínica com pacientes reais é trabalho futuro.
+Os clipes UCF101 demonstram os modelos em pessoas filmadas, sem validar
+detecção de falhas clínicas. A fala sintetizada permite avaliar transcrição
+e linguagem, mas não comprova detecção clínica de fadiga ou disartria em voz
+natural. O monitor reproduz sinais gravados de forma incremental; áudio,
+vídeo e fusão multimodal são processados em lote. Essa reprodução não equivale
+à aquisição contínua de um monitor hospitalar. A avaliação clínica com
+pacientes reais é trabalho futuro.
 
 ## Referências
 

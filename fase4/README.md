@@ -444,10 +444,13 @@ Para fortalecer a demonstração dos requisitos clínicos, falta avaliar uma
 sessão clínica filmada com desvios de referência e fala natural com alterações
 vocais anotadas. Os três clipes UCF101 demonstram execução dos modelos em
 pessoas filmadas, sem comprovar detecção de falhas clínicas. A reprodução
-incremental dos sinais não corresponde à aquisição contínua de um monitor.
+incremental dos sinais gravados não corresponde à aquisição contínua de um
+monitor hospitalar. Áudio, vídeo e fusão multimodal são processados em lote.
+A fala sintetizada permite avaliar transcrição e linguagem, mas não comprova
+detecção clínica de fadiga ou disartria em voz natural.
 
-A entrega ainda exige consolidar e publicar as alterações no repositório
-remoto e gravar o vídeo demonstrativo de até 15 minutos no YouTube ou Vimeo.
-O roteiro está em `docs/script_video_demonstracao_fase4.txt`; a publicação
-não foi comprovada nesta revisão. Treinar um modelo próprio não é uma
-exigência explícita do enunciado.
+O código e os principais artefatos da Fase 4 já estão publicados na branch
+`main` do repositório remoto. O vídeo demonstrativo de até 15 minutos está
+em gravação; sua conclusão e publicação no YouTube ou Vimeo permanecem
+pendentes. O roteiro está em `docs/script_video_demonstracao_fase4.txt`.
+Treinar um modelo próprio não é uma exigência explícita do enunciado.
